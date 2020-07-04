@@ -1,0 +1,8 @@
+\echo [M] call db.sql
+\ir db.sql
+
+\echo [M] call events.sql
+\ir events.sql
+
+\ir './calendar/calendar.psql'
+\ir './tariff/tariff.psql'

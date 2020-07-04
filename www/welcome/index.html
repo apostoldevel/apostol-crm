@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="description" content="Апостол Веб Сервис: Авторизация">
+
+    <!-- Required meta tags -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Google SignIn -->
+    <meta name="google-signin-scope" content="profile email">
+    <meta name="google-signin-client_id" content=".apps.googleusercontent.com">
+
+    <!-- SignIn -->
+    <meta name="signin-scope" content="api">
+    <meta name="signin-client_id" content="web-apostol-web-service.ru">
+
+    <title>Авторизация | Апостол Веб Сервис</title>
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="/assets/vendor/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+
+    <!-- Favicons -->
+    <link href="/assets/img/favicon.png" rel="icon">
+    <link href="/assets/img/apple-touch-icon.png" rel="apple-touch-icon">
+
+    <!-- Custom styles for this template -->
+    <link href="/assets/css/fonts.css" rel="stylesheet" type="text/css">
+    <link href="/assets/css/main.css" rel="stylesheet" type="text/css">
+    <link href="/assets/css/floating-labels.css" rel="stylesheet" type="text/css">
+</head>
+
+<body>
+<div class="form-signin">
+    <form id="formSignIn" class="needs-validation" novalidate>
+        <div class="text-center mb-4">
+            <h3 class="h3 mb-3 font-weight-normal">Добро пожаловать в</h3>
+            <h2 class="h2 mb-3 font-weight-normal">Апостол Веб Сервис</h2>
+        </div>
+
+        <button id="btnSignIn" class="btn btn-lg btn-primary btn-block" type="button" onclick="oauthSignIn()">Войти</button>
+        <button id="btnSignInGoogle" class="btn btn-lg btn-primary btn-block" type="button" onclick="oauthSignInGoogle()">Войти через Google</button>
+        <div id="alertMessage" class="text-center invalid-feedback">
+        </div>
+
+        <div id="g-signin2" class="mt-3" data-width="200" data-height="48" data-longtitle="false"></div>
+
+        <div class="text-center mb-4">
+            <p class="text-center">Продолжая, вы соглашаетесь с <a href="#">Условиями использования</a> и <a href="#">Политикой конфиденциальности</a>.</p>
+        </div>
+
+        <hr class="my-1">
+        <p class="mt-3 text-muted text-center">© Апостол Веб Сервис 2020</p>
+    </form>
+</div>
+<!-- Optional JavaScript -->
+<!-- jQuery first, then Popper.js, then Bootstrap JS -->
+<script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+<script src="https://apis.google.com/js/platform.js?onload=init" async defer></script>
+<script src="/assets/vendor/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+<script>
+    function empty(e) {
+        switch (e) {
+            case "":
+            case 0:
+            case false:
+            case null:
+            case undefined:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /*
+     * Create and send form to server.
+     */
+    function SendForm(params, action, method = 'GET') {
+        // Create <form> element to submit parameters.
+        let form = document.createElement('form');
+        form.setAttribute('method', method);
+        form.setAttribute('action', action);
+
+        // Add form parameters as hidden input values.
+        for (let i in params) {
+            let input = document.createElement('input');
+            input.setAttribute('type', 'hidden');
+            input.setAttribute('name', i);
+            input.setAttribute('value', params[i]);
+            form.appendChild(input);
+        }
+
+        console.log(form);
+
+        // Add form to page and submit.
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    /**
+     * @return {json}
+     */
+    async function AsyncFetch (path, method = "GET", body = null, initHeaders = {}) {
+
+        const apiPath = `/api/v1${path}`;
+
+        console.log(method + ' ' + apiPath);
+
+        let headers = new Headers(initHeaders);
+
+        const AccessToken = localStorage.getItem('AccessToken');
+
+        if (!empty(AccessToken)) {
+            headers.append('Authorization', `Bearer ${AccessToken}`)
+        }
+
+        // await response of fetch call
+        let response = await fetch(apiPath, {
+            method: method,
+            headers: headers,
+            body: body,
+            mode: "cors",
+            cache: "no-store",
+            credentials: 'omit'
+        });
+
+        const json = await response.json();
+
+        console.log(JSON.stringify(json, undefined, 2));
+
+        return json;
+    }
+
+    /*
+     * Create form to request access token from Апостол Веб Сервис's OAuth 2.0 server.
+     */
+    function oauthSignIn() {
+        let oauth2Endpoint = '/oauth2/authorize';
+
+        // Parameters to pass to OAuth 2.0 endpoint.
+        let params = {
+            client_id: $("meta[name='signin-client_id']").attr("content"),
+            //redirect_uri: 'https://apostol-web-service.ru/oauth2/code',
+            redirect_uri: 'http://localhost:8080/oauth2/code',
+            scope: 'api',
+            response_type: 'code',
+            access_type: 'online',
+            state: 'SignIn'
+        };
+
+        SendForm(params, oauth2Endpoint);
+    }
+
+    /*
+     * Create form to request access token from Google's OAuth 2.0 server.
+     */
+    function oauthSignInGoogle() {
+        let oauth2Endpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
+
+        // Parameters to pass to OAuth 2.0 endpoint.
+        let params = {
+            client_id: $("meta[name='google-signin-client_id']").attr("content"),
+            //redirect_uri: 'https://apostol-web-service.ru/oauth2/code/google',
+            redirect_uri: 'http://localhost:8080/oauth2/code/google',
+            scope: 'openid profile email',
+            response_type: 'code',
+            access_type: 'online', //need if response_type: 'code'
+            include_granted_scopes: true,
+            prompt: 'select_account',
+            state: 'SignIn'
+        };
+
+        SendForm(params, oauth2Endpoint);
+    }
+
+    function GoogleSignOut() {
+        let GoogleAuth = gapi.auth2.getAuthInstance();
+        if (GoogleAuth !== null) {
+            GoogleAuth.signOut();
+            GoogleAuth.disconnect();
+        }
+    }
+
+    function onSuccess(GoogleUser) {
+        const access_token = GoogleUser.getAuthResponse().access_token;
+        const id_token = GoogleUser.getAuthResponse().id_token;
+
+        console.log(access_token);
+        console.log(id_token);
+
+        const profile = GoogleUser.getBasicProfile();
+
+        console.log('Id: ' + profile.getId());
+        console.log('Full Name: ' + profile.getName());
+        console.log('Given Name: ' + profile.getGivenName());
+        console.log('Family Name: ' + profile.getFamilyName());
+        console.log('Image URL: ' + profile.getImageUrl());
+        console.log('Email: ' + profile.getEmail());
+
+        //SetOfGoogleUser(GoogleUser);
+        GoogleSignOut();
+    }
+
+    function SetOfGoogleUser(GoogleUser) {
+        const profile = GoogleUser.getBasicProfile();
+        $("select[id='type']").val('physical');
+        OnChangeType();
+
+        $("input[id='username']").val(profile.getId());
+        $("input[id='first']").val(profile.getGivenName());
+        $("input[id='last']").val(profile.getFamilyName());
+        $("input[id='email']").val(profile.getEmail());
+
+        //SignUp($("meta[name='google-signin-client_id']").attr("content"), profile.getId());
+    }
+
+    function onFailure(error) {
+        console.log(error);
+    }
+
+    function RenderButton() {
+        gapi.signin2.render('g-signin2', {
+            scope: 'profile email',
+            width: 390,
+            height: 48,
+            longtitle: false,
+            theme: 'dark',
+            prompt: 'select_account',
+            onsuccess: onSuccess,
+            onfailure: onFailure
+        });
+    }
+
+    function init() {
+        gapi.load('auth2', function() {
+            //RenderButton();
+        });
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+\echo [M] make.psql
+\ir sets.conf
+\echo [M] Создание пользователей kernel, admin и daemon
+\ir './platform/kernel/users.sql'
+\ir kernel.psql
+\q

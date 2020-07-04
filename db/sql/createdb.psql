@@ -1,0 +1,5 @@
+\echo [M] createdb.psql
+\ir sets.conf
+\echo [M] Создание новой базы данных :dbname
+\ir './platform/kernel/database.sql'
+\q

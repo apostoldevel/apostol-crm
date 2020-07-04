@@ -1,0 +1,12 @@
+\echo [M] call db.sql
+\ir db.sql
+
+\echo [M] call events.sql
+\ir events.sql
+
+\echo [M] call api.sql
+\ir api.sql
+
+\ir './address/address.psql'
+\ir './client/client.psql'
+\ir './card/card.psql'

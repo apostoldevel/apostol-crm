@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="description" content="AWS: Главная">
+
+    <!-- Required meta tags -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <title>Главная | AWS</title>
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="/assets/vendor/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+
+    <!-- Favicons -->
+    <link href="/assets/img/favicon.png" rel="icon">
+    <link href="/assets/img/apple-touch-icon.png" rel="apple-touch-icon">
+
+    <!-- Template Main CSS File -->
+    <!-- Custom styles for this template -->
+    <link href="/assets/css/main.css" rel="stylesheet" type="text/css">
+    <link href="/assets/css/fonts.css" rel="stylesheet" type="text/css">
+</head>
+
+<body>
+<header class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+    <a class="navbar-brand" href="/" title="В начало"><svg class="bi bi-house" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path fill-rule="evenodd" d="M2 13.5V7h1v6.5a.5.5 0 00.5.5h9a.5.5 0 00.5-.5V7h1v6.5a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 012 13.5zm11-11V6l-2-2V2.5a.5.5 0 01.5-.5h1a.5.5 0 01.5.5z" clip-rule="evenodd"/>
+        <path fill-rule="evenodd" d="M7.293 1.5a1 1 0 011.414 0l6.647 6.646a.5.5 0 01-.708.708L8 2.207 1.354 8.854a.5.5 0 11-.708-.708L7.293 1.5z" clip-rule="evenodd"/>
+    </svg></a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarsDefault">
+        <ul class="navbar-nav mr-auto">
+            <li class="nav-item active">
+                <a class="nav-link" href="/">В начало<span class="sr-only">(current)</span></a>
+            </li>
+        </ul>
+        <ul class="navbar-nav flex-row ml-md-auto d-none d-md-flex">
+            <li class="nav-item">
+                <form class="form-inline my-2 mr-md-3 my-lg-0">
+                    <input class="form-control mr-sm-2" type="search" placeholder="Поиск" aria-label="Поиск">
+                    <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Поиск</button>
+                </form>
+            </li>
+            <li class="nav-item dropdown">
+                <a class="nav-item nav-link dropdown-toggle mr-md-2" href="#" id="bd-versions" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <svg class="bi bi-people-circle" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M13.468 12.37C12.758 11.226 11.195 10 8 10s-4.757 1.225-5.468 2.37A6.987 6.987 0 008 15a6.987 6.987 0 005.468-2.63z"/>
+                        <path fill-rule="evenodd" d="M8 9a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+                        <path fill-rule="evenodd" d="M8 1a7 7 0 100 14A7 7 0 008 1zM0 8a8 8 0 1116 0A8 8 0 010 8z" clip-rule="evenodd"/>
+                    </svg>
+                </a>
+                <div class="dropdown-menu dropdown-menu-right">
+                    <a id="username" class="dropdown-item" href="#" title="Профиль"></a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item " href="#" title="Выход из системы" onclick="SignOut()">Выход</a>
+                </div>
+            </li>
+        </ul>
+    </div>
+</header>
+
+<main role="main">
+    <div class="container">
+        <div class="row">
+
+        </div>
+    </div> <!-- /container -->
+</main>
+
+<!-- ======= Footer ======= -->
+<footer id="footer">
+    <div class="container">
+        <div class="copyright">
+            &copy; Copyright <strong><span>Апостол Веб Сервис</span></strong>. Все права защищены.
+        </div>
+    </div>
+</footer><!-- End #footer -->
+
+<a href="#" class="back-to-top"><i class="icofont-simple-up"></i></a>
+
+<!-- Optional JavaScript -->
+<!-- jQuery first, then Popper.js, then Bootstrap JS -->
+<script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+<script src="/assets/vendor/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+<script src="/assets/vendor/crypto-js/hmac-sha256.js" type="text/javascript"></script>
+<script>
+    function empty(e) {
+        switch (e) {
+            case "":
+            case 0:
+            case false:
+            case null:
+            case undefined:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    async function CheckResponse(json, status) {
+        if (status === 400) {
+            if (json.hasOwnProperty('error')) {
+                window.location.replace(`/error/400?error=invalid_request&error_description=${encodeURIComponent(json["error"]["message"])}`);
+            }
+        } else if (status === 401) {
+            window.location.replace('/');
+        } else if (status === 403) {
+            window.location.replace('/');
+        } else if (status === 404) {
+            if (json.hasOwnProperty('error')) {
+                window.location.replace(window.location = `/error/404?error=not_found&error_description=${encodeURIComponent(json["error"]["message"])}`);
+            }
+        } else if (status === 500) {
+            if (json.hasOwnProperty('error')) {
+                window.location.replace(window.location = `/error/500?error=server_exception&error_description=${encodeURIComponent(json["error"]["message"])}`);
+            }
+        } else {
+            if (json.hasOwnProperty('error')) {
+                const ErrorCode = json["error"]["code"];
+                window.location.replace(window.location = `/error/error?code=${ErrorCode}&error=invalid_request&error_description=${encodeURIComponent(json["error"]["message"])}`);
+            }
+        }
+    }
+
+    /**
+     * @return {json}
+     */
+    async function AsyncFetch (path, method = "GET", body = null, headers = {}) {
+
+        console.log(method + ' ' + path);
+
+        // await response of fetch call
+        const response = await fetch(path, {
+            method: method,
+            headers: headers,
+            body: body,
+            mode: "cors",
+            cache: "no-store",
+            credentials: 'same-origin'
+        });
+
+        const json = await response.json();
+
+        console.log(JSON.stringify(json, undefined, 2));
+
+        if (!response.ok) {
+            await CheckResponse(json, response.status);
+        }
+
+        return json;
+    }
+
+    function parseJWT(token) {
+        try {
+            // Get Token Header
+            const base64HeaderUrl = token.split('.')[0];
+            const base64Header = base64HeaderUrl.replace('-', '+').replace('_', '/');
+            const headerData = JSON.parse(window.atob(base64Header));
+
+            // Get Token payload and date's
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace('-', '+').replace('_', '/');
+            const dataJWT = JSON.parse(window.atob(base64));
+
+            dataJWT.header = headerData;
+
+            // TODO: add expiration at check ...
+
+            return dataJWT;
+        } catch (err) {
+            return false;
+        }
+    }
+
+    async function RefreshToken(refreshToken) {
+        if (!empty(refreshToken)) {
+            const body = {
+                grant_type: 'refresh_token',
+                refresh_token: refreshToken
+            }
+
+            const response = await fetch('/oauth2/token', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body),
+                mode: "cors",
+                cache: "no-store",
+                credentials: 'omit'
+            });
+
+            const json = await response.json();
+
+            if (response.ok) {
+                let access_token = json(['access_token']);
+                let refresh_token = json(['refresh_token']);
+
+                if (SetTokens(access_token, refresh_token)) {
+                    console.log('Refresh tokens: Success.')
+                }
+            } else {
+                await CheckResponse(json, response.status);
+            }
+        }
+    }
+
+    function ExpireToken(accessToken) {
+        if (!empty(accessToken)) {
+            const jwtDecoded = parseJWT(accessToken);
+            if (jwtDecoded) {
+                let now = new Date();
+                let exp = new Date(jwtDecoded.exp * 1000);
+                return now >= exp;
+            }
+        }
+        return false;
+    }
+
+    function SetTokens(accessToken, refreshToken) {
+        let success = false;
+
+        if (!empty(accessToken)) {
+            localStorage.setItem('accessToken', accessToken);
+            success = true;
+        }
+
+        if (!empty(refreshToken)) {
+            localStorage.setItem('refreshToken', refreshToken);
+            success = true;
+        }
+
+        return success;
+    }
+
+    function FindTokens(hash) {
+        if (!empty(hash)) {
+            const search = hash.substr(1);
+
+            let params = new URLSearchParams(search);
+
+            let access_token = params.get("access_token");
+            let refresh_token = decodeURIComponent(params.get("refresh_token"));
+
+            if (SetTokens(access_token, refresh_token)) {
+                document.location.hash = '#';
+            }
+        }
+    }
+
+    /**
+     * @return {json}
+     */
+    async function SignFetch (path, method = "GET", body = null, initHeaders = {}) {
+
+        const apiPath = `/api/v1${path}`;
+
+        console.log(method + ' ' + apiPath);
+
+        let headers = new Headers(initHeaders);
+
+        const Session = localStorage.getItem('Session');
+        const Secret = localStorage.getItem('Secret');
+
+        if (!empty(Secret)) {
+            const Nonce = (Date.now() * 1000).toString();
+
+            const sigData = `${path}${Nonce}${JSON.stringify(body)}`;
+
+            const Signature = CryptoJS.HmacSHA256(sigData, Secret).toString()
+
+            headers.append('Session', Session);
+            headers.append('Nonce', Nonce);
+            headers.append('Signature', Signature);
+
+            console.log('Session: ' + Session);
+            console.log('Nonce: ' + Nonce);
+            console.log('sigData: ' + sigData);
+            console.log('Signature: ' + Signature);
+        }
+
+        return AsyncFetch(apiPath, method, body, headers);
+    }
+
+    /**
+     * @return {json}
+     */
+    async function TokenFetch (path, method = "GET", body = null, initHeaders = {}) {
+
+        const accessToken = localStorage.getItem('accessToken');
+        if (ExpireToken(accessToken)) {
+            const refreshToken = localStorage.getItem('refreshToken');
+            if (!empty(refreshToken)) {
+                await RefreshToken(refreshToken);
+            }
+        }
+
+        const apiPath = `/api/v1${path}`;
+
+        let headers = new Headers(initHeaders);
+
+        if (!empty(accessToken)) {
+            headers.append('Authorization', `Bearer ${accessToken}`)
+        }
+
+        return AsyncFetch(apiPath, method, body, headers);
+    }
+
+    /**
+     * @return {string}
+     */
+    function JsonToHTML(json) {
+        return '<html lang="ru"><body><pre><code>' + JSON.stringify(json, undefined, 4) + '</code></pre></body></html>';
+    }
+
+    /**
+     * @return {string}
+     */
+    function JsonToHTML(json) {
+        return '<pre><code>' + JSON.stringify(json, undefined, 4) + '</code></pre>';
+    }
+
+    /**
+     * @return {string}
+     */
+    function JsonToTableOne(json) {
+        let i, txt;
+
+        txt = '<table class="table table-sm table-striped table-responsive">';
+        txt += '<thead>';
+        txt += '<tr>';
+        txt += '<th scope="col">key</th>';
+        txt += `<th scope="col">value</th>`;
+        txt += '</tr>';
+        txt += '</thead>';
+
+        txt += '<tbody>';
+        for (i in json) {
+            const value = json[i];
+            txt += '<tr>';
+            txt += `<th scope="row">${i}</th>`;
+            if (typeof value === 'object') {
+                txt += `<td scope="row">${JSON.stringify(value, ['name'])}</td>`;
+            } else {
+                txt += `<td scope="row">${value}</td>`;
+            }
+            txt += '</tr>';
+        }
+
+        txt += '</tbody>';
+        txt += '</table>';
+
+        return txt;
+    }
+
+    /**
+     * @return {string}
+     */
+    function JsonToTable(json) {
+        let obj, x, i, txt, index;
+
+        txt = '<table class="table table-sm table-striped table-responsive">';
+        txt += '<thead>';
+        txt += '<tr>';
+
+        txt += '<th scope="col">#</th>';
+
+        obj = json[0];
+        for (i in obj)
+            txt += `<th scope="col">${i}</th>`;
+
+        txt += '</tr>';
+        txt += '</thead>';
+
+        txt += '<tbody>';
+
+        index = 0;
+        for (x in json) {
+            txt += '<tr>';
+            txt += `<th scope="row">${++index}</th>`;
+            obj = json[x];
+            for (i in obj) {
+                txt += `<td scope="row">${obj[i]}</td>`;
+            }
+            txt += '</tr>';
+        }
+
+        txt += '</tbody>';
+        txt += '</table>';
+
+        return txt;
+    }
+
+    /**
+     * @return {json}
+     */
+    function WhoAmI() {
+        TokenFetch('/whoami', 'POST')
+        .then((json) => {
+            const userId = json['userid'];
+            if (empty(userId)) {
+                document.location.replace(`/welcome/`);
+            } else {
+                $('#username').html(json['name']);
+            }
+        }).catch((e) => {
+            console.log(e.message);
+        });
+    }
+
+    /**
+     * @return {json}
+     */
+    async function GetMethod(classcode, statecode, actioncode) {
+        let result = null;
+
+        let body = {
+            classcode: classcode,
+            statecode: statecode,
+            actioncode: actioncode
+        };
+
+        await TokenFetch('/method/get', 'POST', JSON.stringify(body), {
+            'Content-Type': 'application/json'
+        }).then((json) => {
+            if (json.hasOwnProperty('error')) {
+                console.log(json['error']['message']);
+            } else {
+                result = json;
+            }
+        }).catch((e) => {
+            console.log(e.message);
+        });
+
+        return result;
+    }
+
+    function SignOut() {
+        TokenFetch('/sign/out', 'POST')
+            .then((json) => {
+                if (json.hasOwnProperty('error')) {
+                    console.log(json['error']['message']);
+                } else {
+                    localStorage.removeItem('Session');
+                    localStorage.removeItem('Secret');
+
+                    localStorage.removeItem('accessToken');
+                    localStorage.removeItem('refreshToken');
+
+                    window.location.replace("/welcome/");
+                }
+            }).catch((e) => {
+                console.log(e.message);
+            });
+    }
+
+    $(document).ready(function() {
+        FindTokens(document.location.hash);
+        WhoAmI();
+
+        /*
+                const socket = new WebSocket("ws://localhost:8080/session/SHIP-001")
+                // Наблюдает за сообщениями
+                socket.addEventListener('message', function (event) {
+                    console.log(event);
+                    console.log('Message from server ', event.data);
+                });
+         */
+    });
+</script>
+</body>
+</html>

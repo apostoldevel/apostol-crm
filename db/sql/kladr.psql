@@ -1,0 +1,45 @@
+\echo [M] kladr.psql
+\ir sets.conf
+
+\connect :dbname kernel
+
+\echo [M] Очистка КЛАДР...
+
+DELETE FROM db.kladr;
+
+\echo [M] Очистка дерева адресов...
+
+DELETE FROM db.address_tree;
+
+DROP SEQUENCE SEQUENCE_ADDRESS;
+
+-- Последовательность для идентификаторов справочника адресов.
+CREATE SEQUENCE IF NOT EXISTS SEQUENCE_ADDRESS
+ START WITH 1
+ INCREMENT BY 1
+ MINVALUE 1;
+
+\connect :dbname postgres
+
+\echo [M] Загрузка данных из KLADR.csv
+
+COPY db.kladr (name, socr, code, index, gninmb, uno, ocatd, status)
+FROM :'kladr' WITH (FORMAT csv, DELIMITER ';');
+
+\echo [M] Загрузка данных из STREET.csv
+
+COPY db.street (name, socr, code, index, gninmb, uno, ocatd)
+FROM :'street' WITH (FORMAT csv, DELIMITER ';');
+
+\connect :dbname kernel
+
+\echo [M] Заполнение дерева адресов данными из КЛАДР...
+
+-- 77 г. Москва
+-- 50 Московская области
+-- 78 г. Санкт-Петербург
+-- 47 Ленинградская область
+
+SELECT LoadFromKladr(ARRAY['77', '50']);
+
+\q

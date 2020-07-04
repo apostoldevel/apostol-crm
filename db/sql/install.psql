@@ -1,0 +1,4 @@
+\echo [M] install.psql
+\ir sets.conf
+\ir kernel.psql
+\q

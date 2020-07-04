@@ -1,0 +1,12 @@
+\echo [M] Создание новой базы данных :dbname
+\ir './platform/kernel/database.sql'
+\connect :dbname postgres
+\echo [M] Создание схем
+\ir './platform/kernel/scheme.sql'
+\connect :dbname kernel
+\echo [M] Создание объектов
+\ir './platform/platform.psql'
+\ir './configuration/configuration.psql'
+\connect :dbname admin
+\echo [M] Ввод первоначальных данных
+\ir './configuration/configuration.sql'

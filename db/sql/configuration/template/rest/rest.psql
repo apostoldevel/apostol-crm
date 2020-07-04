@@ -1,0 +1,8 @@
+\echo [M] call current.sql
+\ir current.sql
+
+\echo [M] call session.sql
+\ir session.sql
+
+\echo [M] call rest.sql
+\ir rest.sql

@@ -1,0 +1,49 @@
+{
+  "web": {
+    "issuers": ["accounts.apostol-web-service.ru"],
+    "scopes": ["api","openid","profile","email"],
+    "client_id": "web-apostol-web-service.ru",
+    "client_secret": "blgqv0vOOnvZMrnLxrQ7agSX",
+    "algorithm": "HS256",
+    "auth_uri": "/oauth2/authorize",
+    "token_uri": "/oauth2/token",
+    "redirect_uris": [
+    	"http://localhost:8080/oauth2/code",
+    	"http://localhost:8080/oauth2/callback", 
+    	"http://apostol-web-service.ru/oauth2/code",
+    	"http://apostol-web-service.ru/oauth2/callback",
+    	"https://oauthdebugger.com/debug",
+    	"https://auth.advancedrestclient.com/oauth-popup.html"
+    ]
+  },
+  "android": {
+    "issuers": ["accounts.apostol-web-service.ru"],
+    "scopes": ["api","openid","profile","email"],
+    "client_id": "android-apostol-web-service.ru",
+    "client_secret": "zUc0shAhWnRmcbjHD88rhu3b",
+    "algorithm": "HS256",
+    "auth_uri": "http://apostol-web-service.ru/oauth2/authorize",
+    "token_uri": "http://apostol-web-service.ru/oauth2/token",
+    "redirect_uris": [
+    	"http://127.0.0.1/oauth2/code",
+    	"http://127.0.0.1/oauth2/callback",
+        "https://oauthdebugger.com/debug",
+        "https://auth.advancedrestclient.com/oauth-popup.html"
+    ]
+  },
+  "ios": {
+    "issuers": ["accounts.apostol-web-service.ru"],
+    "scopes": ["api","openid","profile","email"],
+    "client_id": "ios-apostol-web-service.ru",
+    "client_secret": "zUKUW1LsAEeHDDxqaVpkW78v",
+    "algorithm": "HS256",
+    "auth_uri": "http://apostol-web-service.ru/oauth2/authorize",
+    "token_uri": "http://apostol-web-service.ru/oauth2/token",
+    "redirect_uris": [
+    	"http://127.0.0.1/oauth2/code",
+    	"http://127.0.0.1/oauth2/callback",
+        "https://oauthdebugger.com/debug",
+        "https://auth.advancedrestclient.com/oauth-popup.html"
+    ]
+  }
+}
