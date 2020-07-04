@@ -184,7 +184,7 @@ $ sudo service aws status
 
 Результат должен быть **примерно** таким:
 ~~~
-● aws.service - LSB: starts the ship safety servcie
+● aws.service - LSB: starts the apostol web servcie
    Loaded: loaded (/etc/init.d/aws; generated; vendor preset: enabled)
    Active: active (running) since Thu 2019-08-15 14:11:34 BST; 1h 1min ago
      Docs: man:systemd-sysv-generator(8)
