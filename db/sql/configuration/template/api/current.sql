@@ -7,49 +7,53 @@
 --------------------------------------------------------------------------------
 /**
  * Возвращает информацию о виртуальном пользователе.
- * @out param {numeric} id - Идентификатор
+ * @out param {numeric} id - Идентификатор клиента
  * @out param {numeric} userid - Идентификатор виртуального пользователя (учётной записи)
- * @out param {varchar} username - Имя виртуального пользователя (login)
- * @out param {text} name - Ф.И.О. виртуального пользователя
- * @out param {text} phone - Телефон виртуального пользователя
- * @out param {text} email - Электронный адрес виртуального пользователя
- * @out param {numeric} session_userid - Идентификатор учётной записи виртуального пользователя сессии
- * @out param {varchar} session_username - Имя виртуального пользователя сессии (login)
- * @out param {text} session_fullname - Ф.И.О. виртуального пользователя сессии
- * @return {record}
+ * @out param {numeric} suid - Идентификатор системного пользователя (учётной записи)
+ * @out param {boolean} admin - Признак администратора системы
+ * @out param {json} profile - Профиль пользователя
+ * @out param {json} name - Ф.И.О. клиента
+ * @out param {json} email - Справочник электронных адресов клиента
+ * @out param {json} phone - Телефоный справочник клиента
+ * @out param {json} session - Сессия
+ * @out param {json} locale - Язык
+ * @out param {json} area - Зона
+ * @out param {json} interface - Интерфейс
+ * @return {table}
  */
 CREATE OR REPLACE FUNCTION api.whoami (
 ) RETURNS TABLE (
   id                numeric,
   userid            numeric,
-  username          varchar,
-  name              text,
-  phone             text,
-  email             text,
-  session_userid    numeric,
-  session_username  varchar,
-  session_fullname  text,
-  area              numeric,
-  area_code         varchar,
-  area_name	        varchar,
-  interface         numeric,
-  interface_sid     varchar,
-  interface_name    varchar
+  suid              numeric,
+  admin             boolean,
+  profile           json,
+  name              json,
+  email             json,
+  phone             json,
+  session           json,
+  locale            json,
+  area              json,
+  interface         json
 )
 AS $$
   WITH cs AS (
-      SELECT current_session() AS session
+      SELECT current_session() AS session, oper_date() AS oper_date
   )
-  SELECT p.id, s.userid, cu.username, cu.name, cu.phone, cu.email,
-         s.suid, su.username, su.name,
-         s.area, a.code, a.name,
-         s.interface, i.sid, i.name
-    FROM db.session s INNER JOIN cs ON cs.session = s.code
-                      INNER JOIN users cu ON cu.id = s.userid
-                      INNER JOIN users su ON su.id = s.suid
+  SELECT c.id, s.userid, s.suid, IsUserRole(1001, s.userid) AS admin,
+         row_to_json(u.*) AS profile,
+         json_build_object('name', c.fullname, 'short', c.shortname, 'first', c.firstname, 'last', c.lastname, 'middle', c.middlename) AS name,
+         c.email::json, c.phone::json,
+         json_build_object('code', s.code, 'created', s.created, 'updated', s.updated, 'agent', s.agent, 'host', s.host) AS session,
+         row_to_json(l.*) AS locale,
+         row_to_json(a.*) AS area,
+         row_to_json(i.*) AS interface
+    FROM db.session s INNER JOIN cs ON s.code = cs.session
+                      INNER JOIN users u ON u.id = s.userid
+                      INNER JOIN db.locale l ON l.id = s.locale
                       INNER JOIN db.area a ON a.id = s.area
                       INNER JOIN db.interface i ON i.id = s.interface
-  		               LEFT JOIN db.client p ON p.userid = s.userid;
+                       LEFT JOIN client c ON c.userid = s.userid
 $$ LANGUAGE SQL
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;
@@ -92,7 +96,7 @@ $$ LANGUAGE SQL
  * @return {numeric} - Идентификатор пользователя: users.id
  */
 CREATE OR REPLACE FUNCTION api.current_userid()
-RETURNS 	numeric
+RETURNS         numeric
 AS $$
 BEGIN
   RETURN current_userid();
@@ -109,7 +113,7 @@ $$ LANGUAGE plpgsql
  * @return {text} - Имя (username) пользователя: users.username
  */
 CREATE OR REPLACE FUNCTION api.current_username()
-RETURNS 	text
+RETURNS         text
 AS $$
 BEGIN
   RETURN current_username();
@@ -126,7 +130,7 @@ $$ LANGUAGE plpgsql
  * @return {area} - Зона
  */
 CREATE OR REPLACE FUNCTION api.current_area (
-) RETURNS	SETOF area
+) RETURNS        SETOF area
 AS $$
   SELECT * FROM area WHERE id = current_area();
 $$ LANGUAGE SQL
@@ -141,7 +145,7 @@ $$ LANGUAGE SQL
  * @return {interface} - Интерфейс
  */
 CREATE OR REPLACE FUNCTION api.current_interface (
-) RETURNS 	SETOF interface
+) RETURNS         SETOF interface
 AS $$
   SELECT * FROM interface WHERE id = current_interface();
 $$ LANGUAGE SQL
@@ -156,7 +160,7 @@ $$ LANGUAGE SQL
  * @return {locale} - Язык
  */
 CREATE OR REPLACE FUNCTION api.current_locale (
-) RETURNS 	SETOF locale
+) RETURNS         SETOF locale
 AS $$
   SELECT * FROM locale WHERE id = current_locale();
 $$ LANGUAGE SQL
@@ -171,7 +175,7 @@ $$ LANGUAGE SQL
  * @return {timestamp} - Дата операционного дня
  */
 CREATE OR REPLACE FUNCTION api.oper_date()
-RETURNS 	timestamp
+RETURNS         timestamp
 AS $$
 BEGIN
   RETURN oper_date();

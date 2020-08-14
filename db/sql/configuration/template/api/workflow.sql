@@ -12,7 +12,7 @@ CREATE OR REPLACE VIEW api.essence
 AS
   SELECT * FROM Essence;
 
-GRANT SELECT ON api.essence TO daemon;
+GRANT SELECT ON api.essence TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.get_essence -------------------------------------------------------------
@@ -22,11 +22,11 @@ GRANT SELECT ON api.essence TO daemon;
  * @return {record} - Запись
  */
 CREATE OR REPLACE FUNCTION api.get_essence (
-  pId   numeric
+  pId     numeric
 ) RETURNS TABLE (
-  id	numeric,
-  code	varchar,
-  name	varchar
+  id      numeric,
+  code    varchar,
+  name    varchar
 )
 AS $$
   SELECT e.id, e.code, e.name
@@ -44,7 +44,7 @@ CREATE OR REPLACE VIEW api.class
 AS
   SELECT * FROM ClassTree;
 
-GRANT SELECT ON api.class TO daemon;
+GRANT SELECT ON api.class TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.add_class ---------------------------------------------------------------
@@ -163,7 +163,7 @@ CREATE OR REPLACE VIEW api.state_type
 AS
   SELECT * FROM StateType;
 
-GRANT SELECT ON api.state_type TO daemon;
+GRANT SELECT ON api.state_type TO administrator;
 
 --------------------------------------------------------------------------------
 
@@ -171,7 +171,7 @@ CREATE OR REPLACE VIEW api.state
 AS
   SELECT * FROM State;
 
-GRANT SELECT ON api.state TO daemon;
+GRANT SELECT ON api.state TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.get_state_type ----------------------------------------------------------
@@ -181,8 +181,8 @@ GRANT SELECT ON api.state TO daemon;
  * @return {record} - Запись
  */
 CREATE OR REPLACE FUNCTION api.get_state_type (
-  pId		numeric
-) RETURNS	SETOF api.state_type
+  pId            numeric
+) RETURNS        SETOF api.state_type
 AS $$
   SELECT * FROM api.state_type WHERE id = pId;
 $$ LANGUAGE SQL
@@ -192,8 +192,8 @@ $$ LANGUAGE SQL
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION api.state (
-  pClass	numeric
-) RETURNS	SETOF api.state
+  pClass        numeric
+) RETURNS       SETOF api.state
 AS $$
   SELECT * FROM api.state WHERE class = pClass
   UNION ALL
@@ -222,12 +222,12 @@ $$ LANGUAGE SQL
  * @return {record}
  */
 CREATE OR REPLACE FUNCTION api.add_state (
-  pClass	    numeric,
-  pType		    numeric,
-  pCode		    varchar,
-  pLabel	    text,
-  pSequence	    integer
-) RETURNS 	    numeric
+  pClass      numeric,
+  pType       numeric,
+  pCode       varchar,
+  pLabel      text,
+  pSequence   integer
+) RETURNS     numeric
 AS $$
 BEGIN
   RETURN AddState(pClass, pType, pCode, pLabel, pSequence);
@@ -253,13 +253,13 @@ $$ LANGUAGE plpgsql
  * @return {record}
  */
 CREATE OR REPLACE FUNCTION api.update_state (
-  pId		    numeric,
-  pClass	    numeric DEFAULT null,
-  pType		    numeric DEFAULT null,
-  pCode		    varchar DEFAULT null,
-  pLabel	    text DEFAULT null,
-  pSequence	    integer DEFAULT null
-) RETURNS 	    void
+  pId         numeric,
+  pClass      numeric DEFAULT null,
+  pType       numeric DEFAULT null,
+  pCode       varchar DEFAULT null,
+  pLabel      text DEFAULT null,
+  pSequence   integer DEFAULT null
+) RETURNS     void
 AS $$
 BEGIN
   PERFORM EditState(pId, pClass, pType, pCode, pLabel, pSequence);
@@ -280,8 +280,8 @@ $$ LANGUAGE plpgsql
  * @return {record}
  */
 CREATE OR REPLACE FUNCTION api.delete_state (
-  pId		    numeric
-) RETURNS 	    void
+  pId         numeric
+) RETURNS     void
 AS $$
 BEGIN
   PERFORM DeleteState(pId);
@@ -298,8 +298,8 @@ $$ LANGUAGE plpgsql
  * @return {record} - Состояние
  */
 CREATE OR REPLACE FUNCTION api.get_state (
-  pId		numeric
-) RETURNS	SETOF api.state
+  pId       numeric
+) RETURNS   SETOF api.state
 AS $$
   SELECT * FROM api.state WHERE id = pId
 $$ LANGUAGE SQL
@@ -329,7 +329,7 @@ CREATE OR REPLACE VIEW api.action
 AS
   SELECT * FROM Action;
 
-GRANT SELECT ON api.action TO daemon;
+GRANT SELECT ON api.action TO administrator;
 
 --------------------------------------------------------------------------------
 -- METHOD ----------------------------------------------------------------------
@@ -339,14 +339,14 @@ CREATE OR REPLACE VIEW api.method
 AS
   SELECT * FROM Method;
 
-GRANT SELECT ON api.method TO daemon;
+GRANT SELECT ON api.method TO administrator;
 
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION api.method (
-  pClass	numeric,
-  pState	numeric
-) RETURNS	SETOF api.method
+  pClass      numeric,
+  pState      numeric
+) RETURNS     SETOF api.method
 AS $$
   SELECT * FROM api.method WHERE class = pClass AND coalesce(state, 0) = coalesce(pState, state, 0)
    UNION ALL
@@ -375,15 +375,15 @@ $$ LANGUAGE SQL
  * @return {numeric}
  */
 CREATE OR REPLACE FUNCTION api.add_method (
-  pParent	    numeric,
-  pClass	    numeric,
-  pState	    numeric,
-  pAction	    numeric,
-  pCode		    varchar,
-  pLabel	    text,
-  pSequence	    integer,
-  pVisible	    boolean
-) RETURNS 	    numeric
+  pParent       numeric,
+  pClass        numeric,
+  pState        numeric,
+  pAction       numeric,
+  pCode         varchar,
+  pLabel        text,
+  pSequence     integer,
+  pVisible      boolean
+) RETURNS       numeric
 AS $$
 BEGIN
   RETURN AddMethod(pParent, pClass, pState, pAction, pCode, pLabel, pSequence, pVisible);
@@ -409,16 +409,16 @@ $$ LANGUAGE plpgsql
  * @return {record}
  */
 CREATE OR REPLACE FUNCTION api.update_method (
-  pId		    numeric,
-  pParent	    numeric DEFAULT null,
-  pClass	    numeric DEFAULT null,
-  pState	    numeric DEFAULT null,
-  pAction	    numeric DEFAULT null,
-  pCode		    varchar DEFAULT null,
-  pLabel	    text DEFAULT null,
-  pSequence	    integer DEFAULT null,
-  pVisible	    boolean DEFAULT null
-) RETURNS 	    void
+  pId           numeric,
+  pParent       numeric DEFAULT null,
+  pClass        numeric DEFAULT null,
+  pState        numeric DEFAULT null,
+  pAction       numeric DEFAULT null,
+  pCode         varchar DEFAULT null,
+  pLabel        text DEFAULT null,
+  pSequence     integer DEFAULT null,
+  pVisible      boolean DEFAULT null
+) RETURNS       void
 AS $$
 BEGIN
   PERFORM EditMethod(pId, pParent, pClass, pState, pAction, pCode, pLabel, pSequence, pVisible);
@@ -492,12 +492,12 @@ $$ LANGUAGE SQL
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION api.get_methods_json (
-  pClass	numeric,
-  pState	numeric
-) RETURNS	json
+  pClass        numeric,
+  pState        numeric
+) RETURNS        json
 AS $$
 DECLARE
-  arResult	json[];
+  arResult        json[];
   r             record;
 BEGIN
   FOR r IN SELECT * FROM api.get_method(pClass, pState)
@@ -516,9 +516,9 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION api.get_methods_jsonb (
-  pClass	numeric,
-  pState	numeric
-) RETURNS	jsonb
+  pClass        numeric,
+  pState        numeric
+) RETURNS        jsonb
 AS $$
 BEGIN
   RETURN api.get_methods_json(pClass, pState);
@@ -535,7 +535,7 @@ CREATE OR REPLACE VIEW api.transition
 AS
   SELECT * FROM Transition;
 
-GRANT SELECT ON api.transition TO daemon;
+GRANT SELECT ON api.transition TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.add_transition ----------------------------------------------------------
@@ -551,10 +551,10 @@ GRANT SELECT ON api.transition TO daemon;
  * @return {record}
  */
 CREATE OR REPLACE FUNCTION api.add_transition (
-  pState	    numeric,
-  pMethod	    numeric,
-  pNewState	    numeric
-) RETURNS 	    numeric
+  pState            numeric,
+  pMethod            numeric,
+  pNewState            numeric
+) RETURNS             numeric
 AS $$
 BEGIN
   RETURN AddTransition(pState, pMethod, pNewState);
@@ -575,11 +575,11 @@ $$ LANGUAGE plpgsql
  * @return {void}
  */
 CREATE OR REPLACE FUNCTION api.update_transition (
-  pId		    numeric,
-  pState	    numeric DEFAULT null,
-  pMethod	    numeric DEFAULT null,
-  pNewState	    numeric DEFAULT null
-) RETURNS 	    void
+  pId                    numeric,
+  pState            numeric DEFAULT null,
+  pMethod            numeric DEFAULT null,
+  pNewState            numeric DEFAULT null
+) RETURNS             void
 AS $$
 BEGIN
   PERFORM EditTransition(pId, pState, pMethod, pNewState);
@@ -615,8 +615,8 @@ $$ LANGUAGE plpgsql
  * @return {record} - Запись
  */
 CREATE OR REPLACE FUNCTION api.get_transition (
-  pId		numeric
-) RETURNS	SETOF api.transition
+  pId                numeric
+) RETURNS        SETOF api.transition
 AS $$
   SELECT * FROM api.transition WHERE id = pId
 $$ LANGUAGE SQL
@@ -631,7 +631,7 @@ CREATE OR REPLACE VIEW api.event_type
 AS
   SELECT * FROM EventType;
 
-GRANT SELECT ON api.event_type TO daemon;
+GRANT SELECT ON api.event_type TO administrator;
 
 --------------------------------------------------------------------------------
 
@@ -639,7 +639,7 @@ CREATE OR REPLACE VIEW api.event
 AS
   SELECT * FROM Event;
 
-GRANT SELECT ON api.event TO daemon;
+GRANT SELECT ON api.event TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.get_event_type ----------------------------------------------------------
@@ -649,8 +649,8 @@ GRANT SELECT ON api.event TO daemon;
  * @return {record} - Запись
  */
 CREATE OR REPLACE FUNCTION api.get_event_type (
-  pId		numeric
-) RETURNS	SETOF api.event_type
+  pId                numeric
+) RETURNS        SETOF api.event_type
 AS $$
   SELECT * FROM api.event_type WHERE id = pId;
 $$ LANGUAGE SQL
@@ -672,14 +672,14 @@ $$ LANGUAGE SQL
  * @return {numeric}
  */
 CREATE OR REPLACE FUNCTION api.add_event (
-  pClass	    numeric,
-  pType		    numeric,
-  pAction	    numeric,
-  pLabel	    text,
-  pText		    text,
-  pSequence	    integer,
-  pEnabled	    boolean
-) RETURNS 	    numeric
+  pClass            numeric,
+  pType                    numeric,
+  pAction            numeric,
+  pLabel            text,
+  pText                    text,
+  pSequence            integer,
+  pEnabled            boolean
+) RETURNS             numeric
 AS $$
 BEGIN
   RETURN AddEvent(pClass, pType, pAction, pLabel, pText, pSequence, pEnabled);
@@ -704,15 +704,15 @@ $$ LANGUAGE plpgsql
  * @return {void}
  */
 CREATE OR REPLACE FUNCTION api.update_event (
-  pId		    numeric,
-  pClass	    numeric DEFAULT null,
-  pType		    numeric DEFAULT null,
-  pAction	    numeric DEFAULT null,
-  pLabel	    text DEFAULT null,
-  pText		    text DEFAULT null,
-  pSequence	    integer DEFAULT null,
-  pEnabled	    boolean DEFAULT null
-) RETURNS 	    void
+  pId                    numeric,
+  pClass            numeric DEFAULT null,
+  pType                    numeric DEFAULT null,
+  pAction            numeric DEFAULT null,
+  pLabel            text DEFAULT null,
+  pText                    text DEFAULT null,
+  pSequence            integer DEFAULT null,
+  pEnabled            boolean DEFAULT null
+) RETURNS             void
 AS $$
 BEGIN
   PERFORM EditEvent(pId, pClass, pType, pAction, pLabel, pText, pSequence, pEnabled);
@@ -748,8 +748,8 @@ $$ LANGUAGE plpgsql
  * @return {record} - Запись
  */
 CREATE OR REPLACE FUNCTION api.get_event (
-  pId		numeric
-) RETURNS	SETOF api.event
+  pId            numeric
+) RETURNS        SETOF api.event
 AS $$
   SELECT * FROM api.event WHERE id = pId
 $$ LANGUAGE SQL
@@ -764,17 +764,17 @@ $$ LANGUAGE SQL
  * @param {numeric} pObject - Идентификатор объекта
  * @param {numeric} pAction - Идентификатор действия
  * @param {jsonb} pForm - Форма в формате JSON
- * @return {void}
+ * @return {jsonb}
  */
 CREATE OR REPLACE FUNCTION api.run_action (
-  pObject	    numeric,
-  pAction	    numeric,
-  pForm		    jsonb DEFAULT null
-) RETURNS	    void
+  pObject            numeric,
+  pAction            numeric,
+  pForm              jsonb DEFAULT null
+) RETURNS            jsonb
 AS $$
 DECLARE
-  nId		    numeric;
-  nMethod	    numeric;
+  nId                numeric;
+  nMethod            numeric;
 BEGIN
   SELECT o.id INTO nId FROM db.object o WHERE o.id = pObject;
 
@@ -793,6 +793,8 @@ BEGIN
   END IF;
 
   PERFORM ExecuteObjectAction(pObject, pAction, pForm);
+
+  RETURN GetMethodResult(pObject, nMethod);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -809,16 +811,16 @@ $$ LANGUAGE plpgsql
  * @out param {numeric} id - Идентификатор объекта
  * @out param {boolean} result - Результат
  * @out param {text} message - Текст ошибки
- * @return {record}
+ * @return {jsonb}
  */
 CREATE OR REPLACE FUNCTION api.run_action (
-  pObject	    numeric,
-  pCode		    varchar,
-  pForm		    jsonb DEFAULT null
-) RETURNS	    void
+  pObject       numeric,
+  pCode         varchar,
+  pForm         jsonb DEFAULT null
+) RETURNS       jsonb
 AS $$
 DECLARE
-  arCodes	    text[];
+  arCodes       text[];
   r             record;
 BEGIN
   FOR r IN SELECT code FROM db.action
@@ -830,7 +832,7 @@ BEGIN
     PERFORM IncorrectCode(pCode, arCodes);
   END IF;
 
-  PERFORM api.run_action(pObject, GetAction(pCode), pForm);
+  RETURN api.run_action(pObject, GetAction(pCode), pForm);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -845,19 +847,19 @@ $$ LANGUAGE plpgsql
  * @param {numeric} pMethod - Идентификатор метода
  * @param {text} pCode - Код метода (Игнорируется если указан идентификатор метода)
  * @param {jsonb} pForm - Форма в формате JSON
- * @return {void}
+ * @return {jsonb}
  */
 CREATE OR REPLACE FUNCTION api.run_method (
   pObject       numeric,
   pMethod       numeric,
   pCode         text,
   pForm         jsonb DEFAULT null
-) RETURNS       void
+) RETURNS       jsonb
 AS $$
 DECLARE
   nId           numeric;
   nClass        numeric;
-  nAction       numeric;
+  nMethod       numeric;
 BEGIN
   SELECT o.id INTO nId FROM db.object o WHERE o.id = pObject;
 
@@ -873,20 +875,20 @@ BEGIN
 
     nClass := GetObjectClass(pObject);
 
-    SELECT m.action INTO nAction FROM db.method m WHERE m.class = nClass AND m.code = pCode;
+    SELECT m.id INTO nMethod FROM db.method m WHERE m.class = nClass AND m.code = pCode;
 
     IF NOT FOUND THEN
       PERFORM MethodByCodeNotFound(pObject, pCode);
     END IF;
   ELSE
-    SELECT m.action INTO nAction FROM method m WHERE m.id = pMethod;
+    SELECT m.id INTO nMethod FROM method m WHERE m.id = pMethod;
 
     IF NOT FOUND THEN
       PERFORM MethodNotFound(pObject, pMethod);
     END IF;
   END IF;
 
-  PERFORM api.run_action(pObject, nAction, pForm);
+  RETURN ExecuteMethod(pObject, nMethod, pForm);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER

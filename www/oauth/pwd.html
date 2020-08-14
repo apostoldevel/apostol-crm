@@ -191,24 +191,21 @@
         return await CheckResponse(json, response.status);
     }
 
-    /**
-     * @return {json}
-     */
     function Identifier(value) {
         AsyncFetch(`/identifier?value=${value}`)
-        .then((json) => {
-            if (json.hasOwnProperty('error')) {
-                const message = json['error']['message'];
-                $("div[id='passwordMessage']").html(message);
-            } else {
-                const id = json['id'];
-                $("input[id='username']").val(json['username']);
-                if (!empty(id)) {
-                    $('#name').html(json['name']);
-                    $('#identifier').html(json[json['identifiers'][0]]);
+            .then((json) => {
+                if (json.hasOwnProperty('error')) {
+                    const message = json['error']['message'];
+                    $("div[id='passwordMessage']").html(message);
+                } else {
+                    const id = json['id'];
+                    if (!empty(id)) {
+                        $('#name').html(json['name']);
+                        $('#identifier').html(json[json['identifiers'][0]]);
+                        $("input[id='username']").val(json['username']);
+                    }
                 }
-            }
-        }).catch((e) => {
+            }).catch((e) => {
             console.log(e.message);
         });
     }

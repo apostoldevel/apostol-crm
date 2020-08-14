@@ -83,23 +83,23 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 /**
  * Устанавливает по идентификатору текущий язык.
- * @param {numeric} pLang - Идентификатор языка
+ * @param {numeric} pLocale - Идентификатор языка
  * @return {void}
  */
 CREATE OR REPLACE FUNCTION api.set_locale (
-  pLang		numeric
+  pLocale		numeric
 ) RETURNS	void
 AS $$
 DECLARE
   nId		numeric;
 BEGIN
-  SELECT id INTO nId FROM locale WHERE id = pLang;
+  SELECT id INTO nId FROM locale WHERE id = pLocale;
 
   IF NOT FOUND THEN
-    PERFORM ObjectNotFound('язык', 'id', pLang);
+    PERFORM ObjectNotFound('язык', 'id', pLocale);
   END IF;
 
-  PERFORM SetLanguage(pLang);
+  PERFORM SetLocale(pLocale);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -130,7 +130,7 @@ BEGIN
     PERFORM IncorrectCode(pCode, arCodes);
   END IF;
 
-  PERFORM SetLanguage(GetLanguage(pCode));
+  PERFORM SetLocale(GetLocale(pCode));
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER

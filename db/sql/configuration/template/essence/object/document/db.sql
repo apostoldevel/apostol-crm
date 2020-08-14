@@ -33,7 +33,7 @@ BEGIN
 
   NEW.AREA := current_area();
 
-  IF NEW.AREA = GetArea('all') THEN
+  IF NEW.AREA = GetArea('root') THEN
     PERFORM RootAreaError();
   END IF;
 

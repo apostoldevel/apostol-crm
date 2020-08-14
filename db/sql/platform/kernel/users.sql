@@ -1,3 +1,4 @@
+DROP USER IF EXISTS apibot;
 DROP USER IF EXISTS daemon;
 DROP USER IF EXISTS admin;
 DROP USER IF EXISTS kernel;
@@ -14,3 +15,4 @@ CREATE USER admin
   PASSWORD 'admin';
 
 CREATE USER daemon WITH password 'daemon';
+CREATE USER apibot WITH password 'apibot';

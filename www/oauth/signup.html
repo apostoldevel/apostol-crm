@@ -133,8 +133,6 @@
 <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
 <script src="/assets/vendor/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
 <script>
-    let oauthParams;
-
     function empty(e) {
         switch (e) {
             case "":
@@ -170,82 +168,6 @@
         }
     }
 
-    async function CheckResponse(json, status) {
-
-        const oauth2Endpoint = oauthParams.get("redirect_uri");
-        const response_type = oauthParams.get('response_type');
-
-        let result = "";
-
-        if (status === 200) {
-
-            localStorage.setItem('Session', json['session']);
-            localStorage.setItem('Secret', json['secret']);
-
-            if (response_type.includes('code')) {
-                const code = json['code'];
-                const state = json['state'];
-
-                let search;
-
-                if (empty(state)) {
-                    search = `code=${encodeURIComponent(code)}`;
-                } else {
-                    search = `code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`;
-                }
-
-                result += `?${search}`;
-            }
-
-            if (response_type.includes('token')) {
-                const keys = ['access_token', 'token_type', 'expires_in', 'scope', 'state'];
-
-                let hash = "";
-                let value;
-
-                keys.forEach((key) => {
-                    value = json[key];
-                    if (!empty(value)) {
-                        if (!empty(hash))
-                            hash += '&';
-                        hash += `${key}=${encodeURIComponent(value)}`;
-                    }
-                })
-
-                result += `#${hash}`;
-            }
-
-        } else if (status === 403) {
-
-            if (json.hasOwnProperty('error')) {
-
-                const error = json['error'];
-                const error_description = json['error_description'];
-
-                if (error === 'access_denied') {
-                    $("div[id='usernameFeedback']").html(error_description);
-                    $("input[id='username']").addClass('is-invalid');
-
-                    return undefined;
-                } else {
-                    result = (response_type === 'token') ? '#' : '?' + `code=${status}&error=${error}&error_description=${encodeURIComponent(error_description)}`;
-                }
-            }
-
-        } else {
-
-            if (json.hasOwnProperty('error')) {
-
-                const error = json['error'];
-                const error_description = json['error_description'];
-
-                result = (response_type === 'token') ? '#' : '?' + `code=${status}&error=${error}&error_description=${encodeURIComponent(error_description)}`;
-            }
-        }
-
-        return `${oauth2Endpoint}${result}`;
-    }
-
     function ExpireToken(accessToken) {
         if (!empty(accessToken)) {
             const jwtDecoded = parseJWT(accessToken);
@@ -258,7 +180,7 @@
         return false;
     }
 
-    async function CheckFetchResponse(json, status) {
+    async function CheckResponse(json, status) {
         if (status === 403) {
             localStorage.removeItem('clientToken');
             localStorage.removeItem('refreshToken');
@@ -287,7 +209,7 @@
             if (response.ok) {
                 return json;
             }
-            CheckFetchResponse(json, response.status);
+            CheckResponse(json, response.status);
         }).then((json) => {
             if (!empty(json)) {
                 console.log(json);
@@ -345,20 +267,9 @@
 
         console.log(JSON.stringify(json, undefined, 2));
 
-        await CheckFetchResponse(json, response.status)
+        await CheckResponse(json, response.status)
 
-        return json;
-    }
-
-    async function OAuth2Fetch(path, body, method = "POST") {
-        const response = await fetch(path, {
-            method: method,
-            body: body,
-            mode: "cors",
-            cache: "no-store"
-        });
-        const json = await response.json();
-        return await CheckResponse(json, response.status);
+        return response.ok ? json : undefined;
     }
 
     /**
@@ -366,11 +277,15 @@
      */
     async function TokenFetch (path, method = "GET", body = null, initHeaders = {}) {
 
-        const clientToken = localStorage.getItem('clientToken');
-        if (ExpireToken(clientToken)) {
+        let clientToken = localStorage.getItem('clientToken');
+        if (empty(clientToken)) {
+            await NewClientToken();
+            clientToken = localStorage.getItem('clientToken');
+        } else if (ExpireToken(clientToken)) {
             const refreshToken = localStorage.getItem('refreshToken');
             if (!empty(refreshToken)) {
                 await RefreshClientToken(refreshToken);
+                clientToken = localStorage.getItem('clientToken');
             }
         }
 
@@ -381,28 +296,6 @@
         }
 
         return AsyncFetch(path, method, body, headers);
-    }
-
-    function SignIn() {
-        let formData = new FormData();
-
-        formData.append('username', $("input[id='username']").val());
-        formData.append('password', $("input[id='password']").val());
-
-        oauthParams.forEach((value, key) => {
-            formData.append(key, value);
-        });
-
-        formData.append('grant_type', 'password');
-
-        OAuth2Fetch('/oauth2/token', formData
-        ).then((location) => {
-            if (!empty(location)) {
-                document.location.replace(location);
-            }
-        }).catch((e) => {
-            document.location.replace(`/oauth/error?code=500&error=server_error&error_description=${encodeURIComponent(e.message)}`);
-        });
     }
 
     function SignUpNext() {
@@ -420,8 +313,13 @@
         let short;
 
         if (type === 'physical') {
-            name = `${last} ${first} ${middle}`;
-            short = `${last} ${first}`;
+            if (empty(middle)) {
+                name = `${first} ${last}`;
+                short = name;
+            } else {
+                name = `${last} ${first} ${middle}`;
+                short = `${first} ${last}`;
+            }
         } else if (type === 'individual') {
             name = `ИП ${last} ${first} ${middle}`;
             short = `ИП ${last} ${first}`;
@@ -439,11 +337,13 @@
             email: email
         }
 
+        localStorage.setItem('identifier', username);
+
         TokenFetch('/sign/up', 'POST', JSON.stringify(body), {
             'Content-Type': 'application/json'
         }).then(function(json) {
-            if (!empty(json['id'])) {
-                SignIn();
+            if (!empty(json)) {
+                document.location.replace(`/oauth/identifier${document.location.search}`);
             }
         }).catch((e) => {
             console.log(e.message);
@@ -610,16 +510,28 @@
         passwordConfirm.onkeyup = validatePassword;
     })();
 
+    function WhoAmI() {
+        TokenFetch('/whoami', 'POST')
+            .then((json) => {
+                if (empty(json)) {
+                    NewClientToken();
+                }
+            })
+            .catch((e) => {
+                console.log(e.message);
+            });
+    }
+
     $(document).ready(function() {
-        oauthParams = new URLSearchParams(document.location.search);
         const clientToken = localStorage.getItem('clientToken');
         if (empty(clientToken)) {
             NewClientToken();
         } else if (ExpireToken(clientToken)) {
             RefreshClientToken();
+        } else {
+            WhoAmI();
         }
     });
-
 </script>
 </body>
 </html>

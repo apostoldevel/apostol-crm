@@ -33,7 +33,7 @@ AS
   SELECT *
     FROM ObjectCalendar;
 
-GRANT SELECT ON api.calendar TO daemon;
+GRANT SELECT ON api.calendar TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.add_calendar ------------------------------------------------------------
@@ -178,7 +178,7 @@ CREATE OR REPLACE FUNCTION api.set_calendar (
   pRestStart    interval,
   pRestCount    interval,
   pDescription  text DEFAULT null
-) RETURNS       numeric
+) RETURNS       SETOF api.calendar
 AS $$
 BEGIN
   IF pId IS NULL THEN
@@ -186,7 +186,8 @@ BEGIN
   ELSE
     PERFORM api.update_calendar(pId, pCode, pName, pWeek, pDayOff, pHoliday, pWorkStart, pWorkCount, pRestStart, pRestCount, pDescription);
   END IF;
-  RETURN pId;
+
+  RETURN QUERY SELECT * FROM api.calendar WHERE id = pId;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -269,7 +270,7 @@ CREATE OR REPLACE VIEW api.calendar_date
 AS
   SELECT * FROM calendar_date;
 
-GRANT SELECT ON api.calendar_date TO daemon;
+GRANT SELECT ON api.calendar_date TO administrator;
 
 --------------------------------------------------------------------------------
 -- VIEW api.calendardate -------------------------------------------------------
@@ -279,7 +280,7 @@ CREATE OR REPLACE VIEW api.calendardate
 AS
   SELECT * FROM CalendarDate;
 
-GRANT SELECT ON api.calendardate TO daemon;
+GRANT SELECT ON api.calendardate TO administrator;
 
 --------------------------------------------------------------------------------
 -- FUNCTION api.list_calendar_date ----------------------------------------------

@@ -120,6 +120,7 @@
     }
 
     function SignUp() {
+        localStorage.setItem('identifier', $("input[id='username']").val());
         document.location.replace(`/oauth/signup${document.location.search}`);
     }
 
@@ -156,6 +157,10 @@
             }
         });
     })();
+
+    $(document).ready(function() {
+        $("input[id='username']").val(localStorage.getItem('identifier'));
+    });
 </script>
 </body>
 </html>

@@ -134,84 +134,69 @@ DECLARE
 
   vMessage      text;
 BEGIN
-  SELECT u.id INTO nUserId FROM db.user u WHERE u.username = 'apibot';
+  SELECT convert_from(url_decode(r[2]), 'utf8')::jsonb INTO payload FROM regexp_split_to_array(pToken, '\.') r;
 
-  INSERT INTO db.session (userid, area, interface, agent, host, oauth2)
-  VALUES (nUserId, GetDefaultArea(nUserId), GetDefaultInterface(nUserId), pAgent, pHost, CreateSystemOAuth2())
-  RETURNING code INTO vSession;
+  iss := coalesce(payload->>'iss', 'null');
+  aud := payload->>'aud';
 
-  IF vSession IS NULL THEN
-    RETURN NEXT json_build_object('error', json_build_object('code', 403, 'error', 'access_denied', 'message', 'Access Denied.'));
-    RETURN;
+  SELECT i.provider INTO nProvider FROM oauth2.issuer i WHERE i.code = iss;
+
+  IF NOT found THEN
+    PERFORM IssuerNotFound(iss);
   END IF;
 
-  PERFORM SetSessionKey(vSession);
-  PERFORM SetUserId(nUserId);
+  SELECT a.id, a.secret INTO nAudience, vSecret FROM oauth2.audience a WHERE a.provider = nProvider AND a.code = aud;
 
-  BEGIN
-    SELECT convert_from(url_decode(r[2]), 'utf8')::jsonb INTO payload FROM regexp_split_to_array(pToken, '\.') r;
+  IF NOT found THEN
+    PERFORM AudienceNotFound();
+  END IF;
 
-    iss := coalesce(payload->>'iss', 'null');
-    aud := payload->>'aud';
+  SELECT * INTO token FROM verify(pToken, vSecret);
 
-    SELECT i.provider INTO nProvider FROM oauth2.issuer i WHERE i.code = iss;
+  IF NOT coalesce(token.valid, false) THEN
+    PERFORM TokenError();
+  END IF;
 
-    IF NOT found THEN
-      PERFORM IssuerNotFound(iss);
+  FOR claim IN SELECT * FROM json_to_record(token.payload) AS x(iss text, aud text, sub text, exp double precision, nbf double precision, iat double precision, jti text)
+  LOOP
+    IF claim.exp <= trunc(extract(EPOCH FROM Now())) THEN
+      PERFORM TokenExpired();
     END IF;
 
-    SELECT a.id, a.secret INTO nAudience, vSecret FROM oauth2.audience a WHERE a.provider = nProvider AND a.code = aud;
+    vSession := GetSession(claim.aud, CreateOAuth2(nAudience, ARRAY['api']), pAgent, pHost);
 
-    IF NOT found THEN
-      PERFORM AudienceNotFound();
+    IF vSession IS NULL THEN
+      RAISE EXCEPTION '%', GetErrorMessage();
     END IF;
 
-    SELECT * INTO token FROM verify(pToken, vSecret);
+    account.username := claim.sub;
 
-    IF NOT coalesce(token.valid, false) THEN
-      PERFORM TokenError();
+    SELECT p.code INTO vCode FROM oauth2.provider p WHERE p.id = nProvider;
+
+    IF vCode = 'google' THEN
+      FOR google IN SELECT * FROM json_to_record(token.payload) AS x(email text, email_verified bool, name text, given_name text, family_name text, locale text, picture text)
+      LOOP
+        account.name := google.name;
+        account.email := google.email;
+
+        profile.locale := GetLocale(google.locale);
+        profile.given_name := google.given_name;
+        profile.family_name := google.family_name;
+        profile.email_verified := google.email_verified;
+        profile.picture := google.picture;
+      END LOOP;
     END IF;
 
-    FOR claim IN SELECT * FROM json_to_record(token.payload) AS x(iss text, aud text, sub text, exp double precision, nbf double precision, iat double precision, jti text)
-    LOOP
-      IF claim.exp <= trunc(extract(EPOCH FROM Now())) THEN
-        PERFORM TokenExpired();
-      END IF;
+    SELECT a.userid INTO nUserId FROM db.auth a WHERE a.audience = nAudience AND a.code = account.username;
 
-      account.username := claim.sub;
+    IF NOT FOUND THEN
+      jName := jsonb_build_object('name', account.name, 'first', profile.given_name, 'last', profile.family_name);
 
-      SELECT p.code INTO vCode FROM oauth2.provider p WHERE p.id = nProvider;
+      SELECT * INTO signup FROM api.signup(null, account.username, null, jName, account.phone, account.email, token.payload::jsonb);
 
-      IF vCode = 'google' THEN
-        FOR google IN SELECT * FROM json_to_record(token.payload) AS x(email text, email_verified bool, name text, given_name text, family_name text, locale text, picture text)
-        LOOP
-          account.name := google.name;
-          account.email := google.email;
+      nUserId := signup.userid;
 
-          profile.locale := GetLocale(google.locale);
-          profile.given_name := google.given_name;
-          profile.family_name := google.family_name;
-          profile.email_verified := google.email_verified;
-          profile.picture := google.picture;
-        END LOOP;
-      END IF;
-
-      SELECT a.userid INTO nUserId FROM db.auth a WHERE a.audience = nAudience AND a.code = claim.sub;
-
-      IF NOT FOUND THEN
-        jName := jsonb_build_object('name', account.name, 'first', profile.given_name, 'last', profile.family_name);
-
-        SELECT * INTO signup FROM api.signup(null, account.username, account.username, jName, account.phone, account.email, token.payload::jsonb);
-
-        nUserId := signup.userid;
-
-        PERFORM SetUserId(GetUser('admin'));
-
-        PERFORM CreateAuth(nUserId, nAudience, claim.sub);
-      END IF;
-
-      vHash := encode(hmac(token.payload::text, GetSecretKey(), 'sha1'), 'hex');
-      UPDATE db.user SET pswhash = crypt(vHash, gen_salt('md5')) WHERE id = nUserId;
+      INSERT INTO db.auth (userId, audience, code) VALUES (nUserId, nAudience, account.username);
 
       UPDATE db.profile p
          SET locale = coalesce(profile.locale, p.locale),
@@ -220,30 +205,18 @@ BEGIN
              email_verified = coalesce(profile.email_verified, p.email_verified),
              picture = coalesce(profile.picture, p.picture)
        WHERE p.userid = nUserId;
+    END IF;
 
-      SELECT id INTO nAudience FROM oauth2.audience WHERE provider = GetProvider('default') AND application = GetApplication('web');
+    SELECT id INTO nAudience FROM oauth2.audience WHERE provider = GetProvider('default') AND application = GetApplication('web');
 
-      session := SignIn(CreateOAuth2(nAudience, ARRAY['api']), account.username, vHash, pAgent, pHost);
+    session := GetSession(account.username, CreateOAuth2(nAudience, ARRAY['api']), pAgent, pHost);
 
-      IF session IS NULL THEN
-        RAISE EXCEPTION '%', GetErrorMessage();
-      END IF;
+    IF session IS NULL THEN
+      RAISE EXCEPTION '%', GetErrorMessage();
+    END IF;
 
-      PERFORM SetUserId(session_userid());
-
-      RETURN NEXT CreateToken(nAudience, oauth2_current_code(session));
-    END LOOP;
-  EXCEPTION
-  WHEN others THEN
-    GET STACKED DIAGNOSTICS vMessage = MESSAGE_TEXT;
-
-    PERFORM SetErrorMessage(vMessage);
-
-    SELECT * INTO ErrorCode, ErrorMessage FROM ParseMessage(vMessage);
-    RETURN NEXT json_build_object('error', json_build_object('code', ErrorCode, 'message', ErrorMessage));
-  END;
-
-  PERFORM SessionOut(vSession, false);
+    RETURN NEXT CreateToken(nAudience, oauth2_current_code(session));
+  END LOOP;
 
   RETURN;
 EXCEPTION
@@ -286,7 +259,6 @@ DECLARE
 
   nAudience     numeric;
   nOauth2       numeric;
-  nUserId       numeric;
 
   grant_type    text;
   response_type text;
@@ -296,10 +268,14 @@ DECLARE
   auth_code     text;
   scope         text;
   state         text;
-  username      text;
-  password      text;
+  assertion     text;
+
+  vUsername     text;
+  vPassword     text;
 
   vSession      text;
+  VSecret       text;
+
   vRedirectURI  text;
 
   arResponses   text[];
@@ -383,8 +359,16 @@ BEGIN
 
   ELSIF grant_type = 'password' THEN
 
-    username := pPayload->>'username';
-    password := pPayload->>'password';
+    vSecret := pPayload->>'secret';
+
+    IF vSecret IS NOT NULL THEN
+      SELECT username, encode(hmac(secret::text, GetSecretKey(), 'sha1'), 'hex') INTO vUsername, vPassword
+        FROM db.user
+       WHERE hash = encode(digest(vSecret, 'sha1'), 'hex');
+    ELSE
+      vUsername := pPayload->>'username';
+      vPassword := pPayload->>'password';
+    END IF;
 
     response_type := pPayload->>'response_type';
     redirect_uri := pPayload->>'redirect_uri';
@@ -396,7 +380,7 @@ BEGIN
 
     nOAuth2 := CreateOAuth2(nAudience, ScopeToArray(scope), access_type, redirect_uri, state);
 
-    vSession := SignIn(nOAuth2, username, password, pAgent, pHost);
+    vSession := SignIn(nOAuth2, vUsername, vPassword, pAgent, pHost);
 
     IF vSession IS NULL THEN
       SELECT * INTO ErrorCode, ErrorMessage FROM ParseMessage(GetErrorMessage());
@@ -405,37 +389,39 @@ BEGIN
 
     auth_code := oauth2_current_code(vSession);
 
-    result := jsonb_build_object('session', vSession, 'secret', session_secret(vSession));
-
-    IF state IS NOT NULL THEN
-      result := result || jsonb_build_object('state', state);
-    END IF;
+    result := '{}'::jsonb;
 
     IF arResponses && ARRAY['code'] THEN
-      result := result || jsonb_build_object('code', auth_code);
+      result := result || jsonb_build_object('session', vSession, 'secret', session_secret(vSession), 'code', auth_code);
     END IF;
 
     IF arResponses && ARRAY['token'] THEN
       result := result || CreateToken(nAudience, auth_code);
     END IF;
 
+    IF state IS NOT NULL THEN
+      result := result || jsonb_build_object('state', state);
+    END IF;
+
     RETURN result;
 
   ELSIF grant_type = 'client_credentials' THEN
 
-    SELECT id INTO nUserId FROM db.user u WHERE u.username = 'apibot';
-
     nOAuth2 := CreateOAuth2(nAudience, ARRAY['api'], 'offline');
 
-    INSERT INTO db.session (userid, area, interface, agent, host, oauth2)
-    VALUES (nUserId, GetDefaultArea(nUserId), GetDefaultInterface(nUserId), pAgent, pHost, nOAuth2)
-    RETURNING code INTO vSession;
+    vSession := SignIn(nOAuth2, pClientId, pSecret, pAgent, pHost);
 
     IF vSession IS NULL THEN
       RETURN json_build_object('error', json_build_object('code', 403, 'error', 'access_denied', 'message', 'Access Denied.'));
     END IF;
 
     RETURN CreateToken(nAudience, oauth2_current_code(vSession), INTERVAL '1 day');
+
+  ELSIF grant_type = 'urn:ietf:params:oauth:grant-type:jwt-bearer' THEN
+
+    assertion := pPayload->>'assertion';
+
+    RETURN daemon.signin(assertion, pAgent, pHost);
 
   ELSE
     RETURN json_build_object('error', json_build_object('code', 400, 'error', 'unsupported_grant_type', 'message', format('Invalid grant type: %s.', grant_type)));
@@ -488,8 +474,8 @@ BEGIN
 
   pPath := lower(pPath);
 
-  PERFORM SetSessionKey(null);
-  PERFORM SetUserId(null);
+  PERFORM SetCurrentSession(null);
+  PERFORM SetCurrentUserId(null);
 
   IF pPath = '/sign/in' OR pPath = '/authenticate' THEN
     pPayload := pPayload - 'agent';

@@ -251,7 +251,7 @@ GRANT SELECT ON Area TO administrator;
 CREATE TABLE db.user (
     id                  numeric(12) PRIMARY KEY DEFAULT NEXTVAL('SEQUENCE_USER'),
     type                char NOT NULL,
-    username            varchar(50) NOT NULL,
+    username            text NOT NULL,
     name                text NOT NULL,
     phone               text,
     email               text,
@@ -307,7 +307,7 @@ BEGIN
     SELECT gen_random_bytes(64) INTO NEW.secret;
   END IF;
 
-  SELECT encode(hmac(NEW.secret::text, GetSecretKey(), 'sha1'), 'hex') INTO NEW.hash;
+  SELECT encode(digest(encode(hmac(NEW.secret::text, GetSecretKey(), 'sha512'), 'hex'), 'sha1'), 'hex') INTO NEW.hash;
 
   RETURN NEW;
 END;
@@ -428,6 +428,7 @@ AS
          WHEN u.username THEN 'yes'
          ELSE 'no'
          END AS system,
+         status::int,
          CASE
          WHEN u.status & B'1100' = B'1100' THEN 'expired & locked'
          WHEN u.status & B'1000' = B'1000' THEN 'expired'
@@ -435,17 +436,18 @@ AS
          WHEN u.status & B'0010' = B'0010' THEN 'active'
          WHEN u.status & B'0001' = B'0001' THEN 'open'
          ELSE 'undefined'
-         END AS status,
+         END AS statustext,
+         state::int,
          CASE
          WHEN p.state & B'111' = B'111' THEN 'online (all)'
-         WHEN p.state & B'110' = B'110' THEN 'online (local & trust)'
-         WHEN p.state & B'101' = B'101' THEN 'online (ext & trust)'
-         WHEN p.state & B'011' = B'011' THEN 'online (ext & local)'
-         WHEN p.state & B'100' = B'100' THEN 'online (trust)'
+         WHEN p.state & B'110' = B'110' THEN 'online (local & trusted)'
+         WHEN p.state & B'101' = B'101' THEN 'online (external & trusted)'
+         WHEN p.state & B'011' = B'011' THEN 'online (external & local)'
+         WHEN p.state & B'100' = B'100' THEN 'online (trusted)'
          WHEN p.state & B'010' = B'010' THEN 'online (local)'
-         WHEN p.state & B'001' = B'001' THEN 'online (ext)'
+         WHEN p.state & B'001' = B'001' THEN 'online (external)'
          ELSE 'offline'
-         END AS state,
+         END AS statetext,
          u.lock_date, u.expiry_date, p.lc_ip,
          p.input_count, p.input_last, p.input_error, p.input_error_last, p.input_error_all
     FROM db.user u INNER JOIN db.profile p   ON p.userid = u.id
@@ -1542,14 +1544,14 @@ BEGIN
   access_token := CreateAccessToken(pAudience, vSession, pDateFrom, pDateTo);
   PERFORM AddToken(pHeader, 'A', access_token, pDateFrom, pDateTo);
 
-  Token := jsonb_build_object('access_token', access_token, 'token_type', 'Bearer', 'expires_in', expires_in, 'scope', array_to_string(arScopes, ' '), 'session', vSession);
+  Token := jsonb_build_object('session', vSession, 'secret', session_secret(vSession), 'access_token', access_token, 'token_type', 'Bearer', 'expires_in', expires_in, 'scope', array_to_string(arScopes, ' '));
 
   IF vState IS NOT NULL THEN
     Token := Token || jsonb_build_object('state', vState);
   END IF;
 
   IF vAccessType = 'offline' THEN
-    refresh_token := GenSecretKey(57);
+    refresh_token := GenSecretKey(54);
     PERFORM AddToken(pHeader, 'R', refresh_token, pDateFrom, MAXDATE());
     Token := Token || jsonb_build_object('refresh_token', refresh_token);
   END IF;
@@ -1657,7 +1659,7 @@ CREATE TABLE db.session (
     token       numeric(12) NOT NULL,
     suid        numeric(12) NOT NULL,
     userid      numeric(12) NOT NULL,
-    lang        numeric(12) NOT NULL,
+    locale      numeric(12) NOT NULL,
     area        numeric(12) NOT NULL,
     interface   numeric(12) NOT NULL,
     oper_date   timestamp DEFAULT NULL,
@@ -1672,7 +1674,7 @@ CREATE TABLE db.session (
     CONSTRAINT fk_session_token FOREIGN KEY (token) REFERENCES db.token(id),
     CONSTRAINT fk_session_suid FOREIGN KEY (suid) REFERENCES db.user(id),
     CONSTRAINT fk_session_userid FOREIGN KEY (userid) REFERENCES db.user(id),
-    CONSTRAINT fk_session_lang FOREIGN KEY (lang) REFERENCES db.locale(id),
+    CONSTRAINT fk_session_locale FOREIGN KEY (locale) REFERENCES db.locale(id),
     CONSTRAINT fk_session_area FOREIGN KEY (area) REFERENCES db.area(id),
     CONSTRAINT fk_session_interface FOREIGN KEY (interface) REFERENCES db.interface(id)
 );
@@ -1684,7 +1686,7 @@ COMMENT ON COLUMN db.session.oauth2 IS 'Параметры авторизаци�
 COMMENT ON COLUMN db.session.token IS 'Идентификатор маркера';
 COMMENT ON COLUMN db.session.suid IS 'Пользователь сессии';
 COMMENT ON COLUMN db.session.userid IS 'Пользователь';
-COMMENT ON COLUMN db.session.lang IS 'Язык';
+COMMENT ON COLUMN db.session.locale IS 'Язык';
 COMMENT ON COLUMN db.session.area IS 'Зона';
 COMMENT ON COLUMN db.session.interface IS 'Рабочие место';
 COMMENT ON COLUMN db.session.oper_date IS 'Дата операционного дня';
@@ -1700,9 +1702,8 @@ CREATE UNIQUE INDEX ON db.session (oauth2);
 
 CREATE INDEX ON db.session (suid);
 CREATE INDEX ON db.session (userid);
---CREATE INDEX ON db.session (lang);
---CREATE INDEX ON db.session (area);
---CREATE INDEX ON db.session (interface);
+CREATE INDEX ON db.session (created);
+CREATE INDEX ON db.session (updated);
 
 --------------------------------------------------------------------------------
 -- FUNCTION ft_session_before --------------------------------------------------
@@ -1755,7 +1756,7 @@ BEGIN
       NEW.token := NewTokenCode(NEW.oauth2, NEW.code, NEW.salt, NEW.agent, NEW.host, NEW.updated);
     END IF;
 
-    IF OLD.area <> NEW.area THEN
+    IF NEW.area <> OLD.area THEN
       SELECT id INTO nID FROM db.member_area WHERE area = NEW.area AND member = NEW.userid;
       IF NOT found THEN
         NEW.area := OLD.area;
@@ -1804,8 +1805,8 @@ BEGIN
       NEW.token := NewTokenCode(NEW.oauth2, NEW.code, NEW.salt, NEW.agent, NEW.host, NEW.updated);
     END IF;
 
-    IF NEW.lang IS NULL THEN
-      SELECT id INTO NEW.lang FROM db.locale WHERE code = 'ru';
+    IF NEW.locale IS NULL THEN
+      SELECT id INTO NEW.locale FROM db.locale WHERE code = 'ru';
     END IF;
 
     IF NEW.area IS NULL THEN
@@ -1874,7 +1875,7 @@ BEGIN
     RETURN OLD;
   ELSIF (TG_OP = 'UPDATE') THEN
     IF OLD.userid <> NEW.userid THEN
-      PERFORM SetUserId(NEW.userid);
+      PERFORM SetCurrentUserId(NEW.userid);
     END IF;
     RETURN NEW;
   END IF;
@@ -1893,8 +1894,9 @@ CREATE TRIGGER t_session_after
 
 CREATE OR REPLACE VIEW session
 AS
-  SELECT s.code, s.token, s.userid, s.suid, u.username, u.name, s.created,
-         s.updated, u.input_last, s.agent, s.host, u.lc_ip, u.status, u.state
+  SELECT s.code, s.token, s.userid, s.suid, u.username, u.name,
+         s.agent, s.host, s.area, s.interface, s.created, s.updated,
+         u.input_last, u.lc_ip, u.status, u.state
     FROM db.session s INNER JOIN users u ON s.userid = u.id;
 
 GRANT SELECT ON session TO administrator;
@@ -1934,64 +1936,6 @@ $$ LANGUAGE plpgsql
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
--- FUNCTION SetSessionKey ------------------------------------------------------
---------------------------------------------------------------------------------
-
-CREATE OR REPLACE FUNCTION SetSessionKey (
-  pValue	text
-) RETURNS	void
-AS $$
-BEGIN
-  PERFORM SafeSetVar('session', pValue);
-END;
-$$ LANGUAGE plpgsql
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
-
---------------------------------------------------------------------------------
--- FUNCTION GetSessionCode ------------------------------------------------------
---------------------------------------------------------------------------------
-
-CREATE OR REPLACE FUNCTION GetSessionCode()
-RETURNS		text
-AS $$
-BEGIN
-  RETURN SafeGetVar('session');
-END;
-$$ LANGUAGE plpgsql
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
-
---------------------------------------------------------------------------------
--- FUNCTION SetUserId ----------------------------------------------------------
---------------------------------------------------------------------------------
-
-CREATE OR REPLACE FUNCTION SetUserId (
-  pValue	numeric
-) RETURNS	void
-AS $$
-BEGIN
-  PERFORM SafeSetVar('user', trim(to_char(pValue, '999999990000')));
-END;
-$$ LANGUAGE plpgsql
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
-
---------------------------------------------------------------------------------
--- FUNCTION GetUserId ----------------------------------------------------------
---------------------------------------------------------------------------------
-
-CREATE OR REPLACE FUNCTION GetUserId()
-RETURNS		numeric
-AS $$
-BEGIN
-  RETURN to_number(SafeGetVar('user'), '999999990000');
-END;
-$$ LANGUAGE plpgsql
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
-
---------------------------------------------------------------------------------
 -- FUNCTION GetSecretKey -------------------------------------------------------
 --------------------------------------------------------------------------------
 
@@ -2000,7 +1944,7 @@ CREATE OR REPLACE FUNCTION GetSecretKey (
 ) RETURNS       text
 AS $$
 DECLARE
-  vDefaultKey	text DEFAULT 'oyeyuQBJTkXB1IBvi4XfQFSm';
+  vDefaultKey	text DEFAULT 'MYXIWngoebYUkOPlGYdXuy6n';
   vSecretKey	text DEFAULT SafeGetVar(pName);
 BEGIN
   RETURN coalesce(vSecretKey, vDefaultKey);
@@ -2014,7 +1958,7 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 /**
  * Системный клиент OAuth 2.0.
- * @return {text} - OAuth 2.0 Client ID
+ * @return {text} - OAuth 2.0 Client Id
  */
 CREATE OR REPLACE FUNCTION oauth2_system_client_id()
 RETURNS		text
@@ -2031,7 +1975,7 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 /**
  * Текущий клиент OAuth 2.0.
- * @return {text} - OAuth 2.0 Client ID
+ * @return {text} - OAuth 2.0 Client Id
  */
 CREATE OR REPLACE FUNCTION oauth2_current_client_id()
 RETURNS		text
@@ -2044,11 +1988,69 @@ $$ LANGUAGE plpgsql
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
+-- FUNCTION SetCurrentSession --------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION SetCurrentSession (
+  pValue	text
+) RETURNS	void
+AS $$
+BEGIN
+  PERFORM SafeSetVar('session', pValue);
+END;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- FUNCTION GetCurrentSession --------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION GetCurrentSession()
+RETURNS		text
+AS $$
+BEGIN
+  RETURN SafeGetVar('session');
+END;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- FUNCTION SetCurrentUserId ---------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION SetCurrentUserId (
+  pValue	numeric
+) RETURNS	void
+AS $$
+BEGIN
+  PERFORM SafeSetVar('user', trim(to_char(pValue, '999999990000')));
+END;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- FUNCTION GetCurrentUserId ---------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION GetCurrentUserId()
+RETURNS		numeric
+AS $$
+BEGIN
+  RETURN to_number(SafeGetVar('user'), '999999990000');
+END;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
 -- FUNCTION current_session ----------------------------------------------------
 --------------------------------------------------------------------------------
 /**
  * Возвращает ключ текущей сессии.
- * @return {text} - Ключ сессии
+ * @return {text} - Код сессии
  */
 CREATE OR REPLACE FUNCTION current_session()
 RETURNS		text
@@ -2056,7 +2058,7 @@ AS $$
 DECLARE
   vSession	text;
 BEGIN
-  SELECT code INTO vSession FROM db.session WHERE code = GetSessionCode();
+  SELECT code INTO vSession FROM db.session WHERE code = GetCurrentSession();
   IF found THEN
     RETURN vSession;
   END IF;
@@ -2071,7 +2073,7 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 /**
  * Возвращает секретный ключ сессии (тсс... никому не говорить 😉 !!!).
- * @param {text} pSession - Ключ сессии
+ * @param {text} pSession - Код сессии
  * @return {text}
  */
 CREATE OR REPLACE FUNCTION session_secret (
@@ -2090,11 +2092,34 @@ $$ LANGUAGE plpgsql
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
+-- FUNCTION session_area -------------------------------------------------------
+--------------------------------------------------------------------------------
+/**
+ * Возвращает зону сессии.
+ * @param {text} pSession - Код сессии
+ * @return {text}
+ */
+CREATE OR REPLACE FUNCTION session_area (
+  pSession	text DEFAULT current_session()
+)
+RETURNS		text
+AS $$
+DECLARE
+  vArea     text;
+BEGIN
+  SELECT area INTO vArea FROM db.session WHERE code = pSession;
+  RETURN vArea;
+END;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
 -- FUNCTION session_agent ------------------------------------------------------
 --------------------------------------------------------------------------------
 /**
  * Возвращает агента сессии.
- * @param {text} pSession - Ключ сессии
+ * @param {text} pSession - Код сессии
  * @return {text}
  */
 CREATE OR REPLACE FUNCTION session_agent (
@@ -2117,7 +2142,7 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 /**
  * Возвращает IP адрес подключения.
- * @param {text} pSession - Ключ сессии
+ * @param {text} pSession - Код сессии
  * @return {text} - IP адрес
  */
 CREATE OR REPLACE FUNCTION session_host (
@@ -2140,7 +2165,7 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 /**
  * Возвращает идентификатор пользователя сеанса.
- * @param {text} pSession - Ключ сессии
+ * @param {text} pSession - Код сессии
  * @return {id} - Идентификатор пользователя: users.id
  */
 CREATE OR REPLACE FUNCTION session_userid (
@@ -2171,10 +2196,10 @@ AS $$
 DECLARE
   nUserId	numeric;
 BEGIN
-  nUserId := GetUserId();
+  nUserId := GetCurrentUserId();
   IF nUserId IS NULL THEN
     SELECT userid INTO nUserId FROM db.session WHERE code = current_session();
-    PERFORM SetUserId(nUserId);
+    PERFORM SetCurrentUserId(nUserId);
   END IF;
   RETURN nUserId;
 END;
@@ -2187,7 +2212,7 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 /**
  * Возвращает имя пользователя сеанса.
- * @param {text} pSession - Ключ сессии
+ * @param {text} pSession - Код сессии
  * @return {text} - Имя (username) пользователя: users.username
  */
 CREATE OR REPLACE FUNCTION session_username (
@@ -2253,16 +2278,16 @@ $$ LANGUAGE plpgsql
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
--- FUNCTION SetCurrentUserId ---------------------------------------------------
+-- FUNCTION SubstituteUser -----------------------------------------------------
 --------------------------------------------------------------------------------
 /**
  * Меняет идентификатор текущего пользователя в активном сеансе
  * @param {numeric} pUserId - Идентификатор нового пользователя
  * @param {text} pPassword - Пароль текущего пользователя
- * @param {text} pSession - Ключ сессии
+ * @param {text} pSession - Код сессии
  * @return {void}
  */
-CREATE OR REPLACE FUNCTION SetCurrentUserId (
+CREATE OR REPLACE FUNCTION SubstituteUser (
   pUserId	numeric,
   pPassword	text,
   pSession	text DEFAULT current_session()
@@ -2276,7 +2301,10 @@ BEGIN
   END IF;
 
   IF CheckPassword(session_username(), pPassword) THEN
-    UPDATE db.session SET userid = pUserId WHERE code = pSession;
+    UPDATE db.session SET userid = pUserId, area = GetDefaultArea(pUserId) WHERE code = pSession;
+    IF FOUND THEN
+      PERFORM SetCurrentUserId(pUserId);
+    END IF;
   ELSE
     RAISE EXCEPTION 'ERR-40300: %', GetErrorMessage();
   END IF;
@@ -2300,7 +2328,7 @@ CREATE OR REPLACE FUNCTION SubstituteUser (
 ) RETURNS	void
 AS $$
 BEGIN
-  PERFORM SetCurrentUserId(GetUser(pUserName), pPassword);
+  PERFORM SubstituteUser(GetUser(pUserName), pPassword);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -2342,7 +2370,7 @@ $$ LANGUAGE plpgsql
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
--- FUNCTION current_area -------------------------------------------------
+-- FUNCTION current_area -------------------------------------------------------
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION current_area (
@@ -2414,7 +2442,7 @@ $$ LANGUAGE plpgsql
 /**
  * Устанавливает дату операционного дня.
  * @param {timestamp} pOperDate - Дата операционного дня
- * @param {text} pSession - Ключ сессии
+ * @param {text} pSession - Код сессии
  * @return {void}
  */
 CREATE OR REPLACE FUNCTION SetOperDate (
@@ -2435,7 +2463,7 @@ $$ LANGUAGE plpgsql
 /**
  * Устанавливает дату операционного дня.
  * @param {timestamptz} pOperDate - Дата операционного дня
- * @param {text} pSession - Ключ сессии
+ * @param {text} pSession - Код сессии
  * @return {void}
  */
 CREATE OR REPLACE FUNCTION SetOperDate (
@@ -2455,7 +2483,7 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 /**
  * Возвращает дату операционного дня.
- * @param {text} pSession - Ключ сессии
+ * @param {text} pSession - Код сессии
  * @return {timestamp} - Дата операционного дня
  */
 CREATE OR REPLACE FUNCTION GetOperDate (
@@ -2478,7 +2506,7 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 /**
  * Возвращает дату операционного дня.
- * @param {text} pSession - Ключ сессии
+ * @param {text} pSession - Код сессии
  * @return {timestamp} - Дата операционного дня
  */
 CREATE OR REPLACE FUNCTION oper_date (
@@ -2500,46 +2528,46 @@ $$ LANGUAGE plpgsql
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
--- FUNCTION SetLanguage --------------------------------------------------------
+-- FUNCTION SetLocale --------------------------------------------------------
 --------------------------------------------------------------------------------
 /**
  * Устанавливает по идентификатору текущий язык.
- * @param {id} pLang - Идентификатор языка
- * @param {text} pSession - Ключ сессии
+ * @param {id} pLocale - Идентификатор языка
+ * @param {text} pSession - Код сессии
  * @return {void}
  */
-CREATE OR REPLACE FUNCTION SetLanguage (
-  pLang		numeric,
+CREATE OR REPLACE FUNCTION SetLocale (
+  pLocale   numeric,
   pSession	text DEFAULT current_session()
 ) RETURNS	void
 AS $$
 BEGIN
-  UPDATE db.session SET lang = pLang WHERE code = pSession;
+  UPDATE db.session SET locale = pLocale WHERE code = pSession;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
--- FUNCTION SetLanguage --------------------------------------------------------
+-- FUNCTION SetLocale ----------------------------------------------------------
 --------------------------------------------------------------------------------
 /**
  * Устанавливает по коду текущий язык.
  * @param {text} pCode - Код языка
- * @param {text} pSession - Ключ сессии
+ * @param {text} pSession - Код сессии
  * @return {void}
  */
-CREATE OR REPLACE FUNCTION SetLanguage (
+CREATE OR REPLACE FUNCTION SetLocale (
   pCode		text DEFAULT 'ru',
   pSession	text DEFAULT current_session()
 ) RETURNS	void
 AS $$
 DECLARE
-  nLang		numeric;
+  nLocale		numeric;
 BEGIN
-  SELECT id INTO nLang FROM db.locale WHERE code = pCode;
+  SELECT id INTO nLocale FROM db.locale WHERE code = pCode;
   IF found THEN
-    PERFORM SetLanguage(nLang, pSession);
+    PERFORM SetLocale(nLocale, pSession);
   END IF;
 END;
 $$ LANGUAGE plpgsql
@@ -2547,34 +2575,34 @@ $$ LANGUAGE plpgsql
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
--- FUNCTION GetLanguage --------------------------------------------------------
+-- FUNCTION GetLocale ----------------------------------------------------------
 --------------------------------------------------------------------------------
 /**
  * Возвращает идентификатор текущего языка.
- * @param {text} pSession - Ключ сессии
+ * @param {text} pSession - Код сессии
  * @return {numeric} - Идентификатор языка.
  */
-CREATE OR REPLACE FUNCTION GetLanguage (
+CREATE OR REPLACE FUNCTION GetLocale (
   pSession	text DEFAULT current_session()
 )
 RETURNS		numeric
 AS $$
 DECLARE
-  nLang		numeric;
+  nLocale		numeric;
 BEGIN
-  SELECT lang INTO nLang FROM db.session WHERE code = pSession;
-  RETURN nLang;
+  SELECT locale INTO nLocale FROM db.session WHERE code = pSession;
+  RETURN nLocale;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
--- FUNCTION locale_code ------------------------------------------------------
+-- FUNCTION locale_code --------------------------------------------------------
 --------------------------------------------------------------------------------
 /**
  * Возвращает код текущего языка.
- * @param {text} pSession - Ключ сессии
+ * @param {text} pSession - Код сессии
  * @return {text} - Код языка
  */
 CREATE OR REPLACE FUNCTION locale_code (
@@ -2585,7 +2613,7 @@ AS $$
 DECLARE
   vCode		text;
 BEGIN
-  SELECT code INTO vCode FROM db.locale WHERE id = GetLanguage(pSession);
+  SELECT code INTO vCode FROM db.locale WHERE id = GetLocale(pSession);
   RETURN vCode;
 END;
 $$ LANGUAGE plpgsql
@@ -2593,11 +2621,11 @@ $$ LANGUAGE plpgsql
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
--- FUNCTION current_locale ---------------------------------------------------
+-- FUNCTION current_locale -----------------------------------------------------
 --------------------------------------------------------------------------------
 /**
  * Возвращает идентификатор текущего языка.
- * @param {text} pSession - Ключ сессии
+ * @param {text} pSession - Код сессии
  * @return {numeric} - Идентификатор языка.
  */
 CREATE OR REPLACE FUNCTION current_locale (
@@ -2606,7 +2634,7 @@ CREATE OR REPLACE FUNCTION current_locale (
 RETURNS		numeric
 AS $$
 BEGIN
-  RETURN GetLanguage(pSession);
+  RETURN GetLocale(pSession);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -2673,7 +2701,7 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 /**
  * Создаёт учётную запись пользователя.
- * @param {varchar} pUserName - Пользователь
+ * @param {text} pUserName - Пользователь
  * @param {text} pPassword - Пароль
  * @param {text} pName - Полное имя
  * @param {text} pPhone - Телефон
@@ -2685,7 +2713,7 @@ $$ LANGUAGE plpgsql
  * @return {(id|exception)} - Id учётной записи или ошибку
  */
 CREATE OR REPLACE FUNCTION CreateUser (
-  pUserName             varchar,
+  pUserName             text,
   pPassword             text,
   pName                 text,
   pPhone                text,
@@ -2698,6 +2726,7 @@ CREATE OR REPLACE FUNCTION CreateUser (
 AS $$
 DECLARE
   nUserId		        numeric;
+  vSecret               text;
 BEGIN
   IF session_user <> 'kernel' THEN
     IF NOT IsUserRole(1001) THEN
@@ -2713,13 +2742,16 @@ BEGIN
 
   INSERT INTO db.user (type, username, name, phone, email, description, passwordchange, passwordnotchange)
   VALUES ('U', pUserName, pName, pPhone, pEmail, pDescription, pPasswordChange, pPasswordNotChange)
-  RETURNING id INTO nUserId;
+  RETURNING id, secret INTO nUserId, vSecret;
 
   INSERT INTO db.profile (userid) VALUES (nUserId);
 
-  IF NULLIF(pPassword, '') IS NOT NULL THEN
+  IF NULLIF(pPassword, '') IS NULL THEN
+    pPassword := encode(hmac(vSecret, GetSecretKey(), 'sha1'), 'hex');
     PERFORM SetPassword(nUserId, pPassword);
   END IF;
+
+  PERFORM SetPassword(nUserId, pPassword);
 
   PERFORM AddMemberToInterface(nUserId, GetInterface('I:1:0:0'));
 
@@ -2738,13 +2770,13 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 /**
  * Создаёт группу.
- * @param {varchar} pGroupName - Группа
+ * @param {text} pGroupName - Группа
  * @param {text} pName - Полное имя
  * @param {text} pDescription - Описание
  * @return {(id|exception)} - Id группы или ошибку
  */
 CREATE OR REPLACE FUNCTION CreateGroup (
-  pGroupName    varchar,
+  pGroupName    text,
   pName         text,
   pDescription	text
 ) RETURNS	    numeric
@@ -2779,7 +2811,7 @@ $$ LANGUAGE plpgsql
 /**
  * Обновляет учётную запись пользователя.
  * @param {id} pId - Идентификатор учетной записи пользователя
- * @param {varchar} pUserName - Пользователь
+ * @param {text} pUserName - Пользователь
  * @param {text} pPassword - Пароль
  * @param {text} pName - Полное имя
  * @param {text} pPhone - Телефон
@@ -2791,7 +2823,7 @@ $$ LANGUAGE plpgsql
  */
 CREATE OR REPLACE FUNCTION UpdateUser (
   pId                   numeric,
-  pUserName             varchar,
+  pUserName             text,
   pPassword             text DEFAULT null,
   pName                 text DEFAULT null,
   pPhone                text DEFAULT null,
@@ -2854,14 +2886,14 @@ $$ LANGUAGE plpgsql
 /**
  * Обновляет учётные данные группы.
  * @param {id} pId - Идентификатор группы
- * @param {varchar} pGroupName - Группа
+ * @param {text} pGroupName - Группа
  * @param {text} pName - Полное имя
  * @param {text} pDescription - Описание
  * @return {(void|exception)}
  */
 CREATE OR REPLACE FUNCTION UpdateGroup (
   pId           numeric,
-  pGroupName    varchar,
+  pGroupName    text,
   pName         text,
   pDescription  text
 ) RETURNS       void
@@ -2945,11 +2977,11 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 /**
  * Удаляет учётную запись пользователя.
- * @param {varchar} pUserName - Пользователь (login)
+ * @param {text} pUserName - Пользователь (login)
  * @return {(void|exception)}
  */
 CREATE OR REPLACE FUNCTION DeleteUser (
-  pUserName	varchar
+  pUserName	text
 ) RETURNS	void
 AS $$
 DECLARE
@@ -3009,11 +3041,11 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 /**
  * Удаляет группу.
- * @param {varchar} pGroupName - Группа
+ * @param {text} pGroupName - Группа
  * @return {(void|exception)}
  */
 CREATE OR REPLACE FUNCTION DeleteGroup (
-  pGroupName    varchar
+  pGroupName    text
 ) RETURNS       void
 AS $$
 BEGIN
@@ -3028,11 +3060,11 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 /**
  * Возвращает идентификатор пользователя по имени пользователя.
- * @param {varchar} pUserName - Пользователь
+ * @param {text} pUserName - Пользователь
  * @return {id}
  */
 CREATE OR REPLACE FUNCTION GetUser (
-  pUserName	varchar
+  pUserName	text
 ) RETURNS	numeric
 AS $$
 DECLARE
@@ -3055,11 +3087,11 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 /**
  * Возвращает идентификатор группы по наименованию.
- * @param {varchar} pGroupName - Группа
+ * @param {text} pGroupName - Группа
  * @return {id}
  */
 CREATE OR REPLACE FUNCTION GetGroup (
-  pGroupName	varchar
+  pGroupName	text
 ) RETURNS	    numeric
 AS $$
 DECLARE
@@ -4146,7 +4178,7 @@ BEGIN
 
   IF ValidSession(pSession) THEN
 
-    IF NOT coalesce(pSession = GetSessionCode(), false) THEN
+    IF NOT coalesce(pSession = GetCurrentSession(), false) THEN
 
       SELECT userid, area, interface
         INTO nUserId, nArea, nInterface
@@ -4179,8 +4211,8 @@ BEGIN
         PERFORM LoginIPTableError(pHost);
       END IF;
 
-      PERFORM SetSessionKey(pSession);
-      PERFORM SetUserId(up.id);
+      PERFORM SetCurrentSession(pSession);
+      PERFORM SetCurrentUserId(up.id);
 
       UPDATE db.user SET status = set_bit(set_bit(status, 3, 0), 2, 1) WHERE id = up.id;
 
@@ -4276,8 +4308,8 @@ BEGIN
       PERFORM AccessDenied();
     END IF;
 
-    PERFORM SetSessionKey(vSession);
-    PERFORM SetUserId(up.id);
+    PERFORM SetCurrentSession(vSession);
+    PERFORM SetCurrentUserId(up.id);
 
     UPDATE db.user SET status = set_bit(set_bit(status, 3, 0), 2, 1) WHERE id = up.id;
 
@@ -4290,8 +4322,8 @@ BEGIN
 
   ELSE
 
-    PERFORM SetSessionKey(null);
-    PERFORM SetUserId(null);
+    PERFORM SetCurrentSession(null);
+    PERFORM SetCurrentUserId(null);
 
     PERFORM LoginError();
 
@@ -4341,8 +4373,8 @@ BEGIN
   WHEN others THEN
     GET STACKED DIAGNOSTICS message = MESSAGE_TEXT;
 
-    PERFORM SetSessionKey(null);
-    PERFORM SetUserId(null);
+    PERFORM SetCurrentSession(null);
+    PERFORM SetCurrentUserId(null);
 
     PERFORM SetErrorMessage(message);
 
@@ -4423,8 +4455,8 @@ BEGIN
     VALUES ('M', 1002, GetUserName(nUserId), pSession, message);
 
     PERFORM SetErrorMessage(message);
-    PERFORM SetSessionKey(null);
-    PERFORM SetUserId(null);
+    PERFORM SetCurrentSession(null);
+    PERFORM SetCurrentUserId(null);
 
     RETURN true;
   END IF;
@@ -4465,8 +4497,8 @@ WHEN others THEN
     VALUES ('E', 3002, GetUserName(nUserId), pSession, 'Выход из системы. ' || message);
   END IF;
 
-  PERFORM SetSessionKey(null);
-  PERFORM SetUserId(null);
+  PERFORM SetCurrentSession(null);
+  PERFORM SetCurrentUserId(null);
 
   PERFORM SetErrorMessage(message);
 
@@ -4511,8 +4543,8 @@ EXCEPTION
 WHEN others THEN
   GET STACKED DIAGNOSTICS message = MESSAGE_TEXT;
 
-  PERFORM SetSessionKey(null);
-  PERFORM SetUserId(null);
+  PERFORM SetCurrentSession(null);
+  PERFORM SetCurrentUserId(null);
 
   PERFORM SetErrorMessage(message);
 
@@ -4558,6 +4590,71 @@ BEGIN
   END IF;
 
   RETURN nToken;
+END;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- GetSession ------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION GetSession (
+  pUserName     text,
+  pOAuth2       numeric DEFAULT CreateSystemOAuth2(),
+  pAgent        text DEFAULT null,
+  pHost         inet DEFAULT null
+) RETURNS       text
+AS $$
+DECLARE
+  up            db.user%rowtype;
+
+  nArea         numeric;
+  nInterface	numeric;
+
+  vSession      text;
+BEGIN
+  IF session_user NOT IN ('kernel', 'daemon', 'apibot') THEN
+    PERFORM AccessDeniedForUser(session_user);
+  END IF;
+
+  SELECT * INTO up FROM db.user WHERE type = 'U' AND username = pUserName;
+
+  IF NOT found THEN
+    PERFORM LoginError();
+  END IF;
+
+  IF get_bit(up.status, 1) = 1 THEN
+    PERFORM UserLockError();
+  END IF;
+
+  IF up.lock_date IS NOT NULL AND up.lock_date <= now() THEN
+    PERFORM UserLockError();
+  END IF;
+
+  IF get_bit(up.status, 0) = 1 THEN
+    PERFORM PasswordExpired();
+  END IF;
+
+  IF up.expiry_date IS NOT NULL AND up.expiry_date <= now() THEN
+    PERFORM PasswordExpired();
+  END IF;
+
+  SELECT code INTO vSession FROM db.session WHERE userid = up.id;
+
+  IF NOT FOUND THEN
+    nArea := GetDefaultArea(up.id);
+    nInterface := GetDefaultInterface(up.id);
+
+    INSERT INTO db.session (oauth2, userid, area, interface, agent, host)
+    VALUES (pOAuth2, up.id, nArea, nInterface, pAgent, pHost)
+    RETURNING code INTO vSession;
+  END IF;
+
+  PERFORM SetCurrentSession(vSession);
+  PERFORM SetCurrentUserId(up.id);
+
+  RETURN vSession;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER

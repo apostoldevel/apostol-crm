@@ -17,8 +17,8 @@ SELECT AddMemberToInterface(CreateGroup('administrator', 'Администрат
 SELECT AddMemberToInterface(CreateGroup('operator', 'Операторы', 'Группа для операторов системы'), GetInterface('I:1:0:2'));
 SELECT AddMemberToInterface(CreateGroup('user', 'Пользователи', 'Группа для внешних пользователей системы'), GetInterface('I:1:0:3'));
 
-SELECT AddMemberToGroup(CreateUser('daemon', 'daemon', 'Демон', null, null, 'Пользователь для API', false, true, GetArea('default')), 1000);
 SELECT AddMemberToGroup(CreateUser('admin', 'admin', 'Администратор', null,null, 'Администратор системы', true, false, GetArea('default')), 1001);
-SELECT AddMemberToGroup(CreateUser('apibot', 'apibot', 'Системная служба API', null, null, 'API клиент', false, true, GetArea('root')), 1000);
+
+SELECT CreateUser('daemon', 'daemon', 'Демон', null, null, 'Пользователь для вызова методов API', false, true, GetArea('root'));
+SELECT CreateUser('apibot', 'apibot', 'Системная служба API', null, null, 'API клиент', false, true, GetArea('root'));
 SELECT CreateUser('mailbot', 'mailbot', 'Почтовый клиент', null, null, 'Почтовый клиент', false, true, GetArea('root'));
-SELECT CreateUser('ocpp', 'ocpp', 'Системная служба OCPP', null, null, 'OCPP клиент', false, true, GetArea('default'));

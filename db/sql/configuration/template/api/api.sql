@@ -8,7 +8,7 @@
 /**
  * Регистрация.
  * @param {varchar} pType - Tип клиента
- * @param {varchar} pUserName - Имя пользователя (login)
+ * @param {text} pUserName - Имя пользователя (login)
  * @param {text} pPassword - Пароль
  * @param {jsonb} pName - Полное наименование компании/Ф.И.О.
  * @param {text} pPhone - Телефон
@@ -22,7 +22,7 @@
  */
 CREATE OR REPLACE FUNCTION api.signup (
   pType         varchar,
-  pUserName     varchar,
+  pUserName     text,
   pPassword     text,
   pName         jsonb,
   pPhone        text DEFAULT null,
@@ -42,19 +42,15 @@ DECLARE
   jPhone        jsonb;
   jEmail        jsonb;
 
-  arTypes       text[];
+  vSecret       text;
+
   arKeys        text[];
 BEGIN
-  pType := coalesce(lower(pType), 'physical');
-
-  IF StrPos(pType, '.client') = 0 THEN
-    pType := pType || '.client';
-  END IF;
-
-  arTypes := array_cat(arTypes, GetTypeCodes(GetClass('client')));
-  IF array_position(arTypes, pType::text) IS NULL THEN
-    PERFORM IncorrectCode(pType, arTypes);
-  END IF;
+  pType := lower(coalesce(pType, 'physical'));
+  pPassword := coalesce(NULLIF(pPassword, ''), GenSecretKey(9));
+  pPhone := NULLIF(pPhone, '');
+  pEmail := NULLIF(pEmail, '');
+  pDescription := NULLIF(pDescription, '');
 
   SELECT u.id INTO nUserId FROM db.user u WHERE type = 'U' AND username = pUserName;
 
@@ -83,11 +79,13 @@ BEGIN
     cn.name := pUserName;
   END IF;
 
-  pPassword := coalesce(NULLIF(pPassword, ''), GenSecretKey(9));
+  SELECT secret INTO vSecret FROM oauth2.audience WHERE code = session_username();
 
-  PERFORM SetUserId(GetUser('admin'));
+  PERFORM SubstituteUser(GetUser('admin'), vSecret);
 
-  nUserId := CreateUser(pUserName, pPassword, coalesce(cn.short, cn.name), pPhone, pEmail, cn.name);
+  nUserId := CreateUser(pUserName, pPassword, coalesce(NULLIF(trim(cn.short), ''), cn.name), pPhone, pEmail, cn.name);
+
+  PERFORM UserLock(nUserId);
 
   PERFORM AddMemberToGroup(nUserId, GetGroup('user'));
 
@@ -99,11 +97,11 @@ BEGIN
     jEmail := jsonb_build_object('default', pEmail);
   END IF;
 
-  nClient := CreateClient(null, GetType(pType), pUserName, nUserId, jPhone, jEmail, pInfo, pDescription);
+  nClient := CreateClient(null, CodeToType(pType, 'client'), pUserName, nUserId, jPhone, jEmail, pInfo, pDescription);
 
   PERFORM NewClientName(nClient, cn.name, cn.short, cn.first, cn.last, cn.middle);
 
-  PERFORM SetUserId(session_userid());
+  PERFORM SubstituteUser(session_userid(), vSecret);
 
   id := nClient;
   userId := nUserId;
@@ -253,7 +251,7 @@ CREATE OR REPLACE VIEW api.locale
 AS
   SELECT * FROM Locale;
 
-GRANT SELECT ON api.locale TO daemon;
+GRANT SELECT ON api.locale TO administrator;
 
 --------------------------------------------------------------------------------
 -- EVENT LOG -------------------------------------------------------------------
@@ -261,9 +259,9 @@ GRANT SELECT ON api.locale TO daemon;
 
 CREATE OR REPLACE VIEW api.event_log
 AS
-  SELECT * FROM EventLog;
+  SELECT * FROM EventLog WHERE username = current_username();
 
-GRANT SELECT ON api.event_log TO daemon;
+GRANT SELECT ON api.event_log TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.event_log ---------------------------------------------------------------
@@ -286,7 +284,6 @@ AS $$
   SELECT *
     FROM api.event_log
    WHERE type = coalesce(pType, type)
-     AND username = current_username()
      AND code = coalesce(pCode, code)
      AND datetime >= coalesce(pDateFrom, MINDATE())
      AND datetime < coalesce(pDateTo, MAXDATE())
@@ -310,6 +307,50 @@ BEGIN
   PERFORM WriteToEventLog(pType, pCode, pText);
 
   RETURN true;
+END;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- api.get_event_log -----------------------------------------------------------
+--------------------------------------------------------------------------------
+/**
+ * Возвращает событие
+ * @param {numeric} pId - Идентификатор
+ * @return {api.event}
+ */
+CREATE OR REPLACE FUNCTION api.get_event_log (
+  pId		numeric
+) RETURNS	api.event_log
+AS $$
+  SELECT * FROM api.event_log WHERE id = pId
+$$ LANGUAGE SQL
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- api.list_event_log ----------------------------------------------------------
+--------------------------------------------------------------------------------
+/**
+ * Возвращает список событий.
+ * @param {jsonb} pSearch - Условие: '[{"condition": "AND|OR", "field": "<поле>", "compare": "EQL|NEQ|LSS|LEQ|GTR|GEQ|GIN|LKE|ISN|INN", "value": "<значение>"}, ...]'
+ * @param {jsonb} pFilter - Фильтр: '{"<поле>": "<значение>"}'
+ * @param {integer} pLimit - Лимит по количеству строк
+ * @param {integer} pOffSet - Пропустить указанное число строк
+ * @param {jsonb} pOrderBy - Сортировать по указанным в массиве полям
+ * @return {SETOF api.event}
+ */
+CREATE OR REPLACE FUNCTION api.list_event_log (
+  pSearch	jsonb default null,
+  pFilter	jsonb default null,
+  pLimit	integer default null,
+  pOffSet	integer default null,
+  pOrderBy	jsonb default null
+) RETURNS	SETOF api.event_log
+AS $$
+BEGIN
+  RETURN QUERY EXECUTE api.sql('api', 'event_log', pSearch, pFilter, pLimit, pOffSet, pOrderBy);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -371,9 +412,15 @@ DECLARE
   arValues      text[];
   arColumns     text[];
 BEGIN
-  arTables := array_cat(null, ARRAY['charge_point', 'card', 'client', 'invoice', 'order', 'tariff', 'client_tariff',
-      'status_notification', 'transaction', 'meter_value', 'address', 'address_tree', 'calendar',
-      'object_file', 'object_data', 'object_address', 'object_coordinates'
+  pOrderBy := NULLIF(pOrderBy, '{}');
+  pOrderBy := NULLIF(pOrderBy, '[]');
+
+  arTables := array_cat(null, ARRAY[
+      'client',
+      'tariff', 'client_tariff',
+      'address', 'address_tree', 'calendar',
+      'object_file', 'object_data', 'object_address', 'object_coordinates',
+      'type', 'session', 'event_log'
   ]);
 
   IF array_position(arTables, pTable) IS NULL THEN
@@ -454,7 +501,13 @@ BEGIN
 --    PERFORM CheckJsonbValues('orderby', array_cat(arColumns, array_add_text(arColumns, ' desc')), pOrderBy);
     vSelect := vSelect || E'\n ORDER BY ' || array_to_string(array_quote_literal_json(JsonbToStrArray(pOrderBy)), ',');
   ELSE
-    vSelect := vSelect || E'\n ORDER BY id';
+    IF SubStr(pTable, 1, 7) = 'object_' THEN
+      vSelect := vSelect || E'\n ORDER BY object';
+    ELSIF SubStr(pTable, 1, 7) = 'session' THEN
+      vSelect := vSelect || E'\n ORDER BY created';
+    ELSE
+      vSelect := vSelect || E'\n ORDER BY id';
+    END IF;
   END IF;
 
   IF pLimit IS NOT NULL THEN

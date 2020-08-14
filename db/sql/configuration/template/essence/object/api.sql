@@ -45,7 +45,7 @@ CREATE OR REPLACE VIEW api.type
 AS
   SELECT * FROM Type;
 
-GRANT SELECT ON api.type TO daemon;
+GRANT SELECT ON api.type TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.type --------------------------------------------------------------------
@@ -133,6 +133,35 @@ $$ LANGUAGE plpgsql
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
+-- api.set_type ----------------------------------------------------------------
+--------------------------------------------------------------------------------
+/**
+ * Удаляет тип.
+ * @param {numeric} pId - Идентификатор типа
+ * @return {void}
+ */
+CREATE OR REPLACE FUNCTION api.set_type (
+  pId           numeric,
+  pClass        numeric DEFAULT null,
+  pCode         varchar DEFAULT null,
+  pName         varchar DEFAULT null,
+  pDescription	text DEFAULT null
+) RETURNS       SETOF api.type
+AS $$
+BEGIN
+  IF pId IS NULL THEN
+    pId := AddType(pClass, pCode, pName, pDescription);
+  ELSE
+    PERFORM EditType(pId, pClass, pCode, pName, pDescription);
+  END IF;
+
+  RETURN QUERY SELECT * FROM api.type WHERE id = pId;
+END;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
 -- api.get_type ----------------------------------------------------------------
 --------------------------------------------------------------------------------
 /**
@@ -183,6 +212,33 @@ $$ LANGUAGE SQL
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
+-- api.list_type ---------------------------------------------------------------
+--------------------------------------------------------------------------------
+/**
+ * Возвращает справачник типов.
+ * @param {jsonb} pSearch - Условие: '[{"condition": "AND|OR", "field": "<поле>", "compare": "EQL|NEQ|LSS|LEQ|GTR|GEQ|GIN|LKE|ISN|INN", "value": "<значение>"}, ...]'
+ * @param {jsonb} pFilter - Фильтр: '{"<поле>": "<значение>"}'
+ * @param {integer} pLimit - Лимит по количеству строк
+ * @param {integer} pOffSet - Пропустить указанное число строк
+ * @param {jsonb} pOrderBy - Сортировать по указанным в массиве полям
+ * @return {SETOF api.address_tree} - Дерево адресов
+ */
+CREATE OR REPLACE FUNCTION api.list_type (
+  pSearch	jsonb DEFAULT null,
+  pFilter	jsonb DEFAULT null,
+  pLimit	integer DEFAULT null,
+  pOffSet	integer DEFAULT null,
+  pOrderBy	jsonb DEFAULT null
+) RETURNS	SETOF api.type
+AS $$
+BEGIN
+  RETURN QUERY EXECUTE api.sql('api', 'type', pSearch, pFilter, pLimit, pOffSet, pOrderBy);
+END;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
 -- OBJECT FILE -----------------------------------------------------------------
 --------------------------------------------------------------------------------
 
@@ -194,21 +250,47 @@ CREATE OR REPLACE VIEW api.object_file
 AS
   SELECT * FROM ObjectFile;
 
-GRANT SELECT ON api.object_file TO daemon;
+GRANT SELECT ON api.object_file TO administrator;
+
+--------------------------------------------------------------------------------
+-- api.set_object_file ---------------------------------------------------------
+--------------------------------------------------------------------------------
+/**
+ * Связывает файл с объектом
+ * @param {numeric} pObject - Идентификатор объекта
+ * @return {SETOF api.object_file}
+ */
+CREATE OR REPLACE FUNCTION api.set_object_file (
+  pObject	numeric,
+  pName		text,
+  pPath		text,
+  pSize		numeric,
+  pDate		timestamp,
+  pData		bytea DEFAULT null,
+  pHash		text DEFAULT null
+) RETURNS       SETOF api.object_file
+AS $$
+BEGIN
+  PERFORM SetObjectFile(pObject, pName, pPath, pSize, pDate, pData, pHash);
+  RETURN QUERY SELECT * FROM api.get_object_file(pObject, pName);
+END;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
 -- api.set_object_files_json ---------------------------------------------------
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION api.set_object_files_json (
-  pObject	    numeric,
-  pFiles	    json
-) RETURNS 	    numeric
+  pObject     numeric,
+  pFiles      json
+) RETURNS     SETOF api.object_file
 AS $$
 DECLARE
-  r             record;
-  arKeys	    text[];
-  nId		    numeric;
+  r           record;
+  arKeys      text[];
+  nId         numeric;
 BEGIN
   SELECT o.id INTO nId FROM db.object o WHERE o.id = pObject;
 
@@ -217,33 +299,18 @@ BEGIN
   END IF;
 
   IF pFiles IS NOT NULL THEN
-    arKeys := array_cat(arKeys, ARRAY['id', 'hash', 'name', 'path', 'size', 'date', 'delete']);
+    arKeys := array_cat(arKeys, ARRAY['name', 'path', 'size', 'date', 'data', 'hash']);
     PERFORM CheckJsonKeys('/object/file/files', arKeys, pFiles);
 
-    FOR r IN SELECT * FROM json_to_recordset(pFiles) AS files(id numeric, hash text, name text, path text, size int, date timestamp, delete boolean)
+    FOR r IN SELECT * FROM json_to_recordset(pFiles) AS files(name text, path text, size int, date timestamp, data text, hash text)
     LOOP
-      IF r.id IS NOT NULL THEN
-
-        SELECT o.id INTO nId FROM db.object_file o WHERE o.id = r.id AND object = pObject;
-
-        IF NOT FOUND THEN
-          PERFORM ObjectNotFound('файл', r.name, r.id);
-        END IF;
-
-        IF coalesce(r.delete, false) THEN
-          PERFORM DeleteObjectFile(r.id);
-        ELSE
-          PERFORM EditObjectFile(r.id, r.hash, r.name, r.path, r.size, r.date);
-        END IF;
-      ELSE
-        nId := AddObjectFile(pObject, r.hash, r.name, r.path, r.size, r.date);
-      END IF;
+      RETURN NEXT api.set_object_file(pObject, r.name, r.path, r.size, r.date, decode(r.data, 'base64'), r.hash);
     END LOOP;
   ELSE
     PERFORM JsonIsEmpty();
   END IF;
 
-  RETURN nId;
+  RETURN;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -256,10 +323,10 @@ $$ LANGUAGE plpgsql
 CREATE OR REPLACE FUNCTION api.set_object_files_jsonb (
   pObject       numeric,
   pFiles        jsonb
-) RETURNS       numeric
+) RETURNS       SETOF api.object_file
 AS $$
 BEGIN
-  RETURN api.set_object_files_json(pObject, pFiles::json);
+  RETURN QUERY SELECT * FROM api.set_object_files_json(pObject, pFiles::json);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -304,10 +371,11 @@ $$ LANGUAGE plpgsql
  * @return {api.object_file}
  */
 CREATE OR REPLACE FUNCTION api.get_object_file (
-  pId		numeric
+  pObject       numeric,
+  pName         text
 ) RETURNS	SETOF api.object_file
 AS $$
-  SELECT * FROM api.object_file WHERE id = pId
+  SELECT * FROM api.object_file WHERE object = pObject AND name = pName;
 $$ LANGUAGE SQL
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;
@@ -351,13 +419,13 @@ CREATE OR REPLACE VIEW api.object_data_type
 AS
   SELECT * FROM ObjectDataType;
 
-GRANT SELECT ON api.object_data_type TO daemon;
+GRANT SELECT ON api.object_data_type TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.get_object_data_type_by_code --------------------------------------------
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION api.get_object_data_type_by_code (
+CREATE OR REPLACE FUNCTION api.get_object_data_type (
   pCode		varchar
 ) RETURNS	numeric
 AS $$
@@ -376,7 +444,7 @@ CREATE OR REPLACE VIEW api.object_data
 AS
   SELECT * FROM ObjectData;
 
-GRANT SELECT ON api.object_data TO daemon;
+GRANT SELECT ON api.object_data TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.set_object_data ---------------------------------------------------------
@@ -394,7 +462,7 @@ CREATE OR REPLACE FUNCTION api.set_object_data (
   pType         varchar,
   pCode         varchar,
   pData         text
-) RETURNS       numeric
+) RETURNS       SETOF api.object_data
 AS $$
 DECLARE
   r             record;
@@ -405,7 +473,7 @@ BEGIN
 
   FOR r IN SELECT code FROM db.object_data_type
   LOOP
-    arTypes := array_append(arTypes, r.code);
+    arTypes := array_append(arTypes, r.code::text);
   END LOOP;
 
   IF array_position(arTypes, pType::text) IS NULL THEN
@@ -414,7 +482,9 @@ BEGIN
 
   nType := GetObjectDataType(pType);
 
-  RETURN SetObjectData(pObject, nType, pCode, pData);
+  PERFORM SetObjectData(pObject, nType, pCode, pData);
+
+  RETURN QUERY SELECT * FROM api.get_object_data(pObject, nType, pCode);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -427,15 +497,11 @@ $$ LANGUAGE plpgsql
 CREATE OR REPLACE FUNCTION api.set_object_data_json (
   pObject       numeric,
   pData	        json
-) RETURNS       numeric
+) RETURNS       SETOF api.object_data
 AS $$
 DECLARE
   nId           numeric;
-  nType         numeric;
-
   arKeys        text[];
-  arTypes       text[];
-
   r             record;
 BEGIN
   SELECT o.id INTO nId FROM db.object o WHERE o.id = pObject;
@@ -445,43 +511,18 @@ BEGIN
   END IF;
 
   IF pData IS NOT NULL THEN
-    arKeys := array_cat(arKeys, ARRAY['id', 'type', 'code', 'data']);
+    arKeys := array_cat(arKeys, ARRAY['type', 'code', 'data']);
     PERFORM CheckJsonKeys('/object/data', arKeys, pData);
 
-    FOR r IN SELECT code FROM db.object_data_type
+    FOR r IN SELECT * FROM json_to_recordset(pData) AS data(type varchar, code varchar, data text)
     LOOP
-      arTypes := array_append(arTypes, r.code);
-    END LOOP;
-
-    FOR r IN SELECT * FROM json_to_recordset(pData) AS data(id numeric, type varchar, code varchar, data text)
-    LOOP
-      IF array_position(arTypes, r.type::text) IS NULL THEN
-        PERFORM IncorrectCode(r.type, arTypes);
-      END IF;
-
-      nType := GetObjectDataType(r.type);
-
-      IF r.id IS NOT NULL THEN
-        SELECT o.id INTO nId FROM db.object_data o WHERE o.id = r.id AND object = pObject;
-
-        IF NOT FOUND THEN
-          PERFORM ObjectNotFound('данные', r.code, r.id);
-        END IF;
-
-        IF NULLIF(r.data, '') IS NULL THEN
-          PERFORM DeleteObjectData(r.id);
-        ELSE
-          PERFORM EditObjectData(r.id, pObject, nType, r.code, r.data);
-        END IF;
-      ELSE
-        nId := AddObjectData(pObject, nType, r.code, r.data);
-      END IF;
+      RETURN NEXT api.set_object_data(pObject, r.type, r.code, r.data);
     END LOOP;
   ELSE
     PERFORM JsonIsEmpty();
   END IF;
 
-  RETURN nId;
+  RETURN;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -494,10 +535,10 @@ $$ LANGUAGE plpgsql
 CREATE OR REPLACE FUNCTION api.set_object_data_jsonb (
   pObject     numeric,
   pData       jsonb
-) RETURNS     numeric
+) RETURNS     SETOF api.object_data
 AS $$
 BEGIN
-  RETURN api.set_object_data_json(pObject, pData::json);
+  RETURN QUERY SELECT * FROM api.set_object_data_json(pObject, pData::json);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -542,10 +583,12 @@ $$ LANGUAGE plpgsql
  * @return {api.object_data}
  */
 CREATE OR REPLACE FUNCTION api.get_object_data (
-  pId		numeric
+  pObject	numeric,
+  pType		numeric,
+  pCode		varchar
 ) RETURNS	SETOF api.object_data
 AS $$
-  SELECT * FROM api.object_data WHERE id = pId
+  SELECT * FROM api.object_data WHERE object = pObject AND type = pType AND code = pCode
 $$ LANGUAGE SQL
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;
@@ -589,7 +632,7 @@ CREATE OR REPLACE VIEW api.object_coordinates
 AS
   SELECT * FROM ObjectCoordinates;
 
-GRANT SELECT ON api.object_coordinates TO daemon;
+GRANT SELECT ON api.object_coordinates TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.set_object_coordinates --------------------------------------------------
@@ -603,47 +646,25 @@ GRANT SELECT ON api.object_coordinates TO daemon;
  * @param {numeric} pLongitude - Долгота
  * @param {numeric} pAccuracy - Точность (высота над уровнем моря)
  * @param {text} pDescription - Описание
- * @return {numeric}
+ * @return {SETOF api.object_coordinates}
  */
 CREATE OR REPLACE FUNCTION api.set_object_coordinates (
   pObject       numeric,
   pCode         varchar,
-  pName         varchar,
   pLatitude     numeric,
   pLongitude    numeric,
-  pAccuracy     numeric,
-  pDescription  text
-) RETURNS       numeric
+  pAccuracy     numeric DEFAULT 0,
+  pLabel        varchar DEFAULT null,
+  pDescription  text DEFAULT null
+) RETURNS       SETOF api.object_coordinates
 AS $$
-DECLARE
-  nId           numeric;
-  nDataId       numeric;
-  nType         numeric;
 BEGIN
-  pCode := coalesce(pCode, 'geo');
+  pCode := coalesce(pCode, 'default');
+  pAccuracy := coalesce(pAccuracy, 0);
+  PERFORM NewObjectCoordinates(pObject, pCode, pLatitude, pLongitude, pAccuracy, pLabel, pDescription);
+  PERFORM SetObjectData(pObject, GetObjectDataType('json'), 'geo', GetObjectCoordinatesJson(pObject, pCode)::text);
 
-  SELECT d.id INTO nId FROM db.object_coordinates d WHERE d.object = pObject AND d.code = pCode;
-  SELECT d.id INTO nDataId FROM db.object_data d WHERE d.object = pObject AND d.code = 'geo';
-
-  IF pName IS NOT NULL THEN
-    IF nId IS NULL THEN
-      nId := AddObjectCoordinates(pObject, pCode, pName, pLatitude, pLongitude, pAccuracy, pDescription);
-    ELSE
-      PERFORM EditObjectCoordinates(nId, pObject, pCode, pName, pLatitude, pLongitude, pAccuracy, pDescription);
-    END IF;
-
-    nType := GetObjectDataType('json');
-    IF nDataId IS NULL THEN
-      nDataId := AddObjectData(pObject, nType, 'geo',GetObjectCoordinatesJson(pObject)::text);
-    ELSE
-      PERFORM EditObjectData(nDataId, pObject, nType, 'geo',GetObjectCoordinatesJson(pObject)::text);
-    END IF;
-  ELSE
-    PERFORM DeleteObjectData(nDataId);
-    PERFORM DeleteObjectCoordinates(nId);
-  END IF;
-
-  RETURN nId;
+  RETURN QUERY SELECT * FROM api.get_object_coordinates(pObject, pCode);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -656,13 +677,11 @@ $$ LANGUAGE plpgsql
 CREATE OR REPLACE FUNCTION api.set_object_coordinates_json (
   pObject       numeric,
   pCoordinates  json
-) RETURNS       numeric
+) RETURNS       SETOF api.object_coordinates
 AS $$
 DECLARE
   r             record;
   nId           numeric;
-  nDataId       numeric;
-  nType         numeric;
   arKeys        text[];
 BEGIN
   SELECT o.id INTO nId FROM db.object o WHERE o.id = pObject;
@@ -672,42 +691,18 @@ BEGIN
   END IF;
 
   IF pCoordinates IS NOT NULL THEN
-    arKeys := array_cat(arKeys, ARRAY['id', 'code', 'name', 'latitude', 'longitude', 'accuracy', 'description']);
+    arKeys := array_cat(arKeys, ARRAY['code', 'latitude', 'longitude', 'accuracy', 'label', 'description']);
     PERFORM CheckJsonKeys('/object/coordinates', arKeys, pCoordinates);
 
-    nType := GetObjectDataType('json');
-
-    FOR r IN SELECT * FROM json_to_recordset(pCoordinates) AS coordinates(id numeric, code varchar, name varchar, latitude numeric, longitude numeric, accuracy numeric, description text)
+    FOR r IN SELECT * FROM json_to_recordset(pCoordinates) AS x(code varchar, latitude numeric, longitude numeric, accuracy numeric, label varchar, description text)
     LOOP
-      IF r.id IS NOT NULL THEN
-
-        r.code := coalesce(NULLIF(r.code, ''), 'geo');
-
-        SELECT o.id INTO nId FROM db.object_coordinates o WHERE o.id = r.id AND o.object = pObject;
-
-        IF NOT FOUND THEN
-          PERFORM ObjectNotFound('координаты', r.code, r.id);
-        END IF;
-
-        SELECT o.id INTO nDataId FROM db.object_data o WHERE o.object = pObject AND o.code = 'geo';
-
-        IF coalesce(r.name, true) THEN
-          PERFORM DeleteObjectData(nDataId);
-          PERFORM DeleteObjectCoordinates(r.id);
-        ELSE
-          PERFORM EditObjectCoordinates(r.id, pObject, r.code, r.name, r.latitude, r.longitude, r.accuracy, r.description);
-          PERFORM EditObjectData(nDataId, pObject, nType, 'geo', pCoordinates::text);
-        END IF;
-      ELSE
-        nId := AddObjectCoordinates(pObject, r.code, r.name, r.latitude, r.longitude, r.accuracy, r.description);
-        nDataId := AddObjectData(pObject, nType, 'geo', pCoordinates::text);
-      END IF;
+      RETURN NEXT api.set_object_coordinates(pObject, r.code, r.latitude, r.longitude, r.accuracy, r.label, r.description);
     END LOOP;
   ELSE
     PERFORM JsonIsEmpty();
   END IF;
 
-  RETURN nId;
+  RETURN;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -720,10 +715,10 @@ $$ LANGUAGE plpgsql
 CREATE OR REPLACE FUNCTION api.set_object_coordinates_jsonb (
   pObject       numeric,
   pCoordinates  jsonb
-) RETURNS       numeric
+) RETURNS       SETOF api.object_coordinates
 AS $$
 BEGIN
-  RETURN api.set_object_coordinates_json(pObject, pCoordinates::json);
+  RETURN QUERY SELECT * FROM api.set_object_coordinates_json(pObject, pCoordinates::json);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -768,10 +763,17 @@ $$ LANGUAGE plpgsql
  * @return {api.object_coordinates}
  */
 CREATE OR REPLACE FUNCTION api.get_object_coordinates (
-  pId		numeric
-) RETURNS	SETOF api.object_coordinates
+  pObject       numeric,
+  pCode         varchar,
+  pDateFrom     timestamptz DEFAULT oper_date()
+) RETURNS       SETOF api.object_coordinates
 AS $$
-  SELECT * FROM api.object_coordinates WHERE id = pId
+  SELECT *
+    FROM api.object_coordinates
+   WHERE object = pObject
+     AND code = pCode
+     AND validFromDate <= pDateFrom
+     AND validToDate > pDateFrom;
 $$ LANGUAGE SQL
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;

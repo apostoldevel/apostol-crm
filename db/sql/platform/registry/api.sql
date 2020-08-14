@@ -6,7 +6,7 @@ CREATE OR REPLACE VIEW api.registry
 AS
   SELECT * FROM Registry;
 
-GRANT SELECT ON api.registry TO daemon;
+GRANT SELECT ON api.registry TO administrator;
 
 --------------------------------------------------------------------------------
 
@@ -31,7 +31,7 @@ CREATE OR REPLACE VIEW api.registry_ex
 AS
   SELECT * FROM RegistryEx;
 
-GRANT SELECT ON api.registry_ex TO daemon;
+GRANT SELECT ON api.registry_ex TO administrator;
 
 --------------------------------------------------------------------------------
 
@@ -56,7 +56,7 @@ CREATE OR REPLACE VIEW api.registry_key
 AS
   SELECT * FROM RegistryKey;
 
-GRANT SELECT ON api.registry_key TO daemon;
+GRANT SELECT ON api.registry_key TO administrator;
 
 --------------------------------------------------------------------------------
 
@@ -83,7 +83,7 @@ CREATE OR REPLACE VIEW api.registry_value
 AS
   SELECT * FROM RegistryValue;
 
-GRANT SELECT ON api.registry_value TO daemon;
+GRANT SELECT ON api.registry_value TO administrator;
 
 --------------------------------------------------------------------------------
 
@@ -91,7 +91,7 @@ CREATE OR REPLACE VIEW api.registry_value_ex
 AS
   SELECT * FROM RegistryValueEx;
 
-GRANT SELECT ON api.registry_value_ex TO daemon;
+GRANT SELECT ON api.registry_value_ex TO administrator;
 
 --------------------------------------------------------------------------------
 

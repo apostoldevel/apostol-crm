@@ -12,7 +12,7 @@ CREATE OR REPLACE FUNCTION EventClientCreate (
 AS $$
 BEGIN
   PERFORM WriteToEventLog('M', 1010, 'Клиент создан.', pObject);
-  PERFORM ExecuteObjectAction(pObject, GetAction('enable'));
+  --PERFORM ExecuteObjectAction(pObject, GetAction('enable'));
 END;
 $$ LANGUAGE plpgsql;
 

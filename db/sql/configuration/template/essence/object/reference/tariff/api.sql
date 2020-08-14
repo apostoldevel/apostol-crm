@@ -10,7 +10,7 @@ CREATE OR REPLACE VIEW api.tariff
 AS
   SELECT * FROM ObjectTariff;
 
-GRANT SELECT ON api.tariff TO daemon;
+GRANT SELECT ON api.tariff TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.add_tariff --------------------------------------------------------------
@@ -68,7 +68,7 @@ DECLARE
   nType         numeric;
   nTariff       numeric;
 BEGIN
-  SELECT c.id INTO nTariff FROM db.tariff c WHERE c.id = pId;
+  SELECT t.id INTO nTariff FROM db.tariff t WHERE t.id = pId;
 
   IF NOT FOUND THEN
     PERFORM ObjectNotFound('тариф', 'id', pId);
@@ -98,7 +98,7 @@ CREATE OR REPLACE FUNCTION api.set_tariff (
   pName         varchar default null,
   pCost         numeric default null,
   pDescription	text default null
-) RETURNS       numeric
+) RETURNS       SETOF api.tariff
 AS $$
 BEGIN
   IF pId IS NULL THEN
@@ -106,7 +106,8 @@ BEGIN
   ELSE
     PERFORM api.update_tariff(pId, pParent, pType, pCode, pName, pCost, pDescription);
   END IF;
-  RETURN pId;
+
+  RETURN QUERY SELECT * FROM api.tariff WHERE id = pId;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -116,9 +117,9 @@ $$ LANGUAGE plpgsql
 -- api.get_tariff --------------------------------------------------------------
 --------------------------------------------------------------------------------
 /**
- * Возвращает заказ
+ * Возвращает тариф
  * @param {numeric} pId - Идентификатор
- * @return {api.tariff} - Тариф
+ * @return {api.tariff}
  */
 CREATE OR REPLACE FUNCTION api.get_tariff (
   pId		numeric
@@ -133,13 +134,13 @@ $$ LANGUAGE SQL
 -- api.list_tariff -------------------------------------------------------------
 --------------------------------------------------------------------------------
 /**
- * Возвращает список клиентов.
+ * Возвращает список тарифов.
  * @param {jsonb} pSearch - Условие: '[{"condition": "AND|OR", "field": "<поле>", "compare": "EQL|NEQ|LSS|LEQ|GTR|GEQ|GIN|LKE|ISN|INN", "value": "<значение>"}, ...]'
  * @param {jsonb} pFilter - Фильтр: '{"<поле>": "<значение>"}'
  * @param {integer} pLimit - Лимит по количеству строк
  * @param {integer} pOffSet - Пропустить указанное число строк
  * @param {jsonb} pOrderBy - Сортировать по указанным в массиве полям
- * @return {SETOF api.tariff} - Клиенты
+ * @return {SETOF api.tariff}
  */
 CREATE OR REPLACE FUNCTION api.list_tariff (
   pSearch	jsonb default null,

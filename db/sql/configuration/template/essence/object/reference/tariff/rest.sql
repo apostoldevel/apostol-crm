@@ -2,7 +2,7 @@
 -- REST TARIFF -----------------------------------------------------------------
 --------------------------------------------------------------------------------
 /**
- * Запрос данных в формате REST JSON API (Карты).
+ * Запрос данных в формате REST JSON API (Тариф).
  * @param {text} pPath - Путь
  * @param {jsonb} pPayload - JSON
  * @return {SETOF json} - Записи в JSON
@@ -106,16 +106,16 @@ BEGIN
 
     IF jsonb_typeof(pPayload) = 'array' THEN
 
-      FOR r IN EXECUTE format('SELECT api.set_tariff(%s) AS id FROM jsonb_to_recordset($1) AS x(%s)', array_to_string(GetRoutines('set_tariff', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_tariff', 'api', true), ', ')) USING pPayload
+      FOR r IN EXECUTE format('SELECT row_to_json(api.set_tariff(%s)) FROM jsonb_to_recordset($1) AS x(%s)', array_to_string(GetRoutines('set_tariff', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_tariff', 'api', true), ', ')) USING pPayload
       LOOP
-        RETURN NEXT row_to_json(r);
+        RETURN NEXT r;
       END LOOP;
 
     ELSE
 
-      FOR r IN EXECUTE format('SELECT api.set_tariff(%s) AS id FROM jsonb_to_record($1) AS x(%s)', array_to_string(GetRoutines('set_tariff', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_tariff', 'api', true), ', ')) USING pPayload
+      FOR r IN EXECUTE format('SELECT row_to_json(api.set_tariff(%s)) FROM jsonb_to_record($1) AS x(%s)', array_to_string(GetRoutines('set_tariff', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_tariff', 'api', true), ', ')) USING pPayload
       LOOP
-        RETURN NEXT row_to_json(r);
+        RETURN NEXT r;
       END LOOP;
 
     END IF;

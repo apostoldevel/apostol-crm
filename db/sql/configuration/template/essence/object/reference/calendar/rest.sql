@@ -96,16 +96,16 @@ BEGIN
 
     IF jsonb_typeof(pPayload) = 'array' THEN
 
-      FOR r IN EXECUTE format('SELECT api.set_calendar(%s) AS id FROM jsonb_to_recordset($1) AS x(%s)', array_to_string(GetRoutines('set_calendar', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_calendar', 'api', true), ', ')) USING pPayload
+      FOR r IN EXECUTE format('SELECT row_to_json(api.set_calendar(%s)) FROM jsonb_to_recordset($1) AS x(%s)', array_to_string(GetRoutines('set_calendar', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_calendar', 'api', true), ', ')) USING pPayload
       LOOP
-        RETURN NEXT row_to_json(r);
+        RETURN NEXT r;
       END LOOP;
 
     ELSE
 
-      FOR r IN EXECUTE format('SELECT api.set_calendar(%s) AS id FROM jsonb_to_record($1) AS x(%s)', array_to_string(GetRoutines('set_calendar', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_calendar', 'api', true), ', ')) USING pPayload
+      FOR r IN EXECUTE format('SELECT row_to_json(api.set_calendar(%s)) FROM jsonb_to_record($1) AS x(%s)', array_to_string(GetRoutines('set_calendar', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_calendar', 'api', true), ', ')) USING pPayload
       LOOP
-        RETURN NEXT row_to_json(r);
+        RETURN NEXT r;
       END LOOP;
 
     END IF;
@@ -289,14 +289,20 @@ BEGIN
 
       FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(calendar numeric, calendarcode varchar, date date, flag bit(4), workstart interval, workcount interval, reststart interval, restcount interval, userid numeric)
       LOOP
-        RETURN NEXT row_to_json(api.set_calendar_date(coalesce(r.calendar, GetCalendar(coalesce(r.calendarcode, 'default'))), r.date, r.flag, r.workstart, r.workcount, r.reststart, r.restcount, r.userid));
+        FOR e IN SELECT api.set_calendar_date(coalesce(r.calendar, GetCalendar(coalesce(r.calendarcode, 'default'))), r.date, r.flag, r.workstart, r.workcount, r.reststart, r.restcount, r.userid) AS id
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
       END LOOP;
 
     ELSE
 
       FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(calendar numeric, calendarcode varchar, date date, flag bit(4), workstart interval, workcount interval, reststart interval, restcount interval, userid numeric)
       LOOP
-        RETURN NEXT row_to_json(api.set_calendar_date(coalesce(r.calendar, GetCalendar(coalesce(r.calendarcode, 'default'))), r.date, r.flag, r.workstart, r.workcount, r.reststart, r.restcount, r.userid));
+        FOR e IN SELECT api.set_calendar_date(coalesce(r.calendar, GetCalendar(coalesce(r.calendarcode, 'default'))), r.date, r.flag, r.workstart, r.workcount, r.reststart, r.restcount, r.userid) AS id
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
       END LOOP;
 
     END IF;

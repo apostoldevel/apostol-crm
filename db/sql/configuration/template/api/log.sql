@@ -7,7 +7,7 @@ CREATE TABLE api.log (
     datetime      timestamp DEFAULT clock_timestamp() NOT NULL,
     su            text NOT NULL DEFAULT session_user,
     session       char(40),
-    username      varchar(50),
+    username      text,
     route         text NOT NULL,
     nonce         double precision,
     signature     text,
@@ -52,7 +52,7 @@ DECLARE
   vSession      text;
   vUserName     text;
 BEGIN
-  SELECT code, userid INTO vSession, nUserId FROM db.session WHERE code = GetSessionCode();
+  SELECT code, userid INTO vSession, nUserId FROM db.session WHERE code = GetCurrentSession();
 
   IF found THEN
     SELECT username INTO vUserName FROM db.user WHERE id = nUserId;

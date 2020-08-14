@@ -47,8 +47,8 @@ BEGIN
     SELECT NEW.DOCUMENT INTO NEW.ID;
   END IF;
 
-  IF NEW.CODE IS NULL OR NEW.CODE = '' THEN
-    NEW.CODE := 'C:' || LPAD(TRIM(TO_CHAR(NEW.ID, '999999999999')), 10, '0');
+  IF NULLIF(NEW.CODE, '') IS NULL THEN
+    NEW.CODE := encode(gen_random_bytes(12), 'hex');
   END IF;
 
   IF NEW.USERID IS NOT NULL THEN
@@ -108,7 +108,7 @@ CREATE TRIGGER t_client_update
 CREATE TABLE db.client_name (
     Id			    numeric(12) PRIMARY KEY DEFAULT NEXTVAL('SEQUENCE_REF'),
     Client		    numeric(12) NOT NULL,
-    Lang		    numeric(12) NOT NULL,
+    Locale		    numeric(12) NOT NULL,
     Name		    text NOT NULL,
     Short		    text,
     First		    text,
@@ -117,7 +117,7 @@ CREATE TABLE db.client_name (
     validFromDate	timestamp DEFAULT Now() NOT NULL,
     validToDate		timestamp DEFAULT TO_DATE('4433-12-31', 'YYYY-MM-DD') NOT NULL,
     CONSTRAINT fk_client_name_client FOREIGN KEY (client) REFERENCES db.client(id),
-    CONSTRAINT fk_client_name_lang FOREIGN KEY (lang) REFERENCES db.locale(id)
+    CONSTRAINT fk_client_name_locale FOREIGN KEY (locale) REFERENCES db.locale(id)
 );
 
 --------------------------------------------------------------------------------
@@ -125,7 +125,7 @@ CREATE TABLE db.client_name (
 COMMENT ON TABLE db.client_name IS 'Наименование клиента.';
 
 COMMENT ON COLUMN db.client_name.client IS 'Идентификатор клиента';
-COMMENT ON COLUMN db.client_name.lang IS 'Язык';
+COMMENT ON COLUMN db.client_name.locale IS 'Язык';
 COMMENT ON COLUMN db.client_name.name IS 'Полное наименование компании/Ф.И.О.';
 COMMENT ON COLUMN db.client_name.short IS 'Краткое наименование компании';
 COMMENT ON COLUMN db.client_name.first IS 'Имя';
@@ -137,7 +137,7 @@ COMMENT ON COLUMN db.client_name.validToDate IS 'Дата окончания п�
 --------------------------------------------------------------------------------
 
 CREATE INDEX ON db.client_name (client);
-CREATE INDEX ON db.client_name (lang);
+CREATE INDEX ON db.client_name (locale);
 CREATE INDEX ON db.client_name (name);
 CREATE INDEX ON db.client_name (name text_pattern_ops);
 CREATE INDEX ON db.client_name (short);
@@ -150,9 +150,9 @@ CREATE INDEX ON db.client_name (middle);
 CREATE INDEX ON db.client_name (middle text_pattern_ops);
 CREATE INDEX ON db.client_name (first, last, middle);
 
-CREATE INDEX ON db.client_name (lang, validFromDate, validToDate);
+CREATE INDEX ON db.client_name (locale, validFromDate, validToDate);
 
-CREATE UNIQUE INDEX ON db.client_name (client, lang, validFromDate, validToDate);
+CREATE UNIQUE INDEX ON db.client_name (client, locale, validFromDate, validToDate);
 
 --------------------------------------------------------------------------------
 
@@ -161,8 +161,8 @@ RETURNS trigger AS $$
 DECLARE
   nUserId	NUMERIC;
 BEGIN
-  IF NEW.Lang IS NULL THEN
-    NEW.Lang := current_locale();
+  IF NEW.Locale IS NULL THEN
+    NEW.Locale := current_locale();
   END IF;
 
   IF NEW.Name IS NULL THEN
@@ -227,7 +227,7 @@ CREATE TRIGGER t_client_name_insert_update
  * @param {text} pLast - Фамилия
  * @param {text} pMiddle - Отчество
  * @param {text} pShort - Краткое наименование компании
- * @param {varchar} pLangCode - Код языка: VLanguage
+ * @param {varchar} pLocaleCode - Код языка
  * @param {timestamp} pDateFrom - Дата изменения
  * @return {(void|exception)}
  */
@@ -238,13 +238,13 @@ CREATE OR REPLACE FUNCTION NewClientName (
   pFirst	    text default null,
   pLast		    text default null,
   pMiddle	    text default null,
-  pLangCode	    varchar default locale_code(),
+  pLocaleCode   varchar default locale_code(),
   pDateFrom	    timestamp default oper_date()
 ) RETURNS 	    void
 AS $$
 DECLARE
   nId		    numeric;
-  nLang		    numeric;
+  nLocale       numeric;
 
   dtDateFrom    timestamp;
   dtDateTo 	    timestamp;
@@ -257,17 +257,17 @@ BEGIN
   pLast := NULLIF(pLast, '');
   pMiddle := NULLIF(pMiddle, '');
 
-  SELECT id INTO nLang FROM db.locale WHERE code = coalesce(pLangCode, 'ru');
+  SELECT id INTO nLocale FROM db.locale WHERE code = coalesce(pLocaleCode, 'ru');
 
   IF not found THEN
-    PERFORM IncorrectLanguageCode(pLangCode);
+    PERFORM IncorrectLocaleCode(pLocaleCode);
   END IF;
 
   -- получим дату значения в текущем диапозоне дат
   SELECT max(validFromDate), max(validToDate) INTO dtDateFrom, dtDateTo
     FROM db.client_name
    WHERE Client = pClient
-     AND Lang = nLang
+     AND Locale = nLocale
      AND validFromDate <= pDateFrom
      AND validToDate > pDateFrom;
 
@@ -275,19 +275,19 @@ BEGIN
     -- обновим значение в текущем диапозоне дат
     UPDATE db.client_name SET name = pName, short = pShort, first = pFirst, last = pLast, middle = pMiddle
      WHERE Client = pClient
-       AND Lang = nLang
+       AND Locale = nLocale
        AND validFromDate <= pDateFrom
        AND validToDate > pDateFrom;
   ELSE
     -- обновим дату значения в текущем диапозоне дат
     UPDATE db.client_name SET validToDate = pDateFrom
      WHERE Client = pClient
-       AND Lang = nLang
+       AND Locale = nLocale
        AND validFromDate <= pDateFrom
        AND validToDate > pDateFrom;
 
-    INSERT INTO db.client_name (client, lang, name, short, first, last, middle, validfromdate, validToDate)
-    VALUES (pClient, nLang, pName, pShort, pFirst, pLast, pMiddle, pDateFrom, coalesce(dtDateTo, MAXDATE()));
+    INSERT INTO db.client_name (client, locale, name, short, first, last, middle, validfromdate, validToDate)
+    VALUES (pClient, nLocale, pName, pShort, pFirst, pLast, pMiddle, pDateFrom, coalesce(dtDateTo, MAXDATE()));
   END IF;
 END;
 $$ LANGUAGE plpgsql
@@ -305,7 +305,7 @@ $$ LANGUAGE plpgsql
  * @param {text} pFirst - Имя
  * @param {text} pLast - Фамилия
  * @param {text} pMiddle - Отчество
- * @param {varchar} pLangCode - Код языка: VLanguage
+ * @param {varchar} pLocaleCode - Код языка
  * @param {timestamp} pDateFrom - Дата изменения
  * @return {(void|exception)}
  */
@@ -316,7 +316,7 @@ CREATE OR REPLACE FUNCTION EditClientName (
   pFirst	    text default null,
   pLast		    text default null,
   pMiddle	    text default null,
-  pLangCode	    varchar default locale_code(),
+  pLocaleCode   varchar default locale_code(),
   pDateFrom	    timestamp default oper_date()
 ) RETURNS 	    void
 AS $$
@@ -328,7 +328,7 @@ DECLARE
 
   r		        record;
 BEGIN
-  SELECT * INTO r FROM GetClientNames(pClient, pLangCode, pDateFrom);
+  SELECT * INTO r FROM GetClientNameRec(pClient, pLocaleCode, pDateFrom);
 
   pName := coalesce(pName, r.name);
   pShort := coalesce(pShort, r.short, '<null>');
@@ -340,7 +340,7 @@ BEGIN
   cHash := encode(digest(r.name || coalesce(r.short, '<null>') || coalesce(r.first, '<null>') || coalesce(r.last, '<null>') || coalesce(r.middle, '<null>'), 'md5'), 'hex');
 
   IF vHash <> cHash THEN
-    PERFORM NewClientName(pClient, pName, CheckNull(pShort), CheckNull(pFirst), CheckNull(pLast), CheckNull(pMiddle), pLangCode, pDateFrom);
+    PERFORM NewClientName(pClient, pName, CheckNull(pShort), CheckNull(pFirst), CheckNull(pLast), CheckNull(pMiddle), pLocaleCode, pDateFrom);
 
     nMethod := GetMethod(GetObjectClass(pClient), null, GetAction('edit'));
     PERFORM ExecuteMethod(pClient, nMethod);
@@ -351,43 +351,79 @@ $$ LANGUAGE plpgsql
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
--- FUNCTION GetClientNames -----------------------------------------------------
+-- FUNCTION GetClientNameRec ---------------------------------------------------
 --------------------------------------------------------------------------------
 /**
  * Возвращает наименование клиента.
  * @param {numeric} pClient - Идентификатор клиента
- * @param {varchar} pLangCode - Код языка: VLanguage
+ * @param {varchar} pLocaleCode - Код языка
  * @param {timestamp} pDate - Дата
- * @out param {text} name - Полное наименование компании/Ф.И.О.
- * @out param {text} first - Имя
- * @out param {text} last - Фамилия
- * @out param {text} middle - Отчество
- * @out param {text} short - Краткое наименование компании
+ * @return {SETOF db.client_name}
  */
-CREATE OR REPLACE FUNCTION GetClientNames (
+CREATE OR REPLACE FUNCTION GetClientNameRec (
   pClient	    numeric,
-  pLangCode	    varchar default locale_code(),
+  pLocaleCode   varchar default locale_code(),
   pDate		    timestamp default oper_date()
-) RETURNS	    db.client_name
+) RETURNS	    SETOF db.client_name
 AS $$
 DECLARE
-  result        db.client_name%rowtype;
-  nLang		    numeric;
+  nLocale       numeric;
 BEGIN
-  SELECT id INTO nLang FROM db.locale WHERE code = coalesce(pLangCode, 'ru');
+  SELECT id INTO nLocale FROM db.locale WHERE code = coalesce(pLocaleCode, 'ru');
 
   IF NOT FOUND THEN
-    PERFORM IncorrectLanguageCode(pLangCode);
+    PERFORM IncorrectLocaleCode(pLocaleCode);
   END IF;
 
-  SELECT * INTO result
+  RETURN QUERY SELECT *
     FROM db.client_name n
    WHERE n.client = pClient
-     AND n.lang = nLang
+     AND n.locale = nLocale
      AND n.validFromDate <= pDate
      AND n.validToDate > pDate;
+END;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
 
-  RETURN result;
+--------------------------------------------------------------------------------
+-- FUNCTION GetClientNameJson --------------------------------------------------
+--------------------------------------------------------------------------------
+/**
+ * Возвращает наименование клиента.
+ * @param {numeric} pClient - Идентификатор клиента
+ * @param {varchar} pLocaleCode - Код языка
+ * @param {timestamp} pDate - Дата
+ * @return {json}
+ */
+CREATE OR REPLACE FUNCTION GetClientNameJson (
+  pClient	    numeric,
+  pLocaleCode   varchar default locale_code(),
+  pDate		    timestamp default oper_date()
+) RETURNS       SETOF json
+AS $$
+DECLARE
+  r             record;
+  nLocale       numeric;
+BEGIN
+  SELECT id INTO nLocale FROM db.locale WHERE code = coalesce(pLocaleCode, 'ru');
+
+  IF NOT FOUND THEN
+    PERFORM IncorrectLocaleCode(pLocaleCode);
+  END IF;
+
+  FOR r IN
+    SELECT *
+      FROM db.client_name n
+     WHERE n.client = pClient
+       AND n.locale = nLocale
+       AND n.validFromDate <= pDate
+       AND n.validToDate > pDate
+  LOOP
+    RETURN NEXT row_to_json(r);
+  END LOOP;
+
+  RETURN;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -399,20 +435,20 @@ $$ LANGUAGE plpgsql
 /**
  * Возвращает полное наименование клиента.
  * @param {numeric} pClient - Идентификатор клиента
- * @param {varchar} pLangCode - Код языка: VLanguage
+ * @param {varchar} pLocaleCode - Код языка
  * @param {timestamp} pDate - Дата
  * @return {(text|null|exception)}
  */
 CREATE OR REPLACE FUNCTION GetClientName (
-  pClient	numeric,
-  pLangCode	varchar default locale_code(),
-  pDate		timestamp default oper_date()
-) RETURNS	text
+  pClient       numeric,
+  pLocaleCode	varchar default locale_code(),
+  pDate		    timestamp default oper_date()
+) RETURNS       text
 AS $$
 DECLARE
-  vName		text;
+  vName		    text;
 BEGIN
-  SELECT name INTO vName FROM GetClientNames(pClient, pLangCode, pDate);
+  SELECT name INTO vName FROM GetClientNameRec(pClient, pLocaleCode, pDate);
 
   RETURN vName;
 END;
@@ -426,20 +462,20 @@ $$ LANGUAGE plpgsql
 /**
  * Возвращает краткое наименование клиента.
  * @param {numeric} pClient - Идентификатор клиента
- * @param {varchar} pLangCode - Код языка: VLanguage
+ * @param {varchar} pLocaleCode - Код языка
  * @param {timestamp} pDate - Дата
  * @return {(text|null|exception)}
  */
 CREATE OR REPLACE FUNCTION GetClientShortName (
-  pClient	numeric,
-  pLangCode	varchar default locale_code(),
-  pDate		timestamp default oper_date()
-) RETURNS	text
+  pClient	    numeric,
+  pLocaleCode   varchar default locale_code(),
+  pDate         timestamp default oper_date()
+) RETURNS       text
 AS $$
 DECLARE
-  vShort	text;
+  vShort        text;
 BEGIN
-  SELECT short INTO vShort FROM GetClientNames(pClient, pLangCode, pDate);
+  SELECT short INTO vShort FROM GetClientNameRec(pClient, pLocaleCode, pDate);
 
   RETURN vShort;
 END;
@@ -634,13 +670,13 @@ $$ LANGUAGE plpgsql
 -- ClientName ------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE VIEW ClientName (Id, Client, Lang, LangCode, LangName, LangDesc,
+CREATE OR REPLACE VIEW ClientName (Id, Client, Locale, LocaleCode, LocaleName, LocaleDescription,
   FullName, ShortName, LastName, FirstName, MiddleName, validFromDate, validToDate
 )
 AS
-  SELECT n.id, n.client, n.lang, l.code, l.name, l.description,
+  SELECT n.id, n.client, n.locale, l.code, l.name, l.description,
          n.name, n.short, n.last, n.first, n.middle, n.validfromdate, n.validToDate
-    FROM db.client_name n INNER JOIN db.locale l ON l.id = n.lang;
+    FROM db.client_name n INNER JOIN db.locale l ON l.id = n.locale;
 
 GRANT SELECT ON ClientName TO administrator;
 
@@ -651,7 +687,7 @@ GRANT SELECT ON ClientName TO administrator;
 CREATE OR REPLACE VIEW Client (Id, Document, Code, UserId,
   FullName, ShortName, LastName, FirstName, MiddleName,
   Phone, Email, Info,
-  Lang, LangCode, LangName, LangDesc
+  Locale, LocaleCode, LocaleName, LocaleDescription
 )
 AS
   WITH lc AS (
@@ -660,10 +696,10 @@ AS
   SELECT c.id, c.document, c.code, c.userid,
          n.name, n.short, n.last, n.first, n.middle,
          c.phone, c.email, c.info,
-         n.lang, l.code, l.name, l.description
+         n.locale, l.code, l.name, l.description
     FROM db.client c INNER JOIN db.client_name n ON n.client = c.id AND n.validfromdate <= now() AND n.validToDate > now()
-                     INNER JOIN lc               ON n.lang = lc.id
-                     INNER JOIN db.locale l    ON l.id = n.lang;
+                     INNER JOIN lc               ON n.locale = lc.id
+                     INNER JOIN db.locale l      ON l.id = n.locale;
 
 GRANT SELECT ON Client TO administrator;
 
@@ -678,7 +714,7 @@ CREATE OR REPLACE VIEW ObjectClient (Id, Object, Parent,
   Code, UserId,
   FullName, ShortName, LastName, FirstName, MiddleName,
   Phone, Email, Info,
-  Lang, LangCode, LangName, LangDesc,
+  Locale, LocaleCode, LocaleName, LocaleDescription,
   Label, Description,
   StateType, StateTypeCode, StateTypeName,
   State, StateCode, StateLabel, LastUpdate,
@@ -694,7 +730,7 @@ AS
          c.code, c.userid,
          c.fullname, c.shortname, c.lastname, c.firstname, c.middlename,
          c.phone, c.email, c.info,
-         c.lang, c.langcode, c.langname, c.langdesc,
+         c.locale, c.localecode, c.localename, c.localedescription,
          d.label, d.description,
          d.statetype, d.statetypecode, d.statetypename,
          d.state, d.statecode, d.statelabel, d.lastupdate,

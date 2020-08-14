@@ -143,6 +143,7 @@ BEGIN
   END IF;
 
   IF NOT CheckObjectAccess(NEW.ID, B'010') THEN
+    --RAISE NOTICE 'Object: %, Type: %, Owner: %, UserId: %', NEW.id, GetTypeCode(NEW.type), NEW.owner, current_userid();
     PERFORM AccessDenied();
   END IF;
 
@@ -249,6 +250,7 @@ CREATE TABLE db.aou (
     deny		bit(3) NOT NULL,
     allow		bit(3) NOT NULL,
     mask		bit(3) DEFAULT B'000' NOT NULL,
+    CONSTRAINT pk_aou PRIMARY KEY(object, userid),
     CONSTRAINT fk_aou_object FOREIGN KEY (object) REFERENCES db.object(id),
     CONSTRAINT fk_aou_userid FOREIGN KEY (userid) REFERENCES db.user(id)
 );
@@ -261,10 +263,10 @@ COMMENT ON COLUMN db.aou.deny IS 'Запрещающие биты: {s - select, 
 COMMENT ON COLUMN db.aou.allow IS 'Разрешающие биты: {s - select, u - update, d - delete}';
 COMMENT ON COLUMN db.aou.mask IS 'Маска доступа: {s - select, u - update, d - delete}';
 
-CREATE UNIQUE INDEX ON db.aou (object, userid);
-
 CREATE INDEX ON db.aou (object);
 CREATE INDEX ON db.aou (userid);
+
+--------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION ft_aou_before()
 RETURNS TRIGGER AS $$
@@ -713,9 +715,8 @@ COMMENT ON COLUMN db.object_state.validToDate IS 'Дата окончания п
 
 CREATE INDEX ON db.object_state (object);
 CREATE INDEX ON db.object_state (state);
-CREATE INDEX ON db.object_state (object, validFromDate, validToDate);
 
-CREATE UNIQUE INDEX ON db.object_state (object, state, validFromDate, validToDate);
+CREATE UNIQUE INDEX ON db.object_state (object, validFromDate, validToDate);
 
 --------------------------------------------------------------------------------
 
@@ -786,13 +787,13 @@ DECLARE
   dtDateTo      timestamp;
 BEGIN
   -- получим дату значения в текущем диапозоне дат
-  SELECT max(validFromDate), max(validToDate) INTO dtDateFrom, dtDateTo
+  SELECT validFromDate, validToDate INTO dtDateFrom, dtDateTo
     FROM db.object_state
    WHERE object = pObject
      AND validFromDate <= pDateFrom
      AND validToDate > pDateFrom;
 
-  IF dtDateFrom = pDateFrom THEN
+  IF coalesce(dtDateFrom, MINDATE()) = pDateFrom THEN
     -- обновим значение в текущем диапозоне дат
     UPDATE db.object_state SET State = pState
      WHERE object = pObject
@@ -989,6 +990,73 @@ $$ LANGUAGE plpgsql
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
+-- METHOD STACK ----------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE TABLE db.method_stack (
+    object		numeric(12) NOT NULL,
+    method		numeric(12) NOT NULL,
+    result		jsonb DEFAULT NULL,
+    CONSTRAINT pk_object_method PRIMARY KEY(object, method),
+    CONSTRAINT fk_method_stack_object FOREIGN KEY (object) REFERENCES db.object(id),
+    CONSTRAINT fk_method_stack_method FOREIGN KEY (method) REFERENCES db.method(id)
+);
+
+COMMENT ON TABLE db.method_stack IS 'Стек выполнения метода.';
+
+COMMENT ON COLUMN db.method_stack.object IS 'Объект';
+COMMENT ON COLUMN db.method_stack.method IS 'Метод';
+COMMENT ON COLUMN db.method_stack.result IS 'Результат выполения (при наличии)';
+
+--------------------------------------------------------------------------------
+-- FUNCTION AddMethodResult ----------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION AddMethodResult (
+  pResult   jsonb,
+  pObject	numeric DEFAULT context_object(),
+  pMethod	numeric DEFAULT context_method()
+) RETURNS	void
+AS $$
+BEGIN
+  UPDATE db.method_stack SET result = pResult WHERE object = pObject AND method = pMethod;
+  IF NOT FOUND THEN
+    INSERT INTO db.method_stack (object, method, result) VALUES (pObject, pMethod, pResult);
+  END IF;
+END;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- FUNCTION ClearMethodResult --------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION ClearMethodResult (
+  pObject	numeric,
+  pMethod	numeric
+) RETURNS	void
+AS $$
+  SELECT AddMethodResult(NULL, pObject, pMethod);
+$$ LANGUAGE sql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- FUNCTION GetMethodResult ----------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION GetMethodResult (
+  pObject	numeric,
+  pMethod	numeric
+) RETURNS	jsonb
+AS $$
+  SELECT result FROM db.method_stack WHERE object = pObject AND method = pMethod
+$$ LANGUAGE sql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
 -- PROCEDURE ExecuteAction -----------------------------------------------------
 --------------------------------------------------------------------------------
 
@@ -1033,7 +1101,7 @@ CREATE OR REPLACE FUNCTION ExecuteMethod (
   pObject       numeric,
   pMethod       numeric,
   pForm         jsonb DEFAULT null
-) RETURNS       void
+) RETURNS       jsonb
 AS $$
 DECLARE
   nSaveObject	numeric;
@@ -1051,6 +1119,8 @@ BEGIN
   nSaveAction := context_action();
   pSaveForm   := context_form();
 
+  PERFORM ClearMethodResult(pObject, pMethod);
+
   nClass := GetObjectClass(pObject);
 
   SELECT action INTO nAction FROM db.method WHERE id = pMethod;
@@ -1062,6 +1132,8 @@ BEGIN
 
   PERFORM InitForm(pSaveForm);
   PERFORM InitContext(nSaveObject, nSaveClass, nSaveMethod, nSaveAction);
+
+  RETURN GetMethodResult(pObject, pMethod);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -1077,23 +1149,29 @@ CREATE OR REPLACE FUNCTION ExecuteMethodForAllChild (
   pMethod	numeric DEFAULT context_method(),
   pAction	numeric DEFAULT context_action(),
   pForm		jsonb DEFAULT context_form()
-) RETURNS	void
+) RETURNS	jsonb
 AS $$
 DECLARE
   nMethod	numeric;
   rec		RECORD;
+  result    jsonb;
 BEGIN
+  result := jsonb_build_array();
+
   FOR rec IN
-    SELECT o.id, t.class, o.state FROM db.object o INNER JOIN db.type t ON o.type = t.id
+    SELECT o.id, t.class, o.state
+      FROM db.object o INNER JOIN db.type t ON o.type = t.id
      WHERE o.parent = pObject AND t.class = pClass
   LOOP
     nMethod := GetMethod(rec.class, rec.state, pAction);
     IF nMethod IS NOT NULL THEN
-      PERFORM ExecuteMethod(rec.id, nMethod, pForm);
+      result := result || ExecuteMethod(rec.id, nMethod, pForm);
     END IF;
   END LOOP;
 
   PERFORM InitContext(pObject, pClass, pMethod, pAction);
+
+  RETURN result;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -1107,15 +1185,18 @@ CREATE OR REPLACE FUNCTION ExecuteObjectAction (
   pObject	numeric,
   pAction	numeric,
   pForm		jsonb DEFAULT null
-) RETURNS 	void
+) RETURNS 	jsonb
 AS $$
 DECLARE
   nMethod	numeric;
 BEGIN
   nMethod := GetObjectMethod(pObject, pAction);
-  IF nMethod IS NOT NULL THEN
-    PERFORM ExecuteMethod(pObject, nMethod, pForm);
+
+  IF nMethod IS NULL THEN
+    PERFORM MethodActionNotFound(pObject, pAction);
   END IF;
+
+  RETURN ExecuteMethod(pObject, nMethod, pForm);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -1156,7 +1237,7 @@ BEGIN
   END IF;
 
   IF NEW.CODE IS NULL THEN
-    NEW.CODE := 'G:' || TRIM(TO_CHAR(NEW.ID, '999999999999'));
+    NEW.CODE := encode(gen_random_bytes(12), 'hex');
   END IF;
 END;
 $$ LANGUAGE plpgsql
@@ -1282,7 +1363,7 @@ DECLARE
 BEGIN
   SELECT id INTO nId FROM db.object_group_member WHERE gid = pGroup AND object = pObject;
   IF NOT found THEN
-    INSERT INTO db.object_group_member (gid, object) 
+    INSERT INTO db.object_group_member (gid, object)
     VALUES (pGroup, pObject)
     RETURNING id INTO nId;
   END IF;
@@ -1309,7 +1390,7 @@ BEGIN
    WHERE gid = pGroup
      AND object = pObject;
 
-  SELECT count(object) INTO nCount 
+  SELECT count(object) INTO nCount
     FROM db.object_group_member
    WHERE gid = pGroup;
 
@@ -1464,68 +1545,59 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE TABLE db.object_file (
-    id			numeric(12) PRIMARY KEY DEFAULT NEXTVAL('SEQUENCE_REF'),
-    object		numeric(12) NOT NULL,
-    load_date	timestamp DEFAULT Now() NOT NULL,
-    file_hash	text NOT NULL,
+    object      numeric(12) NOT NULL,
     file_name	text NOT NULL,
     file_path	text DEFAULT NULL,
     file_size	numeric DEFAULT 0,
     file_date	timestamp DEFAULT NULL,
-    file_body	bytea DEFAULT NULL,
+    file_data	bytea DEFAULT NULL,
+    file_hash	text DEFAULT NULL,
+    load_date	timestamp DEFAULT Now() NOT NULL,
+    CONSTRAINT pk_object_file PRIMARY KEY(object, file_name),
     CONSTRAINT fk_object_file_object FOREIGN KEY (object) REFERENCES db.object(id)
 );
 
 COMMENT ON TABLE db.object_file IS 'Файлы объекта.';
 
 COMMENT ON COLUMN db.object_file.object IS 'Объект';
-COMMENT ON COLUMN db.object_file.load_date IS 'Дата загрузки';
-COMMENT ON COLUMN db.object_file.file_hash IS 'Хеш файла';
-COMMENT ON COLUMN db.object_file.file_name IS 'Наименование файла';
-COMMENT ON COLUMN db.object_file.file_path IS 'Путь к файлу на сервере';
+COMMENT ON COLUMN db.object_file.file_name IS 'Наименование файла на сервере (включая путь)';
+COMMENT ON COLUMN db.object_file.file_path IS 'Только путь к файлу (на сервере)';
 COMMENT ON COLUMN db.object_file.file_size IS 'Размер файла';
 COMMENT ON COLUMN db.object_file.file_date IS 'Дата и время файла';
-COMMENT ON COLUMN db.object_file.file_body IS 'Содержимое файла (если нужно)';
+COMMENT ON COLUMN db.object_file.file_data IS 'Содержимое файла (если нужно)';
+COMMENT ON COLUMN db.object_file.file_hash IS 'Хеш файла';
+COMMENT ON COLUMN db.object_file.load_date IS 'Дата загрузки';
 
 CREATE INDEX ON db.object_file (object);
-
-CREATE INDEX ON db.object_file (file_hash);
-CREATE INDEX ON db.object_file (file_name);
-CREATE INDEX ON db.object_file (file_path);
-CREATE INDEX ON db.object_file (file_date);
 
 --------------------------------------------------------------------------------
 -- VIEW ObjectFile -------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE VIEW ObjectFile (Id, Object, Hash, Name, Path, Size, Date, Body, Loaded)
+CREATE OR REPLACE VIEW ObjectFile (Object, Name, Path, Size, Date, Body, Hash, Loaded)
 AS
-    SELECT id, object, file_hash, file_name, file_path, file_size, file_date, encode(file_body, 'base64'), load_date
+    SELECT object, file_name, file_path, file_size, file_date, encode(file_data, 'base64'), file_hash, load_date
       FROM db.object_file;
 
 GRANT SELECT ON ObjectFile TO administrator;
 
 --------------------------------------------------------------------------------
--- AddObjectFile ---------------------------------------------------------------
+-- NewObjectFile ---------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION AddObjectFile (
+CREATE OR REPLACE FUNCTION NewObjectFile (
   pObject	numeric,
-  pHash		text,
   pName		text,
   pPath		text,
   pSize		numeric,
   pDate		timestamp,
-  pBody		bytea DEFAULT null
-) RETURNS	numeric
+  pData		bytea DEFAULT null,
+  pHash		text DEFAULT null
+) RETURNS	void
 AS $$
-DECLARE
-  nId		numeric;
 BEGIN
-  INSERT INTO db.object_file (object, file_hash, file_name, file_path, file_size, file_date, file_body) 
-  VALUES (pObject, pHash, pName, pPath, pSize, pDate, pBody) 
-  RETURNING id INTO nId;
-  RETURN nId;
+  INSERT INTO db.object_file (object, file_name, file_path, file_size, file_date, file_data, file_hash)
+  VALUES (pObject, pName, pPath, pSize, pDate, pData, pHash);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -1536,26 +1608,26 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION EditObjectFile (
-  pId		numeric,
-  pHash		text,
+  pObject   numeric,
   pName		text,
-  pPath		text,
-  pSize		numeric,
-  pDate		timestamp,
-  pBody		bytea DEFAULT null,
+  pPath		text DEFAULT null,
+  pSize		numeric DEFAULT null,
+  pDate		timestamp DEFAULT null,
+  pData		bytea DEFAULT null,
+  pHash		text DEFAULT null,
   pLoad		timestamp DEFAULT now()
 ) RETURNS	void
 AS $$
 BEGIN
-  UPDATE db.object_file 
-     SET load_date = pLoad,
-         file_hash = pHash,
-         file_name = pName,
-         file_path = pPath, 
-         file_size = pSize,
-         file_date = pDate,
-         file_body = pBody
-   WHERE id = pId;
+  UPDATE db.object_file
+     SET file_path = coalesce(pPath, file_path),
+         file_size = coalesce(pSize, file_size),
+         file_date = coalesce(pDate, file_date),
+         file_data = coalesce(pData, file_data),
+         file_hash = coalesce(pHash, file_hash),
+         load_date = coalesce(pLoad, load_date)
+   WHERE object = pObject
+     AND file_name = pName;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -1566,11 +1638,45 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION DeleteObjectFile (
-  pId		numeric
+  pObject       numeric,
+  pName		text
 ) RETURNS	void
 AS $$
 BEGIN
-  DELETE FROM db.object_file WHERE id = pId;
+  DELETE FROM db.object_file WHERE object = pObject AND file_name = pName;
+END;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- SetObjectFile ---------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION SetObjectFile (
+  pObject	numeric,
+  pName		text,
+  pPath		text,
+  pSize		numeric,
+  pDate		timestamp,
+  pData		bytea DEFAULT null,
+  pHash		text DEFAULT null
+) RETURNS	int
+AS $$
+DECLARE
+  Size          int;
+BEGIN
+  IF coalesce(pSize, 0) >= 0 THEN
+    SELECT file_size INTO Size FROM db.object_file WHERE object = pObject AND file_name = pName;
+    IF NOT FOUND THEN
+      PERFORM NewObjectFile(pObject, pName, pPath, pSize, pDate, pData, pHash);
+    ELSE
+      PERFORM EditObjectFile(pObject, pName, pPath, pSize, pDate, pData, pHash);
+    END IF;
+  ELSE
+    PERFORM DeleteObjectFile(pObject, pName);
+  END IF;
+  RETURN Size;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -1585,7 +1691,7 @@ CREATE OR REPLACE FUNCTION GetObjectFiles (
 ) RETURNS	text[][]
 AS $$
 DECLARE
-  arResult	text[][]; 
+  arResult	text[][];
   i		    integer DEFAULT 1;
   r		    ObjectFile%rowtype;
 BEGIN
@@ -1593,9 +1699,8 @@ BEGIN
     SELECT *
       FROM ObjectFile
      WHERE object = pObject
-     ORDER BY Loaded desc, Path, Name
   LOOP
-    arResult[i] := ARRAY[r.id, r.hash, r.name, r.path, r.size, r.date, r.body, r.loaded];
+    arResult[i] := ARRAY[r.object, r.name, r.path, r.size, r.date, r.body, r.hash, r.loaded];
     i := i + 1;
   END LOOP;
 
@@ -1614,14 +1719,13 @@ CREATE OR REPLACE FUNCTION GetObjectFilesJson (
 ) RETURNS	json
 AS $$
 DECLARE
-  arResult	json[]; 
+  arResult	json[];
   r		    record;
 BEGIN
   FOR r IN
-    SELECT Id, Hash, Name, Path, Size, Date, Body, Loaded
+    SELECT Object, Name, Path, Size, Date, Body, Hash, Loaded
       FROM ObjectFile
      WHERE object = pObject
-     ORDER BY Loaded desc, Path, Name
   LOOP
     arResult := array_append(arResult, row_to_json(r));
   END LOOP;
@@ -1706,11 +1810,11 @@ GRANT SELECT ON ObjectDataType TO administrator;
 --------------------------------------------------------------------------------
 
 CREATE TABLE db.object_data (
-    id			numeric(12) PRIMARY KEY DEFAULT NEXTVAL('SEQUENCE_REF'),
-    object		numeric(12) NOT NULL,
-    type		numeric(12) NOT NULL,
+    object      numeric(12) NOT NULL,
+    type        numeric(12) NOT NULL,
     code        varchar(30) NOT NULL,
-    data		text,
+    data        text,
+    CONSTRAINT pk_object_data PRIMARY KEY(object, type, code),
     CONSTRAINT fk_object_data_object FOREIGN KEY (object) REFERENCES db.object(id),
     CONSTRAINT fk_object_data_type FOREIGN KEY (type) REFERENCES db.object_data_type(id)
 );
@@ -1723,41 +1827,32 @@ COMMENT ON COLUMN db.object_data.code IS 'Код';
 COMMENT ON COLUMN db.object_data.data IS 'Данные';
 
 CREATE INDEX ON db.object_data (object);
-CREATE INDEX ON db.object_data (type);
-CREATE INDEX ON db.object_data (code);
-
-CREATE UNIQUE INDEX ON db.object_data (object, type, code);
 
 --------------------------------------------------------------------------------
 -- VIEW ObjectData -------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE VIEW ObjectData (Id, Object, Type, TypeCode, TypeName, TypeDesc, Code, Data)
+CREATE OR REPLACE VIEW ObjectData (Object, Type, TypeCode, TypeName, TypeDescription, Code, Data)
 AS
-  SELECT d.id, d.object, d.type, t.code, t.name, t.description, d.code, d.data
+  SELECT d.object, d.type, t.code, t.name, t.description, d.code, d.data
     FROM db.object_data d INNER JOIN db.object_data_type t ON t.id = d.type;
 
 GRANT SELECT ON ObjectData TO administrator;
 
 --------------------------------------------------------------------------------
--- AddObjectData ---------------------------------------------------------------
+-- NewObjectData ---------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION AddObjectData (
+CREATE OR REPLACE FUNCTION NewObjectData (
   pObject	numeric,
   pType		numeric,
   pCode		varchar,
   pData		text
-) RETURNS	numeric
+) RETURNS	void
 AS $$
-DECLARE
-  nId		numeric;
 BEGIN
-  INSERT INTO db.object_data (object, type, code, data) 
-  VALUES (pObject, pType, pCode, pData) 
-  RETURNING id INTO nId;
-
-  RETURN nId;
+  INSERT INTO db.object_data (object, type, code, data)
+  VALUES (pObject, pType, pCode, pData);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -1768,7 +1863,6 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION EditObjectData (
-  pId       numeric,
   pObject	numeric,
   pType		numeric,
   pCode		varchar,
@@ -1777,26 +1871,10 @@ CREATE OR REPLACE FUNCTION EditObjectData (
 AS $$
 BEGIN
   UPDATE db.object_data
-     SET object = coalesce(pObject, object),
-         type = coalesce(pType, type),
-         code = coalesce(pCode, code),
-         data = coalesce(pData, data)
-   WHERE id = pId;
-END;
-$$ LANGUAGE plpgsql
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
-
---------------------------------------------------------------------------------
--- DeleteObjectData ------------------------------------------------------------
---------------------------------------------------------------------------------
-
-CREATE OR REPLACE FUNCTION DeleteObjectData (
-  pId		numeric
-) RETURNS	void
-AS $$
-BEGIN
-  DELETE FROM db.object_data WHERE id = pId;
+     SET data = coalesce(pData, data)
+   WHERE object = pObject
+     AND type = pType
+     AND code = pCode;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -1828,24 +1906,22 @@ CREATE OR REPLACE FUNCTION SetObjectData (
   pType		numeric,
   pCode		varchar,
   pData		text
-) RETURNS	numeric
+) RETURNS	text
 AS $$
 DECLARE
-  nId		numeric;
+  vData		text;
 BEGIN
-  SELECT d.id INTO nId FROM db.object_data d WHERE d.object = pObject AND d.type = pType AND d.code = pCode;
-
   IF pData IS NOT NULL THEN
-    IF nId IS NULL THEN
-      nId := AddObjectData(pObject, pType, pCode, pData);
+    SELECT data INTO vData FROM db.object_data WHERE object = pObject AND type = pType AND code = pCode;
+    IF NOT FOUND THEN
+      PERFORM NewObjectData(pObject, pType, pCode, pData);
     ELSE
-      PERFORM EditObjectData(nId, pObject, pType, pCode, pData);
+      PERFORM EditObjectData(pObject, pType, pCode, pData);
     END IF;
   ELSE
-    PERFORM DeleteObjectData(nId);
+    PERFORM DeleteObjectData(pObject, pType, pCode);
   END IF;
-
-  RETURN nId;
+  RETURN vData;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -1881,16 +1957,15 @@ CREATE OR REPLACE FUNCTION GetObjectData (
 AS $$
 DECLARE
   arResult	text[][];
-  i		    integer DEFAULT 1;
-  r		    ObjectData%rowtype;
+  i             integer DEFAULT 1;
+  r             ObjectData%rowtype;
 BEGIN
   FOR r IN
     SELECT *
       FROM ObjectData
      WHERE object = pObject
-     ORDER BY type, code
   LOOP
-    arResult[i] := ARRAY[r.id, r.typecode, r.code, r.data];
+    arResult[i] := ARRAY[pObject, r.type, r.typeCode, r.code, r.data];
     i := i + 1;
   END LOOP;
 
@@ -1910,13 +1985,12 @@ CREATE OR REPLACE FUNCTION GetObjectDataJson (
 AS $$
 DECLARE
   arResult	json[];
-  r		    record;
+  r             record;
 BEGIN
   FOR r IN
-    SELECT Id, TypeCode AS type, Code, Data
+    SELECT object, type, typeCode, Code, Data
       FROM ObjectData
      WHERE object = pObject
-     ORDER BY type, code
   LOOP
     arResult := array_append(arResult, row_to_json(r));
   END LOOP;
@@ -1947,14 +2021,16 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE TABLE db.object_coordinates (
-    id			numeric(12) PRIMARY KEY DEFAULT NEXTVAL('SEQUENCE_REF'),
-    object		numeric(12) NOT NULL,
-    code        varchar(30) NOT NULL,
-    name 		varchar(50) NOT NULL,
-    latitude    numeric NOT NULL,
-    longitude   numeric NOT NULL,
-    accuracy    numeric NOT NULL DEFAULT 0,
-    description	text,
+    object          numeric(12) NOT NULL,
+    code            varchar(30) NOT NULL,
+    latitude        numeric NOT NULL,
+    longitude       numeric NOT NULL,
+    accuracy        numeric NOT NULL DEFAULT 0,
+    label           varchar(50),
+    description	    text,
+    validFromDate   timestamptz DEFAULT Now() NOT NULL,
+    validToDate     timestamptz DEFAULT TO_DATE('4433-12-31', 'YYYY-MM-DD') NOT NULL,
+    CONSTRAINT pk_object_coordinates PRIMARY KEY(object, code, validFromDate, validToDate),
     CONSTRAINT fk_object_coordinates_object FOREIGN KEY (object) REFERENCES db.object(id)
 );
 
@@ -1962,16 +2038,15 @@ COMMENT ON TABLE db.object_coordinates IS 'Произвольные данные
 
 COMMENT ON COLUMN db.object_coordinates.object IS 'Объект';
 COMMENT ON COLUMN db.object_coordinates.code IS 'Код';
-COMMENT ON COLUMN db.object_coordinates.name IS 'Наименование';
 COMMENT ON COLUMN db.object_coordinates.latitude IS 'Широта';
 COMMENT ON COLUMN db.object_coordinates.longitude IS 'Долгота';
 COMMENT ON COLUMN db.object_coordinates.accuracy IS 'Точность (высота над уровнем моря)';
+COMMENT ON COLUMN db.object_coordinates.label IS 'Метка';
 COMMENT ON COLUMN db.object_coordinates.description IS 'Описание';
+COMMENT ON COLUMN db.object_coordinates.validFromDate IS 'Дата начала периода действия';
+COMMENT ON COLUMN db.object_coordinates.validToDate IS 'Дата окончания периода действия';
 
 CREATE INDEX ON db.object_coordinates (object);
-CREATE INDEX ON db.object_coordinates (code);
-
-CREATE UNIQUE INDEX ON db.object_coordinates (object, code);
 
 --------------------------------------------------------------------------------
 -- VIEW ObjectCoordinates ------------------------------------------------------
@@ -1984,72 +2059,53 @@ AS
 GRANT SELECT ON ObjectCoordinates TO administrator;
 
 --------------------------------------------------------------------------------
--- AddObjectCoordinates --------------------------------------------------------
+-- NewObjectCoordinates --------------------------------------------------------
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION AddObjectCoordinates (
-  pObject   	numeric,
-  pCode		    varchar,
-  pName		    varchar,
-  pLatitude     numeric,
-  pLongitude    numeric,
-  pAccuracy     numeric,
-  pDescription  text
-) RETURNS       numeric
+CREATE OR REPLACE FUNCTION NewObjectCoordinates (
+  pObject         numeric,
+  pCode           varchar,
+  pLatitude       numeric,
+  pLongitude      numeric,
+  pAccuracy       numeric DEFAULT 0,
+  pLabel          varchar DEFAULT null,
+  pDescription    text DEFAULT null,
+  pDateFrom       timestamptz DEFAULT Now()
+) RETURNS         void
 AS $$
 DECLARE
-  nId		numeric;
+  dtDateFrom      timestamp;
+  dtDateTo        timestamp;
 BEGIN
-  INSERT INTO db.object_coordinates (object, code, name, latitude, longitude, accuracy, description)
-  VALUES (pObject, pCode, pName, pLatitude, pLongitude, pAccuracy, pDescription)
-  RETURNING id INTO nId;
+  -- получим дату значения в текущем диапозоне дат
+  SELECT validFromDate, validToDate INTO dtDateFrom, dtDateTo
+    FROM db.object_coordinates
+   WHERE object = pObject
+     AND code = pCode
+     AND validFromDate <= pDateFrom
+     AND validToDate > pDateFrom;
 
-  RETURN nId;
-END;
-$$ LANGUAGE plpgsql
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
+  IF coalesce(dtDateFrom, MINDATE()) = pDateFrom THEN
+    -- обновим значение в текущем диапозоне дат
+    UPDATE db.object_coordinates
+       SET latitude = pLatitude, longitude = pLongitude, accuracy = pAccuracy,
+           label = coalesce(pLabel, label),
+           description = coalesce(pDescription, description)
+     WHERE object = pObject
+       AND code = pCode
+       AND validFromDate <= pDateFrom
+       AND validToDate > pDateFrom;
+  ELSE
+    -- обновим дату значения в текущем диапозоне дат
+    UPDATE db.object_coordinates SET validToDate = pDateFrom
+     WHERE object = pObject
+       AND code = pCode
+       AND validFromDate <= pDateFrom
+       AND validToDate > pDateFrom;
 
---------------------------------------------------------------------------------
--- EditObjectCoordinates -------------------------------------------------------
---------------------------------------------------------------------------------
-
-CREATE OR REPLACE FUNCTION EditObjectCoordinates (
-  pId           numeric,
-  pObject   	numeric,
-  pCode		    varchar,
-  pName		    varchar,
-  pLatitude     numeric,
-  pLongitude    numeric,
-  pAccuracy     numeric,
-  pDescription  text
-) RETURNS       void
-AS $$
-BEGIN
-  UPDATE db.object_coordinates
-     SET object = coalesce(pObject, object),
-         code = coalesce(pCode, code),
-         name = coalesce(pName, name),
-         latitude = coalesce(pLatitude, latitude),
-         longitude = coalesce(pLongitude, longitude),
-         accuracy = coalesce(pAccuracy, accuracy),
-         description = coalesce(pDescription, description)
-   WHERE id = pId;
-END;
-$$ LANGUAGE plpgsql
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
-
---------------------------------------------------------------------------------
--- DeleteObjectCoordinates -----------------------------------------------------
---------------------------------------------------------------------------------
-
-CREATE OR REPLACE FUNCTION DeleteObjectCoordinates (
-  pId		numeric
-) RETURNS	void
-AS $$
-BEGIN
-  DELETE FROM db.object_coordinates WHERE id = pId;
+    INSERT INTO db.object_coordinates (object, code, latitude, longitude, accuracy, label, description, validFromDate, validToDate)
+    VALUES (pObject, pCode, pLatitude, pLongitude, pAccuracy, pLabel, pDescription, pDateFrom, coalesce(dtDateTo, MAXDATE()));
+  END IF;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -2086,51 +2142,26 @@ $$ LANGUAGE SQL
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
--- GetObjectCoordinates --------------------------------------------------------
+-- GetObjectCoordinatesJson ----------------------------------------------------
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION GetObjectCoordinates (
-  pObject	numeric
-) RETURNS	text[][]
+CREATE OR REPLACE FUNCTION GetObjectCoordinatesJson (
+  pObject	numeric,
+  pCode         varchar DEFAULT NULL,
+  pDateFrom     timestamptz DEFAULT Now()
+) RETURNS	json
 AS $$
 DECLARE
-  arResult	text[][];
-  i		    integer DEFAULT 1;
-  r		    ObjectCoordinates%rowtype;
+  arResult	json[];
+  r             record;
 BEGIN
   FOR r IN
     SELECT *
       FROM ObjectCoordinates
      WHERE object = pObject
-     ORDER BY code
-  LOOP
-    arResult[i] := ARRAY[r.id, r.code, r.name, r.latitude, r.longitude, r.accuracy, r.description];
-    i := i + 1;
-  END LOOP;
-
-  RETURN arResult;
-END;
-$$ LANGUAGE plpgsql
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
-
---------------------------------------------------------------------------------
--- GetObjectCoordinatesJson ----------------------------------------------------
---------------------------------------------------------------------------------
-
-CREATE OR REPLACE FUNCTION GetObjectCoordinatesJson (
-  pObject	numeric
-) RETURNS	json
-AS $$
-DECLARE
-  arResult	json[];
-  r		    record;
-BEGIN
-  FOR r IN
-    SELECT id, code, name, latitude, longitude, accuracy, description
-      FROM ObjectCoordinates
-     WHERE object = pObject
-     ORDER BY code
+       AND code = coalesce(pCode, code)
+       AND validFromDate <= pDateFrom
+       AND validToDate > pDateFrom
   LOOP
     arResult := array_append(arResult, row_to_json(r));
   END LOOP;

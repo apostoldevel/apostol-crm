@@ -106,16 +106,16 @@ BEGIN
 
     IF jsonb_typeof(pPayload) = 'array' THEN
 
-      FOR r IN EXECUTE format('SELECT api.set_client(%s) AS id FROM jsonb_to_recordset($1) AS x(%s)', array_to_string(GetRoutines('set_client', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_client', 'api', true), ', ')) USING pPayload
+      FOR r IN EXECUTE format('SELECT row_to_json(api.set_client(%s)) FROM jsonb_to_recordset($1) AS x(%s)', array_to_string(GetRoutines('set_client', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_client', 'api', true), ', ')) USING pPayload
       LOOP
-        RETURN NEXT row_to_json(r);
+        RETURN NEXT r;
       END LOOP;
 
     ELSE
 
-      FOR r IN EXECUTE format('SELECT api.set_client(%s) AS id FROM jsonb_to_record($1) AS x(%s)', array_to_string(GetRoutines('set_client', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_client', 'api', true), ', ')) USING pPayload
+      FOR r IN EXECUTE format('SELECT row_to_json(api.set_client(%s)) FROM jsonb_to_record($1) AS x(%s)', array_to_string(GetRoutines('set_client', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_client', 'api', true), ', ')) USING pPayload
       LOOP
-        RETURN NEXT row_to_json(r);
+        RETURN NEXT r;
       END LOOP;
 
     END IF;
@@ -163,6 +163,124 @@ BEGIN
     FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(fields jsonb, search jsonb, filter jsonb, reclimit integer, recoffset integer, orderby jsonb)
     LOOP
       FOR e IN EXECUTE format('SELECT %s FROM api.list_client($1, $2, $3, $4, $5)', JsonbToFields(r.fields, GetColumns('client', 'api'))) USING r.search, r.filter, r.reclimit, r.recoffset, r.orderby
+      LOOP
+        RETURN NEXT row_to_json(e);
+      END LOOP;
+    END LOOP;
+
+  WHEN '/client/tariff' THEN
+
+    IF pPayload IS NULL THEN
+      PERFORM JsonIsEmpty();
+    END IF;
+
+    arKeys := array_cat(arKeys, ARRAY['id', 'tariffs']);
+    PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+
+    IF jsonb_typeof(pPayload) = 'array' THEN
+
+      FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id numeric, tariffs json)
+      LOOP
+        IF r.tariffs IS NOT NULL THEN
+          FOR e IN SELECT api.set_client_tariffs_json(r.id, r.tariffs) AS id
+          LOOP
+            RETURN NEXT row_to_json(e);
+          END LOOP;
+        ELSE
+          RETURN NEXT api.get_client_tariffs_json(r.id);
+        END IF;
+      END LOOP;
+
+    ELSE
+
+      FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id numeric, tariffs json)
+      LOOP
+        IF r.tariffs IS NOT NULL THEN
+          FOR e IN SELECT api.set_client_tariffs_json(r.id, r.tariffs) AS id
+          LOOP
+            RETURN NEXT row_to_json(e);
+          END LOOP;
+        ELSE
+          RETURN NEXT api.get_client_tariffs_json(r.id);
+        END IF;
+      END LOOP;
+
+    END IF;
+
+  WHEN '/client/tariff/set' THEN
+
+    IF pPayload IS NULL THEN
+      PERFORM JsonIsEmpty();
+    END IF;
+
+    arKeys := array_cat(arKeys, ARRAY['id', 'tariff', 'datefrom']);
+    PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+
+    IF jsonb_typeof(pPayload) = 'array' THEN
+
+      FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id numeric, tariff numeric, datefrom timestamp)
+      LOOP
+        FOR e IN SELECT api.set_client_tariff(r.id, r.tariff, coalesce(r.datefrom, oper_date())) AS id
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
+      END LOOP;
+
+    ELSE
+
+      FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id numeric, tariff numeric, datefrom timestamp)
+      LOOP
+        FOR e IN SELECT api.set_client_tariff(r.id, r.tariff, coalesce(r.datefrom, oper_date())) AS id
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
+      END LOOP;
+
+    END IF;
+
+  WHEN '/client/tariff/get' THEN
+
+    IF pPayload IS NULL THEN
+      PERFORM JsonIsEmpty();
+    END IF;
+
+    arKeys := array_cat(arKeys, ARRAY['id', 'fields']);
+    PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+
+    IF jsonb_typeof(pPayload) = 'array' THEN
+
+      FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id numeric, fields jsonb)
+      LOOP
+        FOR e IN EXECUTE format('SELECT %s FROM api.get_client_tariff($1)', JsonbToFields(r.fields, GetColumns('client_tariff', 'api'))) USING r.id
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
+      END LOOP;
+
+    ELSE
+
+      FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id numeric, fields jsonb)
+      LOOP
+        FOR e IN EXECUTE format('SELECT %s FROM api.get_client_tariff($1)', JsonbToFields(r.fields, GetColumns('client_tariff', 'api'))) USING r.id
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
+      END LOOP;
+
+    END IF;
+
+  WHEN '/client/tariff/list' THEN
+
+    IF pPayload IS NOT NULL THEN
+      arKeys := array_cat(arKeys, ARRAY['fields', 'search', 'filter', 'reclimit', 'recoffset', 'orderby']);
+      PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+    ELSE
+      pPayload := '{}';
+    END IF;
+
+    FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(fields jsonb, search jsonb, filter jsonb, reclimit integer, recoffset integer, orderby jsonb)
+    LOOP
+      FOR e IN EXECUTE format('SELECT %s FROM api.list_client_tariff($1, $2, $3, $4, $5)', JsonbToFields(r.fields, GetColumns('client_tariff', 'api'))) USING r.search, r.filter, r.reclimit, r.recoffset, r.orderby
       LOOP
         RETURN NEXT row_to_json(e);
       END LOOP;

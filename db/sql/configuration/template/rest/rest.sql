@@ -22,7 +22,7 @@ DECLARE
   arJson    json[];
 
   arKeys    text[];
-  vUserName varchar;
+  vUserName text;
 BEGIN
   IF NULLIF(pPath, '') IS NULL THEN
     PERFORM RouteIsEmpty();
@@ -74,62 +74,6 @@ BEGIN
     FOR r IN SELECT * FROM rest.client(pPath, pPayload)
     LOOP
       RETURN NEXT r.client;
-    END LOOP;
-
-    RETURN;
-  END IF;
-
-  IF SubStr(pPath, 1, 6) = '/card/' THEN
-
-    IF current_session() IS NULL THEN
-      PERFORM LoginFailed();
-    END IF;
-
-    FOR r IN SELECT * FROM rest.card(pPath, pPayload)
-    LOOP
-      RETURN NEXT r.card;
-    END LOOP;
-
-    RETURN;
-  END IF;
-
-  IF SubStr(pPath, 1, 14) = '/charge_point/' THEN
-
-    IF current_session() IS NULL THEN
-      PERFORM LoginFailed();
-    END IF;
-
-    FOR r IN SELECT * FROM rest.charge_point(pPath, pPayload)
-    LOOP
-      RETURN NEXT r.charge_point;
-    END LOOP;
-
-    RETURN;
-  END IF;
-
-  IF SubStr(pPath, 1, 9) = '/invoice/' THEN
-
-    IF current_session() IS NULL THEN
-      PERFORM LoginFailed();
-    END IF;
-
-    FOR r IN SELECT * FROM rest.invoice(pPath, pPayload)
-    LOOP
-      RETURN NEXT r.invoice;
-    END LOOP;
-
-    RETURN;
-  END IF;
-
-  IF SubStr(pPath, 1, 7) = '/order/' THEN
-
-    IF current_session() IS NULL THEN
-      PERFORM LoginFailed();
-    END IF;
-
-    FOR r IN SELECT * FROM rest.order(pPath, pPayload)
-    LOOP
-      RETURN NEXT r.order;
     END LOOP;
 
     RETURN;
@@ -244,7 +188,7 @@ BEGIN
     arKeys := array_cat(arKeys, ARRAY['type', 'username', 'password', 'name', 'phone', 'email', 'info', 'description']);
     PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
 
-    FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(type varchar, username varchar, password text, name jsonb, phone text, email text, info jsonb, description text)
+    FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(type varchar, username text, password text, name jsonb, phone text, email text, info jsonb, description text)
     LOOP
       RETURN NEXT row_to_json(api.signup(NULLIF(r.type, ''), NULLIF(r.username, ''), NULLIF(r.password, ''), r.name, NULLIF(r.phone, ''), NULLIF(r.email, ''), r.info, NULLIF(r.description, '')));
     END LOOP;
@@ -314,7 +258,7 @@ BEGIN
     arKeys := array_cat(arKeys, ARRAY['username', 'password']);
     PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
 
-    FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(username varchar, password text)
+    FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(username text, password text)
     LOOP
       FOR e IN SELECT * FROM api.su(r.username, r.password) AS success
       LOOP
@@ -330,7 +274,7 @@ BEGIN
 
     RETURN NEXT row_to_json(api.whoami());
 
-  WHEN '/rest' THEN
+  WHEN '/api' THEN
 
     IF pPayload IS NULL THEN
       PERFORM JsonIsEmpty();
@@ -348,7 +292,7 @@ BEGIN
       LOOP
         FOR e IN SELECT * FROM rest.api(r.path, r.payload)
         LOOP
-          arJson := array_append(arJson, (row_to_json(e)->>'rest')::json);
+          arJson := array_append(arJson, (row_to_json(e)->>'api')::json);
         END LOOP;
 
         RETURN NEXT jsonb_build_object('key', coalesce(r.key, IntToStr(nKey)), 'path', r.path, 'payload', array_to_json(arJson)::jsonb);
@@ -468,6 +412,112 @@ BEGIN
       END LOOP;
     END LOOP;
 
+  WHEN '/type/set' THEN
+
+    IF pPayload IS NULL THEN
+      PERFORM JsonIsEmpty();
+    END IF;
+
+    arKeys := array_cat(arKeys, GetRoutines('set_type', 'api', false));
+    PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+
+    IF jsonb_typeof(pPayload) = 'array' THEN
+
+      FOR r IN EXECUTE format('SELECT row_to_json(api.set_type(%s)) FROM jsonb_to_recordset($1) AS x(%s)', array_to_string(GetRoutines('set_type', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_type', 'api', true), ', ')) USING pPayload
+      LOOP
+        RETURN NEXT r;
+      END LOOP;
+
+    ELSE
+
+      FOR r IN EXECUTE format('SELECT row_to_json(api.set_type(%s)) FROM jsonb_to_record($1) AS x(%s)', array_to_string(GetRoutines('set_type', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_type', 'api', true), ', ')) USING pPayload
+      LOOP
+        RETURN NEXT r;
+      END LOOP;
+
+    END IF;
+
+  WHEN '/type/get' THEN
+
+    IF pPayload IS NULL THEN
+      PERFORM JsonIsEmpty();
+    END IF;
+
+    arKeys := array_cat(arKeys, ARRAY['id', 'fields']);
+    PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+
+    IF jsonb_typeof(pPayload) = 'array' THEN
+
+      FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id numeric, fields jsonb)
+      LOOP
+        FOR e IN EXECUTE format('SELECT %s FROM api.get_type($1)', JsonbToFields(r.fields, GetColumns('type', 'api'))) USING r.id
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
+      END LOOP;
+
+    ELSE
+
+      FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id numeric, fields jsonb)
+      LOOP
+        FOR e IN EXECUTE format('SELECT %s FROM api.get_type($1)', JsonbToFields(r.fields, GetColumns('type', 'api'))) USING r.id
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
+      END LOOP;
+
+    END IF;
+
+  WHEN '/type/list' THEN
+
+    IF pPayload IS NOT NULL THEN
+      arKeys := array_cat(arKeys, ARRAY['fields', 'search', 'filter', 'reclimit', 'recoffset', 'orderby']);
+      PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+    ELSE
+      pPayload := '{}';
+    END IF;
+
+    FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(fields jsonb, search jsonb, filter jsonb, reclimit integer, recoffset integer, orderby jsonb)
+    LOOP
+      FOR e IN EXECUTE format('SELECT %s FROM api.list_type($1, $2, $3, $4, $5)', JsonbToFields(r.fields, GetColumns('type', 'api'))) USING r.search, r.filter, r.reclimit, r.recoffset, r.orderby
+      LOOP
+        RETURN NEXT row_to_json(e);
+      END LOOP;
+    END LOOP;
+
+  WHEN '/type/delete' THEN
+
+    IF pPayload IS NULL THEN
+      PERFORM JsonIsEmpty();
+    END IF;
+
+    arKeys := array_cat(arKeys, ARRAY['id']);
+    PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+
+    IF jsonb_typeof(pPayload) = 'array' THEN
+
+      FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id numeric)
+      LOOP
+        FOR e IN SELECT * FROM api.type t WHERE t.id = r.id
+        LOOP
+          RETURN NEXT row_to_json(e);
+          PERFORM api.delete_type(e.id);
+        END LOOP;
+      END LOOP;
+
+    ELSE
+
+      FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id numeric)
+      LOOP
+        FOR e IN SELECT * FROM api.type t WHERE t.id = r.id
+        LOOP
+          RETURN NEXT row_to_json(e);
+          PERFORM api.delete_type(e.id);
+        END LOOP;
+      END LOOP;
+
+    END IF;
+
   WHEN '/method/get' THEN
 
     IF pPayload IS NULL THEN
@@ -534,7 +584,7 @@ BEGIN
   WHEN '/event/log' THEN
 
     IF pPayload IS NOT NULL THEN
-      arKeys := array_cat(arKeys, ARRAY['type', 'code', 'datefrom', 'dateto']);
+      arKeys := array_cat(arKeys, GetRoutines('event_log', 'api', false));
       PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
     ELSE
       pPayload := '{}';
@@ -552,7 +602,7 @@ BEGIN
       END LOOP;
     END LOOP;
 
-  WHEN '/event/add' THEN
+  WHEN '/event/log/set' THEN
 
     IF pPayload IS NULL THEN
       PERFORM JsonIsEmpty();
@@ -562,12 +612,60 @@ BEGIN
       PERFORM LoginFailed();
     END IF;
 
-    arKeys := array_cat(arKeys, ARRAY['type', 'code', 'text']);
+    arKeys := array_cat(arKeys, GetRoutines('write_to_log', 'api', false));
     PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
 
     FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(type char, code integer, text text)
     LOOP
       FOR e IN SELECT * FROM api.write_to_log(coalesce(r.type, 'M'), coalesce(r.code, 9999), r.text) AS success
+      LOOP
+        RETURN NEXT row_to_json(e);
+      END LOOP;
+    END LOOP;
+
+  WHEN '/event/log/get' THEN
+
+    IF pPayload IS NULL THEN
+      PERFORM JsonIsEmpty();
+    END IF;
+
+    arKeys := array_cat(arKeys, ARRAY['id', 'fields']);
+    PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+
+    IF jsonb_typeof(pPayload) = 'array' THEN
+
+      FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id numeric, fields jsonb)
+      LOOP
+        FOR e IN EXECUTE format('SELECT %s FROM api.get_event_log($1)', JsonbToFields(r.fields, GetColumns('event_log', 'api'))) USING r.id
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
+      END LOOP;
+
+    ELSE
+
+      FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id numeric, fields jsonb)
+      LOOP
+        FOR e IN EXECUTE format('SELECT %s FROM api.get_event_log($1)', JsonbToFields(r.fields, GetColumns('event_log', 'api'))) USING r.id
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
+      END LOOP;
+
+    END IF;
+
+  WHEN '/event/log/list' THEN
+
+    IF pPayload IS NOT NULL THEN
+      arKeys := array_cat(arKeys, ARRAY['fields', 'search', 'filter', 'reclimit', 'recoffset', 'orderby']);
+      PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+    ELSE
+      pPayload := '{}';
+    END IF;
+
+    FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(fields jsonb, search jsonb, filter jsonb, reclimit integer, recoffset integer, orderby jsonb)
+    LOOP
+      FOR e IN EXECUTE format('SELECT %s FROM api.list_event_log($1, $2, $3, $4, $5)', JsonbToFields(r.fields, GetColumns('event_log', 'api'))) USING r.search, r.filter, r.reclimit, r.recoffset, r.orderby
       LOOP
         RETURN NEXT row_to_json(e);
       END LOOP;

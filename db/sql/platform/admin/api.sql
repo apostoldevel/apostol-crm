@@ -3,6 +3,86 @@
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
+-- SESSION ---------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE VIEW api.session
+AS
+  SELECT s.code, s.userid, s.suid, u.username, u.name, s.created, s.updated,
+         u.input_last, s.host, u.lc_ip, u.status, u.state, u.session_limit
+    FROM session s INNER JOIN users u ON s.userid = u.id;
+
+GRANT SELECT ON api.session TO administrator;
+
+--------------------------------------------------------------------------------
+-- api.session -----------------------------------------------------------------
+--------------------------------------------------------------------------------
+/**
+ * Активные сессии.
+ * @param {numeric} pUserId - Идентификатор пользователя
+ * @param {text} pUsername - Наименование пользователя (login)
+ * @return {SETOF api.session} - Записи
+ */
+CREATE OR REPLACE FUNCTION api.session (
+  pUserId       numeric DEFAULT null,
+  pUsername     text DEFAULT null
+) RETURNS	    SETOF api.session
+AS $$
+  SELECT *
+    FROM api.session
+   WHERE userid = coalesce(pUserId, userid)
+     AND username = coalesce(pUsername, username)
+   ORDER BY created DESC, userid
+   LIMIT 500
+$$ LANGUAGE SQL
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- api.get_session -------------------------------------------------------------
+--------------------------------------------------------------------------------
+/**
+ * Возвращает сессию
+ * @param {numeric} pId - Идентификатор
+ * @return {api.session}
+ */
+CREATE OR REPLACE FUNCTION api.get_session (
+  pCode		varchar
+) RETURNS	SETOF api.session
+AS $$
+  SELECT * FROM api.session WHERE code = pCode
+$$ LANGUAGE SQL
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- api.list_session ------------------------------------------------------------
+--------------------------------------------------------------------------------
+/**
+ * Возвращает список сессий.
+ * @param {jsonb} pSearch - Условие: '[{"condition": "AND|OR", "field": "<поле>", "compare": "EQL|NEQ|LSS|LEQ|GTR|GEQ|GIN|LKE|ISN|INN", "value": "<значение>"}, ...]'
+ * @param {jsonb} pFilter - Фильтр: '{"<поле>": "<значение>"}'
+ * @param {integer} pLimit - Лимит по количеству строк
+ * @param {integer} pOffSet - Пропустить указанное число строк
+ * @param {jsonb} pOrderBy - Сортировать по указанным в массиве полям
+ * @return {SETOF api.session}
+ */
+CREATE OR REPLACE FUNCTION api.list_session (
+  pSearch	jsonb default null,
+  pFilter	jsonb default null,
+  pLimit	integer default null,
+  pOffSet	integer default null,
+  pOrderBy	jsonb default null
+) RETURNS	SETOF api.session
+AS $$
+BEGIN
+  RETURN QUERY EXECUTE api.sql('api', 'session', pSearch, pFilter, pLimit, pOffSet, pOrderBy);
+END;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
 -- api.su ----------------------------------------------------------------------
 --------------------------------------------------------------------------------
 /**
@@ -485,7 +565,7 @@ CREATE OR REPLACE VIEW api.member_group
 AS
   SELECT * FROM MemberGroup;
 
-GRANT SELECT ON api.member_group TO daemon;
+GRANT SELECT ON api.member_group TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.group_member ------------------------------------------------------------
@@ -502,11 +582,11 @@ CREATE OR REPLACE FUNCTION api.group_member (
   name        text,
   email       text,
   phone       text,
-  status      text,
+  statustext  text,
   description text
 )
 AS $$
-  SELECT u.id, u.username, u.name, u.email, u.phone, u.status, u.description
+  SELECT u.id, u.username, u.name, u.email, u.phone, u.statustext, u.description
     FROM db.member_group m INNER JOIN users u ON u.id = m.member
    WHERE m.userid = pGroupId;
 $$ LANGUAGE SQL
@@ -597,7 +677,7 @@ CREATE OR REPLACE VIEW api.area_type
 AS
   SELECT * FROM AreaType;
 
-GRANT SELECT ON api.area_type TO daemon;
+GRANT SELECT ON api.area_type TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.get_area_type -----------------------------------------------------------
@@ -622,7 +702,7 @@ CREATE OR REPLACE VIEW api.area
 AS
   SELECT * FROM Area;
 
-GRANT SELECT ON api.area TO daemon;
+GRANT SELECT ON api.area TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.add_area ----------------------------------------------------------------
@@ -806,7 +886,7 @@ CREATE OR REPLACE VIEW api.member_area
 AS
   SELECT * FROM MemberArea;
 
-GRANT SELECT ON api.member_area TO daemon;
+GRANT SELECT ON api.member_area TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.area_member -------------------------------------------------------------
@@ -824,15 +904,15 @@ CREATE OR REPLACE FUNCTION api.area_member (
   name        text,
   email       text,
   description text,
-  status      text,
+  statustext  text,
   system      text
 )
 AS $$
-  SELECT g.id, 'G' AS type, g.username, g.name, null AS email, g.description, null AS status, g.system
+  SELECT g.id, 'G' AS type, g.username, g.name, null AS email, g.description, null AS statustext, g.system
     FROM api.member_area m INNER JOIN groups g ON g.id = m.memberid
    WHERE m.area = pAreaId
   UNION ALL
-  SELECT u.id, 'U' AS type, u.username, u.name, u.email, u.description, u.status, u.system
+  SELECT u.id, 'U' AS type, u.username, u.name, u.email, u.description, u.statustext, u.system
     FROM api.member_area m INNER JOIN users u ON u.id = m.memberid
    WHERE m.area = pAreaId;
 $$ LANGUAGE SQL
@@ -879,7 +959,7 @@ CREATE OR REPLACE VIEW api.interface
 AS
   SELECT * FROM Interface;
 
-GRANT SELECT ON api.interface TO daemon;
+GRANT SELECT ON api.interface TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.add_interface -----------------------------------------------------------
@@ -1035,7 +1115,7 @@ CREATE OR REPLACE VIEW api.member_interface
 AS
   SELECT * FROM MemberInterface;
 
-GRANT SELECT ON api.member_interface TO daemon;
+GRANT SELECT ON api.member_interface TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.interface_member --------------------------------------------------------
@@ -1053,15 +1133,15 @@ CREATE OR REPLACE FUNCTION api.interface_member (
   name          text,
   email         text,
   description   text,
-  status        text,
+  statustext    text,
   system        text
 )
 AS $$
-  SELECT g.id, 'G' AS type, g.username, g.name, null AS email, g.description, null AS status, g.system
+  SELECT g.id, 'G' AS type, g.username, g.name, null AS email, g.description, null AS statustext, g.system
     FROM api.member_interface m INNER JOIN groups g ON g.id = m.memberid
    WHERE m.interface = pInterfaceId
   UNION ALL
-  SELECT u.id, 'U' AS type, u.username, u.name, u.email, u.description, u.status, u.system
+  SELECT u.id, 'U' AS type, u.username, u.name, u.email, u.description, u.statustext, u.system
     FROM api.member_interface m INNER JOIN users u ON u.id = m.memberid
    WHERE m.interface = pInterfaceId;
 $$ LANGUAGE SQL

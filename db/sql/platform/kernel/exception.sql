@@ -157,7 +157,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STRICT IMMUTABLE;
 
-CREATE OR REPLACE FUNCTION IncorrectLanguageCode (
+CREATE OR REPLACE FUNCTION IncorrectLocaleCode (
   pCode		varchar
 ) RETURNS	void
 AS $$

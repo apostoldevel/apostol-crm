@@ -29,12 +29,12 @@ BEGIN
       PERFORM JsonIsEmpty();
     END IF;
 
-    arKeys := array_cat(arKeys, ARRAY['id']);
+    arKeys := array_cat(arKeys, ARRAY['id', 'code']);
     PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
 
-    FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id numeric)
+    FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id numeric, code text)
     LOOP
-      FOR e IN SELECT * FROM api.set_area(r.id) AS success
+      FOR e IN SELECT * FROM api.set_area(coalesce(r.id, GetArea(r.code))) AS success
       LOOP
         RETURN NEXT row_to_json(e);
       END LOOP;
@@ -46,12 +46,29 @@ BEGIN
       PERFORM JsonIsEmpty();
     END IF;
 
-    arKeys := array_cat(arKeys, ARRAY['id']);
+    arKeys := array_cat(arKeys, ARRAY['id', 'code']);
     PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
 
-    FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id numeric)
+    FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id numeric, code text)
     LOOP
-      FOR e IN SELECT * FROM api.set_interface(r.id) AS success
+      FOR e IN SELECT * FROM api.set_interface(coalesce(r.id, GetInterface(r.code))) AS success
+      LOOP
+        RETURN NEXT row_to_json(e);
+      END LOOP;
+    END LOOP;
+
+  WHEN '/session/set/locale' THEN
+
+    IF pPayload IS NULL THEN
+      PERFORM JsonIsEmpty();
+    END IF;
+
+    arKeys := array_cat(arKeys, ARRAY['id', 'code']);
+    PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+
+    FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id numeric, code text)
+    LOOP
+      FOR e IN SELECT * FROM api.set_locale(coalesce(r.id, GetLocale(r.code))) AS success
       LOOP
         RETURN NEXT row_to_json(e);
       END LOOP;
@@ -69,23 +86,6 @@ BEGIN
     FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(oper_date timestamp)
     LOOP
       FOR e IN SELECT * FROM api.set_oper_date(r.oper_date) AS success
-      LOOP
-        RETURN NEXT row_to_json(e);
-      END LOOP;
-    END LOOP;
-
-  WHEN '/session/set/locale' THEN
-
-    IF pPayload IS NULL THEN
-      PERFORM JsonIsEmpty();
-    END IF;
-
-    arKeys := array_cat(arKeys, ARRAY['id', 'code']);
-    PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
-
-    FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id numeric, code text)
-    LOOP
-      FOR e IN SELECT * FROM api.set_locale(coalesce(r.id, GetLanguage(r.code))) AS success
       LOOP
         RETURN NEXT row_to_json(e);
       END LOOP;

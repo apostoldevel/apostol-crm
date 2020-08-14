@@ -244,7 +244,7 @@ CREATE OR REPLACE FUNCTION api.set_address (
   pStructure    varchar,
   pApartment    varchar,
   pAddress      text DEFAULT null
-) RETURNS       numeric
+) RETURNS       SETOF api.address
 AS $$
 BEGIN
   IF pId IS NULL THEN
@@ -252,7 +252,8 @@ BEGIN
   ELSE
     PERFORM api.update_address(pId, pParent, pType, pCode, pIndex, pCountry, pRegion, pDistrict, pCity, pSettlement, pStreet, pHouse, pBuilding, pStructure, pApartment, pAddress);
   END IF;
-  RETURN pId;
+
+  RETURN QUERY SELECT * FROM api.address WHERE id = pId;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -339,18 +340,48 @@ AS
 GRANT SELECT ON api.object_address TO daemon;
 
 --------------------------------------------------------------------------------
+-- api.set_object_addresses ----------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION api.set_object_addresses (
+  pObject       numeric,
+  pId           numeric,
+  pParent       numeric,
+  pType         varchar,
+  pCode         varchar,
+  pIndex        varchar,
+  pCountry      varchar,
+  pRegion       varchar,
+  pDistrict     varchar,
+  pCity         varchar,
+  pSettlement   varchar,
+  pStreet       varchar,
+  pHouse        varchar,
+  pBuilding     varchar,
+  pStructure    varchar,
+  pApartment    varchar,
+  pAddress      text DEFAULT null
+) RETURNS       SETOF api.object_address
+AS $$
+BEGIN
+  PERFORM api.set_address(pId, pParent, pType, pCode, pIndex, pCountry, pRegion, pDistrict, pCity, pSettlement, pStreet, pHouse, pBuilding, pStructure, pApartment, pAddress);
+  RETURN QUERY SELECT * FROM api.get_object_address(SetObjectLink(pObject, pId));
+END;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
 -- api.set_object_addresses_json -----------------------------------------------
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION api.set_object_addresses_json (
   pObject       numeric,
   pAddresses    json
-) RETURNS       numeric
+) RETURNS       SETOF api.object_address
 AS $$
 DECLARE
   nId           numeric;
-  nType         numeric;
-  nAddress      numeric;
 
   arKeys        text[];
   arTypes       text[];
@@ -370,34 +401,13 @@ BEGIN
 
     FOR r IN SELECT * FROM json_to_recordset(pAddresses) AS addresses(id numeric, parent numeric, type varchar, code varchar, index varchar, country varchar, region varchar, district varchar, city varchar, settlement varchar, street varchar, house varchar, building varchar, structure varchar, apartment varchar, address text)
     LOOP
-      IF StrPos(r.type, '.address') = 0 THEN
-        r.type := r.type || '.address';
-      END IF;
-
-      IF array_position(arTypes, r.type::text) IS NULL THEN
-        PERFORM IncorrectCode(r.type, arTypes);
-      END IF;
-
-      nType := GetType(r.type);
-
-      IF r.id IS NOT NULL THEN
-        SELECT o.id INTO nAddress FROM db.address o WHERE o.id = r.id;
-
-        IF NOT FOUND THEN
-          PERFORM ObjectNotFound('адрес', r.code, r.id);
-        END IF;
-
-        PERFORM EditAddress(r.id, r.parent, nType, r.code, r.index, r.country, r.region, r.district, r.city, r.settlement, r.street, r.house, r.building, r.structure, r.apartment, r.address);
-      ELSE
-        nAddress := CreateAddress(r.parent, nType, r.code, r.index, r.country, r.region, r.district, r.city, r.settlement, r.street, r.house, r.building, r.structure, r.apartment, r.address);
-        nId := SetObjectLink(pObject, nAddress);
-      END IF;
+      RETURN NEXT api.set_object_coordinates(pObject, r.Id, r.Parent, r.Type, r.Code, r.Index, r.Country, r.Region, r.District, r.City, r.Settlement, r.Street, r.House, r.Building, r.Structure, r.Apartment, r.Address);
     END LOOP;
-
-    RETURN nId;
   ELSE
     PERFORM JsonIsEmpty();
   END IF;
+
+  RETURN;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -410,10 +420,10 @@ $$ LANGUAGE plpgsql
 CREATE OR REPLACE FUNCTION api.set_object_addresses_jsonb (
   pObject       numeric,
   pAddresses	jsonb
-) RETURNS       numeric
+) RETURNS       SETOF api.object_address
 AS $$
 BEGIN
-  RETURN api.set_object_addresses_json(pObject, pAddresses::json);
+  RETURN QUERY SELECT * FROM api.set_object_addresses_json(pObject, pAddresses::json);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -460,16 +470,16 @@ $$ LANGUAGE plpgsql
  * @out param {numeric} id - Идентификатор
  * @out param {boolean} result - Результат
  * @out param {text} message - Текст ошибки
- * @return {record}
+ * @return {SETOF api.object_address}
  */
 CREATE OR REPLACE FUNCTION api.set_object_address (
   pObject     numeric,
   pAddress    numeric,
   pDateFrom   timestamp DEFAULT oper_date()
-) RETURNS     numeric
+) RETURNS     SETOF api.object_address
 AS $$
 BEGIN
-  RETURN SetObjectLink(pObject, pAddress, pDateFrom);
+  RETURN QUERY SELECT * FROM api.get_object_address(SetObjectLink(pObject, pAddress, pDateFrom));
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER

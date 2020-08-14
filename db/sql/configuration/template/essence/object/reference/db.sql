@@ -32,8 +32,8 @@ BEGIN
     SELECT NEW.OBJECT INTO NEW.ID;
   END IF;
 
-  IF NEW.CODE IS NULL OR NEW.CODE = '' THEN
-    NEW.CODE := 'D:' || LPAD(TRIM(TO_CHAR(NEW.ID, '999999999999')), 10, '0');
+  IF NULLIF(NEW.CODE, '') IS NULL THEN
+    NEW.CODE := encode(gen_random_bytes(12), 'hex');
   END IF;
 
   RAISE DEBUG 'Создан справочник Id: %', NEW.ID;
@@ -48,24 +48,6 @@ CREATE TRIGGER t_reference_before_insert
   BEFORE INSERT ON db.reference
   FOR EACH ROW
   EXECUTE PROCEDURE db.ft_reference_before_insert();
-
---------------------------------------------------------------------------------
-
-CREATE OR REPLACE FUNCTION db.ft_reference_after_insert()
-RETURNS trigger AS $$
-DECLARE
-BEGIN
-  INSERT INTO db.aou SELECT NEW.ID, 1002, B'000', B'110';
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
-
-CREATE TRIGGER t_reference_after_insert
-  AFTER INSERT ON db.reference
-  FOR EACH ROW
-  EXECUTE PROCEDURE db.ft_reference_after_insert();
 
 --------------------------------------------------------------------------------
 

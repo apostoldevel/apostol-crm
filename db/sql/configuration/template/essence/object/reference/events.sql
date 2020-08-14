@@ -10,7 +10,16 @@ CREATE OR REPLACE FUNCTION EventReferenceCreate (
   pObject	numeric default context_object()
 ) RETURNS	void
 AS $$
+DECLARE
+  nType     numeric;
 BEGIN
+  SELECT type INTO nType FROM db.object WHERE id = pObject;
+
+  INSERT INTO db.aou SELECT pObject, 1002, B'000', B'110';
+  IF GetTypeCode(nType) <> 'private.charge_point' THEN
+    INSERT INTO db.aou SELECT pObject, 1003, B'000', B'100';
+  END IF;
+
   PERFORM WriteToEventLog('M', 1010, 'Справочник создан.', pObject);
 END;
 $$ LANGUAGE plpgsql;

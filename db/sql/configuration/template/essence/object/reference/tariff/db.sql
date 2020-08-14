@@ -55,7 +55,7 @@ CREATE TRIGGER t_tariff_insert
  * @param {varchar} pName - Наименование
  * @param {numeric} pCost - Стоимость
  * @param {text} pDescription - Описание
- * @return {id} - Id или ошибку
+ * @return {numeric}
  */
 CREATE OR REPLACE FUNCTION CreateTariff (
   pParent       numeric,

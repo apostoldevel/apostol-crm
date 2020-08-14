@@ -202,16 +202,16 @@ BEGIN
 
     IF jsonb_typeof(pPayload) = 'array' THEN
 
-      FOR r IN EXECUTE format('SELECT api.set_address(%s) AS id FROM jsonb_to_recordset($1) AS x(%s)', array_to_string(GetRoutines('set_address', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_address', 'api', true), ', ')) USING pPayload
+      FOR r IN EXECUTE format('SELECT row_to_json(api.set_address(%s)) FROM jsonb_to_recordset($1) AS x(%s)', array_to_string(GetRoutines('set_address', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_address', 'api', true), ', ')) USING pPayload
       LOOP
-        RETURN NEXT row_to_json(r);
+        RETURN NEXT r;
       END LOOP;
 
     ELSE
 
-      FOR r IN EXECUTE format('SELECT api.set_address(%s) AS id FROM jsonb_to_record($1) AS x(%s)', array_to_string(GetRoutines('set_address', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_address', 'api', true), ', ')) USING pPayload
+      FOR r IN EXECUTE format('SELECT row_to_json(api.set_address(%s)) FROM jsonb_to_record($1) AS x(%s)', array_to_string(GetRoutines('set_address', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_address', 'api', true), ', ')) USING pPayload
       LOOP
-        RETURN NEXT row_to_json(r);
+        RETURN NEXT r;
       END LOOP;
 
     END IF;

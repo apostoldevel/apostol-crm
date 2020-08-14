@@ -10,7 +10,7 @@ CREATE OR REPLACE VIEW api.client
 AS
   SELECT * FROM ObjectClient;
 
-GRANT SELECT ON api.client TO daemon;
+GRANT SELECT ON api.client TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.add_client --------------------------------------------------------------
@@ -147,7 +147,7 @@ CREATE OR REPLACE FUNCTION api.set_client (
   pEmail        jsonb DEFAULT null,
   pInfo         jsonb DEFAULT null,
   pDescription  text DEFAULT null
-) RETURNS       numeric
+) RETURNS       SETOF api.client
 AS $$
 BEGIN
   IF pId IS NULL THEN
@@ -155,7 +155,8 @@ BEGIN
   ELSE
     PERFORM api.update_client(pId, pParent, pType, pCode, pUserId, pName, pPhone, pEmail, pInfo, pDescription);
   END IF;
-  RETURN pId;
+
+  RETURN QUERY SELECT * FROM api.client WHERE id = pId;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -217,7 +218,7 @@ CREATE OR REPLACE VIEW api.client_tariff
 AS
   SELECT * FROM ClientTariffs;
 
-GRANT SELECT ON api.client_tariff TO daemon;
+GRANT SELECT ON api.client_tariff TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.set_client_tariffs_json -------------------------------------------------
@@ -234,7 +235,6 @@ DECLARE
   nTariff       numeric;
 
   arKeys	    text[];
-  arTypes       text[];
 
   r		        record;
 BEGIN
@@ -245,17 +245,12 @@ BEGIN
   END IF;
 
   IF pTariffs IS NOT NULL THEN
-    arKeys := array_cat(arKeys, ARRAY['id', 'parent', 'type', 'code', 'name', 'cost', 'description']);
+    arKeys := array_cat(arKeys, GetRoutines('EditTariff', 'kernel', false));
     PERFORM CheckJsonKeys('/client/tariff/tariffs', arKeys, pTariffs);
 
-    FOR r IN SELECT * FROM json_to_recordset(pTariffs) AS addresses(id numeric, parent numeric, type varchar, code varchar, name varchar, cost numeric, description text)
+    FOR r IN SELECT * FROM json_to_recordset(pTariffs) AS x(id numeric, parent numeric, type varchar, code varchar, name varchar, cost numeric, description text)
     LOOP
-      arTypes := array_cat(arTypes, ARRAY['client']);
-      IF array_position(arTypes, r.type::text) IS NULL THEN
-        PERFORM IncorrectCode(r.type, arTypes);
-      END IF;
-
-      nType := GetType(r.type || '.tariff');
+      nType := CodeToType(lower(coalesce(r.type, 'client')), 'tariff');
 
       IF r.id IS NOT NULL THEN
         SELECT o.id INTO nTariff FROM db.address o WHERE o.id = r.id;

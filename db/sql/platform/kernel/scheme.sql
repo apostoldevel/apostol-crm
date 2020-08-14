@@ -14,3 +14,4 @@ GRANT USAGE ON SCHEMA registry TO administrator;
 GRANT USAGE ON SCHEMA api TO administrator;
 GRANT USAGE ON SCHEMA rest TO administrator;
 GRANT USAGE ON SCHEMA daemon TO daemon;
+GRANT USAGE ON SCHEMA api TO apibot;

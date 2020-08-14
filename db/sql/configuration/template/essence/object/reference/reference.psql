@@ -1,8 +1,23 @@
 \echo [M] call db.sql
 \ir db.sql
 
+\ir './calendar/db.sql'
+\ir './tariff/db.sql'
+
 \echo [M] call events.sql
 \ir events.sql
 
-\ir './calendar/calendar.psql'
-\ir './tariff/tariff.psql'
+\ir './calendar/events.sql'
+\ir './tariff/events.sql'
+
+\echo [M] call api.sql
+\ir api.sql
+
+\ir './calendar/api.sql'
+\ir './tariff/api.sql'
+
+\echo [M] call rest.sql
+\ir rest.sql
+
+\ir './calendar/rest.sql'
+\ir './tariff/rest.sql'
