@@ -10,7 +10,7 @@ CREATE OR REPLACE VIEW api.address_tree
 AS
   SELECT * FROM AddressTree;
 
-GRANT SELECT ON api.address_tree TO daemon;
+GRANT SELECT ON api.address_tree TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.get_address_tree --------------------------------------------------------
@@ -111,7 +111,7 @@ CREATE OR REPLACE VIEW api.address
 AS
   SELECT * FROM ObjectAddress;
 
-GRANT SELECT ON api.address TO daemon;
+GRANT SELECT ON api.address TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.add_address -------------------------------------------------------------
@@ -337,7 +337,7 @@ CREATE OR REPLACE VIEW api.object_address
 AS
   SELECT * FROM ObjectAddresses;
 
-GRANT SELECT ON api.object_address TO daemon;
+GRANT SELECT ON api.object_address TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.set_object_addresses ----------------------------------------------------
@@ -345,7 +345,7 @@ GRANT SELECT ON api.object_address TO daemon;
 
 CREATE OR REPLACE FUNCTION api.set_object_addresses (
   pObject       numeric,
-  pId           numeric,
+  pAddress      numeric,
   pParent       numeric,
   pType         varchar,
   pCode         varchar,
@@ -360,12 +360,12 @@ CREATE OR REPLACE FUNCTION api.set_object_addresses (
   pBuilding     varchar,
   pStructure    varchar,
   pApartment    varchar,
-  pAddress      text DEFAULT null
+  pText         text DEFAULT null
 ) RETURNS       SETOF api.object_address
 AS $$
 BEGIN
-  PERFORM api.set_address(pId, pParent, pType, pCode, pIndex, pCountry, pRegion, pDistrict, pCity, pSettlement, pStreet, pHouse, pBuilding, pStructure, pApartment, pAddress);
-  RETURN QUERY SELECT * FROM api.get_object_address(SetObjectLink(pObject, pId));
+  SELECT id INTO pAddress FROM api.set_address(pAddress, pParent, pType, pCode, pIndex, pCountry, pRegion, pDistrict, pCity, pSettlement, pStreet, pHouse, pBuilding, pStructure, pApartment, pText);
+  RETURN QUERY SELECT * FROM api.set_object_address(pObject, pAddress);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -381,12 +381,9 @@ CREATE OR REPLACE FUNCTION api.set_object_addresses_json (
 ) RETURNS       SETOF api.object_address
 AS $$
 DECLARE
-  nId           numeric;
-
-  arKeys        text[];
-  arTypes       text[];
-
   r             record;
+  nId           numeric;
+  arKeys        text[];
 BEGIN
   SELECT o.id INTO nId FROM db.object o WHERE o.id = pObject;
   IF NOT FOUND THEN
@@ -397,11 +394,9 @@ BEGIN
     arKeys := array_cat(arKeys, ARRAY['id', 'parent', 'type', 'code', 'index', 'country', 'region', 'district', 'city', 'settlement', 'street', 'house', 'building', 'structure', 'apartment', 'address']);
     PERFORM CheckJsonKeys('/object/address/addresses', arKeys, pAddresses);
 
-    arTypes := array_cat(arTypes, GetTypeCodes(GetClass('address')));
-
     FOR r IN SELECT * FROM json_to_recordset(pAddresses) AS addresses(id numeric, parent numeric, type varchar, code varchar, index varchar, country varchar, region varchar, district varchar, city varchar, settlement varchar, street varchar, house varchar, building varchar, structure varchar, apartment varchar, address text)
     LOOP
-      RETURN NEXT api.set_object_coordinates(pObject, r.Id, r.Parent, r.Type, r.Code, r.Index, r.Country, r.Region, r.District, r.City, r.Settlement, r.Street, r.House, r.Building, r.Structure, r.Apartment, r.Address);
+      RETURN NEXT api.set_object_addresses(pObject, r.Id, r.Parent, r.Type, r.Code, r.Index, r.Country, r.Region, r.District, r.City, r.Settlement, r.Street, r.House, r.Building, r.Structure, r.Apartment, r.Address);
     END LOOP;
   ELSE
     PERFORM JsonIsEmpty();

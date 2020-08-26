@@ -496,7 +496,15 @@ CREATE OR REPLACE FUNCTION IncorrectRegistryKey (
 ) RETURNS	void
 AS $$
 BEGIN
-  RAISE EXCEPTION 'ERR-60000: Недопустимый ключ "%". Допустимые ключи: %.', pKey, pArray;
+  RAISE EXCEPTION 'ERR-40060: Недопустимый ключ "%". Допустимые ключи: %.', pKey, pArray;
 END;
 $$ LANGUAGE plpgsql STRICT IMMUTABLE;
 
+CREATE OR REPLACE FUNCTION IncorrectRegistryDataType (
+  pType		integer
+) RETURNS	void
+AS $$
+BEGIN
+  RAISE EXCEPTION 'ERR-40061: Неверный тип данных: %.', pType;
+END;
+$$ LANGUAGE plpgsql STRICT IMMUTABLE;

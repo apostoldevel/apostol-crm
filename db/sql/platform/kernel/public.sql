@@ -410,6 +410,14 @@ BEGIN
     RETURN ' IS ';
   WHEN 'INN' THEN
     RETURN ' IS NOT ';
+  WHEN 'AND' THEN
+    RETURN ' & ';
+  WHEN 'OR' THEN
+    RETURN ' | ';
+  WHEN 'XOR' THEN
+    RETURN ' # ';
+  WHEN 'NOT' THEN
+    RETURN ' ~ ';
   ELSE
     NULL;
   END CASE;

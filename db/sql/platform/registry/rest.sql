@@ -260,27 +260,51 @@ BEGIN
     arKeys := array_cat(arKeys, ARRAY['id', 'key', 'subkey', 'name', 'type', 'data']);
     PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
 
-    IF jsonb_typeof(pPayload) = 'array' THEN
+    FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(type integer)
+    LOOP
 
-      FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id numeric, key text, subkey text, name text, type integer, data anynonarray)
-      LOOP
-        FOR e IN SELECT * FROM api.registry_write(r.id, r.key, r.subkey, r.name, r.type, r.data) AS id
+      pPayload = pPayload - 'type';
+
+      CASE r.type
+      WHEN 0 THEN
+        pPayload = pPayload || jsonb_build_object('value', pPayload->>'data');
+        pPayload = pPayload - 'data';
+        FOR e IN SELECT * FROM rest.registry(pPath || '/integer', pPayload)
         LOOP
-          RETURN NEXT row_to_json(e);
+          RETURN NEXT e.registry;
         END LOOP;
-      END LOOP;
-
-    ELSE
-
-      FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id numeric, key text, subkey text, name text, type integer, data anynonarray)
-      LOOP
-        FOR e IN SELECT * FROM api.registry_write(r.id, r.key, r.subkey, r.name, r.type, r.data) AS id
+      WHEN 1 THEN
+        pPayload = pPayload || jsonb_build_object('value', pPayload->>'data');
+        pPayload = pPayload - 'data';
+        FOR e IN SELECT * FROM rest.registry(pPath || '/numeric', pPayload)
         LOOP
-          RETURN NEXT row_to_json(e);
+          RETURN NEXT e.registry;
         END LOOP;
-      END LOOP;
-
-    END IF;
+      WHEN 2 THEN
+        pPayload = pPayload || jsonb_build_object('value', pPayload->>'data');
+        pPayload = pPayload - 'data';
+        FOR e IN SELECT * FROM rest.registry(pPath || '/datetime', pPayload)
+        LOOP
+          RETURN NEXT e.registry;
+        END LOOP;
+      WHEN 3 THEN
+        pPayload = pPayload || jsonb_build_object('value', pPayload->>'data');
+        pPayload = pPayload - 'data';
+        FOR e IN SELECT * FROM rest.registry(pPath || '/string', pPayload)
+        LOOP
+          RETURN NEXT e.registry;
+        END LOOP;
+      WHEN 4 THEN
+        pPayload = pPayload || jsonb_build_object('value', pPayload->>'data');
+        pPayload = pPayload - 'data';
+        FOR e IN SELECT * FROM rest.registry(pPath || '/boolean', pPayload)
+        LOOP
+          RETURN NEXT e.registry;
+        END LOOP;
+      ELSE
+        PERFORM IncorrectRegistryDataType(r.type);
+      END CASE;
+    END LOOP;
 
   WHEN '/registry/write/integer' THEN
 

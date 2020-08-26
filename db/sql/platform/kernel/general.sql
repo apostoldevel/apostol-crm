@@ -479,12 +479,12 @@ CREATE OR REPLACE FUNCTION JsonbToFields (
   pFields	text[]
 ) RETURNS	text
 AS $$
-DECLARE
-  vFields	text;
 BEGIN
-  IF pJson IS NOT NULL THEN
---    PERFORM CheckJsonbValues('fields', pFields, pJson);
+  pJson := NULLIF(pJson, '{}');
+  pJson := NULLIF(pJson, '[]');
 
+  IF pJson IS NOT NULL THEN
+    PERFORM CheckJsonbValues('fields', pFields, pJson);
     RETURN array_to_string(array_quote_literal_json(JsonbToStrArray(pJson)), ',');
   END IF;
 

@@ -709,7 +709,7 @@ $$ LANGUAGE plpgsql
 -- REGISTRY --------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE VIEW registry (Id, Key, KeyName, Parent, SubKey, SubKeyName, Level,
+CREATE OR REPLACE VIEW registry.registry (Id, Key, KeyName, Parent, SubKey, SubKeyName, Level,
   ValueName, Value
 ) 
 AS
@@ -724,7 +724,7 @@ AS
 -- REGISTRY_EX -----------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE VIEW registry_ex (Id, Key, KeyName, Parent, SubKey, SubKeyName, Level,
+CREATE OR REPLACE VIEW registry.registry_ex (Id, Key, KeyName, Parent, SubKey, SubKeyName, Level,
   ValueName, vType, vInteger, vNumeric, vDateTime, vString, vBoolean
 ) 
 AS
@@ -739,11 +739,11 @@ AS
 -- registry --------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION registry (
+CREATE OR REPLACE FUNCTION registry.registry (
   pKey		numeric
-) RETURNS	SETOF registry
+) RETURNS	SETOF registry.registry
 AS $$
-  SELECT * FROM registry WHERE key = pKey
+  SELECT * FROM registry.registry WHERE key = pKey
 $$ LANGUAGE SQL
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;
@@ -752,11 +752,11 @@ $$ LANGUAGE SQL
 -- registry_ex -----------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION registry_ex (
+CREATE OR REPLACE FUNCTION registry.registry_ex (
   pKey		numeric
-) RETURNS	SETOF registry_ex
+) RETURNS	SETOF registry.registry_ex
 AS $$
-  SELECT * FROM registry_ex WHERE key = pKey
+  SELECT * FROM registry.registry_ex WHERE key = pKey
 $$ LANGUAGE SQL
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;
@@ -767,9 +767,9 @@ $$ LANGUAGE SQL
 
 CREATE OR REPLACE VIEW Registry
 AS
-  SELECT * FROM registry(GetRegRoot('kernel'))
+  SELECT * FROM registry.registry(GetRegRoot('kernel'))
    UNION ALL
-  SELECT * FROM registry(GetRegRoot(current_username()));
+  SELECT * FROM registry.registry(GetRegRoot(current_username()));
 
 GRANT ALL ON Registry TO administrator;
 
@@ -779,9 +779,9 @@ GRANT ALL ON Registry TO administrator;
 
 CREATE OR REPLACE VIEW RegistryEx
 AS
-  SELECT * FROM registry_ex(GetRegRoot('kernel'))
+  SELECT * FROM registry.registry_ex(GetRegRoot('kernel'))
    UNION ALL
-  SELECT * FROM registry_ex(GetRegRoot(current_username()));
+  SELECT * FROM registry.registry_ex(GetRegRoot(current_username()));
 
 GRANT ALL ON RegistryEx TO administrator;
 
@@ -789,7 +789,7 @@ GRANT ALL ON RegistryEx TO administrator;
 -- registry_key ----------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE VIEW registry_key
+CREATE OR REPLACE VIEW registry.registry_key
 AS
   SELECT * FROM registry.key;
 
@@ -797,11 +797,11 @@ AS
 -- FUNCTION registry_key -------------------------------------------------------
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION registry_key (
+CREATE OR REPLACE FUNCTION registry.registry_key (
   pKey		numeric
-) RETURNS	SETOF registry_key
+) RETURNS	SETOF registry.registry_key
 AS $$
-  SELECT * FROM registry_key WHERE root = pKey
+  SELECT * FROM registry.registry_key WHERE root = pKey
 $$ LANGUAGE SQL
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;
@@ -812,9 +812,9 @@ $$ LANGUAGE SQL
 
 CREATE OR REPLACE VIEW RegistryKey
 AS
-  SELECT * FROM registry_key(GetRegRoot('kernel'))
+  SELECT * FROM registry.registry_key(GetRegRoot('kernel'))
    UNION ALL
-  SELECT * FROM registry_key(GetRegRoot(current_username()));
+  SELECT * FROM registry.registry_key(GetRegRoot(current_username()));
 
 GRANT ALL ON RegistryKey TO administrator;
 
@@ -822,7 +822,7 @@ GRANT ALL ON RegistryKey TO administrator;
 -- registry_value --------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE VIEW registry_value (Id, Key, KeyName, SubKey, SubKeyName, 
+CREATE OR REPLACE VIEW registry.registry_value (Id, Key, KeyName, SubKey, SubKeyName,
   ValueName, Value
 )
 AS
@@ -837,7 +837,7 @@ AS
 -- registry_value_ex -----------------------------------------------------------
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE VIEW registry_value_ex (Id, Key, KeyName, SubKey, SubKeyName, 
+CREATE OR REPLACE VIEW registry.registry_value_ex (Id, Key, KeyName, SubKey, SubKeyName,
   ValueName, vType, vInteger, vNumeric, vDateTime, vString, vBoolean
 )
 AS
@@ -852,11 +852,11 @@ AS
 -- FUNCTION registry_value -----------------------------------------------------
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION registry_value (
+CREATE OR REPLACE FUNCTION registry.registry_value (
   pKey		numeric
-) RETURNS	SETOF registry_value
+) RETURNS	SETOF registry.registry_value
 AS $$
-  SELECT * FROM registry_value WHERE key = pKey
+  SELECT * FROM registry.registry_value WHERE key = pKey
 $$ LANGUAGE SQL
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;
@@ -865,11 +865,11 @@ $$ LANGUAGE SQL
 -- FUNCTION registry_value_ex --------------------------------------------------
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION registry_value_ex (
+CREATE OR REPLACE FUNCTION registry.registry_value_ex (
   pKey		numeric
-) RETURNS	SETOF registry_value_ex
+) RETURNS	SETOF registry.registry_value_ex
 AS $$
-  SELECT * FROM registry_value_ex WHERE key = pKey
+  SELECT * FROM registry.registry_value_ex WHERE key = pKey
 $$ LANGUAGE SQL
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;
@@ -880,9 +880,9 @@ $$ LANGUAGE SQL
 
 CREATE OR REPLACE VIEW RegistryValue
 AS
-  SELECT * FROM registry_value(GetRegRoot('kernel'))
+  SELECT * FROM registry.registry_value(GetRegRoot('kernel'))
    UNION ALL
-  SELECT * FROM registry_value(GetRegRoot(current_username()));
+  SELECT * FROM registry.registry_value(GetRegRoot(current_username()));
 
 GRANT ALL ON RegistryValue TO administrator;
 
@@ -892,8 +892,8 @@ GRANT ALL ON RegistryValue TO administrator;
 
 CREATE OR REPLACE VIEW RegistryValueEx
 AS
-  SELECT * FROM registry_value_ex(GetRegRoot('kernel'))
+  SELECT * FROM registry.registry_value_ex(GetRegRoot('kernel'))
    UNION ALL
-  SELECT * FROM registry_value_ex(GetRegRoot(current_username()));
+  SELECT * FROM registry.registry_value_ex(GetRegRoot(current_username()));
 
 GRANT ALL ON RegistryValueEx TO administrator;

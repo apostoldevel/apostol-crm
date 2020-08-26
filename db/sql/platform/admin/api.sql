@@ -9,7 +9,8 @@
 CREATE OR REPLACE VIEW api.session
 AS
   SELECT s.code, s.userid, s.suid, u.username, u.name, s.created, s.updated,
-         u.input_last, s.host, u.lc_ip, u.status, u.state, u.session_limit
+         u.input_last, s.host, u.lc_ip, u.status, u.statustext, u.state, u.statetext,
+         u.session_limit
     FROM session s INNER JOIN users u ON s.userid = u.id;
 
 GRANT SELECT ON api.session TO administrator;
@@ -765,6 +766,34 @@ $$ LANGUAGE plpgsql
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
+-- api.set_area ----------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION api.set_area (
+  pId               numeric,
+  pParent           numeric DEFAULT null,
+  pType             numeric DEFAULT null,
+  pCode             varchar DEFAULT null,
+  pName             varchar DEFAULT null,
+  pDescription      text DEFAULT null,
+  pValidFromDate    timestamp DEFAULT null,
+  pValidToDate      timestamp DEFAULT null
+) RETURNS           SETOF api.area
+AS $$
+BEGIN
+  IF pId IS NULL THEN
+    pId := api.add_area(pParent, pType, pCode, pName, pDescription);
+  ELSE
+    PERFORM api.update_area(pId, pParent, pType, pCode, pName, pDescription, pValidFromDate, pValidToDate);
+  END IF;
+
+  RETURN QUERY SELECT * FROM api.area WHERE id = pId;
+END;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
 -- api.delete_area -------------------------------------------------------------
 --------------------------------------------------------------------------------
 /**
@@ -785,21 +814,6 @@ $$ LANGUAGE plpgsql
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
--- api.list_area ---------------------------------------------------------------
---------------------------------------------------------------------------------
-/**
- * Возвращает список подразделений.
- * @return {record} - Группы
- */
-CREATE OR REPLACE FUNCTION api.list_area (
-) RETURNS     SETOF api.area
-AS $$
-  SELECT * FROM api.area;
-$$ LANGUAGE SQL
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
-
---------------------------------------------------------------------------------
 -- api.get_area ----------------------------------------------------------------
 --------------------------------------------------------------------------------
 /**
@@ -812,6 +826,33 @@ CREATE OR REPLACE FUNCTION api.get_area (
 AS $$
   SELECT * FROM api.area WHERE id = pId;
 $$ LANGUAGE SQL
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- api.list_area ---------------------------------------------------------------
+--------------------------------------------------------------------------------
+/**
+ * Возвращает список зон.
+ * @param {jsonb} pSearch - Условие: '[{"condition": "AND|OR", "field": "<поле>", "compare": "EQL|NEQ|LSS|LEQ|GTR|GEQ|GIN|LKE|ISN|INN", "value": "<значение>"}, ...]'
+ * @param {jsonb} pFilter - Фильтр: '{"<поле>": "<значение>"}'
+ * @param {integer} pLimit - Лимит по количеству строк
+ * @param {integer} pOffSet - Пропустить указанное число строк
+ * @param {jsonb} pOrderBy - Сортировать по указанным в массиве полям
+ * @return {SETOF api.area} - Сотрудникы
+ */
+CREATE OR REPLACE FUNCTION api.list_area (
+  pSearch	jsonb DEFAULT null,
+  pFilter	jsonb DEFAULT null,
+  pLimit	integer DEFAULT null,
+  pOffSet	integer DEFAULT null,
+  pOrderBy	jsonb DEFAULT null
+) RETURNS	SETOF api.area
+AS $$
+BEGIN
+  RETURN QUERY EXECUTE api.sql('api', 'area', pSearch, pFilter, pLimit, pOffSet, pOrderBy);
+END;
+$$ LANGUAGE plpgsql
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;
 
