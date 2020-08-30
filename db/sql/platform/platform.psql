@@ -1,4 +1,0 @@
-\ir './kernel/kernel.psql'
-\ir './registry/registry.psql'
-\ir './admin/admin.psql'
-\ir './daemon/daemon.psql'
