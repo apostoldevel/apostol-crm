@@ -19,7 +19,7 @@
     <title>Авторизация | Апостол Веб Сервис</title>
 
     <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="/assets/vendor/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    <link rel="stylesheet" href="/assets/vendor/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
 
     <!-- Favicons -->
     <link href="/assets/img/favicon.png" rel="icon">
@@ -35,8 +35,7 @@
 <div class="form-signin">
     <form id="formSignIn" class="needs-validation" novalidate>
         <div class="text-center mb-4">
-            <h3 class="h3 mb-3 font-weight-normal">Добро пожаловать в</h3>
-            <h2 class="h2 mb-3 font-weight-normal">Апостол Веб Сервис</h2>
+            <h1 class="h3 mb-3 font-weight-normal">Добро пожаловать в Апостол Веб Сервис</h1>
         </div>
 
         <button id="btnSignIn" class="btn btn-lg btn-primary btn-block" type="button" onclick="oauthSignIn()">Войти</button>
@@ -56,10 +55,10 @@
 </div>
 <!-- Optional JavaScript -->
 <!-- jQuery first, then Popper.js, then Bootstrap JS -->
-<script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+<script src="/assets/vendor/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script>
 <script src="https://apis.google.com/js/platform.js?onload=init" async defer></script>
-<script src="/assets/vendor/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
 <script>
     function empty(e) {
         switch (e) {
@@ -99,40 +98,6 @@
         form.submit();
     }
 
-    /**
-     * @return {json}
-     */
-    async function AsyncFetch (path, method = "GET", body = null, initHeaders = {}) {
-
-        const apiPath = `/api/v1${path}`;
-
-        console.log(method + ' ' + apiPath);
-
-        let headers = new Headers(initHeaders);
-
-        const AccessToken = localStorage.getItem('AccessToken');
-
-        if (!empty(AccessToken)) {
-            headers.append('Authorization', `Bearer ${AccessToken}`)
-        }
-
-        // await response of fetch call
-        let response = await fetch(apiPath, {
-            method: method,
-            headers: headers,
-            body: body,
-            mode: "cors",
-            cache: "no-store",
-            credentials: 'omit'
-        });
-
-        const json = await response.json();
-
-        console.log(JSON.stringify(json, undefined, 2));
-
-        return json;
-    }
-
     /*
      * Create form to request access token from Апостол Веб Сервис's OAuth 2.0 server.
      */
@@ -142,11 +107,12 @@
         // Parameters to pass to OAuth 2.0 endpoint.
         let params = {
             client_id: $("meta[name='signin-client_id']").attr("content"),
-            //redirect_uri: 'https://apostol-web-service.ru/oauth2/code',
+            //redirect_uri: 'https://ship-safety.ru/oauth2/code',
             redirect_uri: 'http://localhost:8080/oauth2/code',
             scope: 'api',
             response_type: 'code',
-            access_type: 'online',
+            access_type: 'offline',
+            prompt: 'signin',
             state: 'SignIn'
         };
 
@@ -162,7 +128,7 @@
         // Parameters to pass to OAuth 2.0 endpoint.
         let params = {
             client_id: $("meta[name='google-signin-client_id']").attr("content"),
-            //redirect_uri: 'https://apostol-web-service.ru/oauth2/code/google',
+            //redirect_uri: 'https://ship-safety.ru/oauth2/code/google',
             redirect_uri: 'http://localhost:8080/oauth2/code/google',
             scope: 'openid profile email',
             response_type: 'code',
