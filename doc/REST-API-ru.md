@@ -1167,7 +1167,7 @@ level | INTEGER |  | **Необязательный**. Ограничение у
 
 ## Конфигурация
 
-**Подробное описание конфигурации смотрите в репозитории вашего проекта**:
+**Подробное описание конфигурации смотрите в репозитории Вашего проекта**:
 
 - [ShipSafety](https://github.com/ufocomp/apostol-sss/blob/master/doc/REST-API-ru.md)
 - [Plugme](https://github.com/ufocomp/apostol-plugme/blob/master/doc/REST-API-ru.md)
