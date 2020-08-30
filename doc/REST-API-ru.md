@@ -13,8 +13,8 @@
 
 Платформа состоит из следующих **_модулей_** (частей):
 
-- [Сервера авторизации](https://github.com/ufocomp/module-AppServer);
-- [Сервера приложений](https://github.com/ufocomp/module-AuthServer) (REST API);
+- [Сервера авторизации](https://github.com/ufocomp/module-AuthServer);
+- [Сервера приложений](https://github.com/ufocomp/module-AppServer) (REST API);
 - [Веб-сервера](https://github.com/ufocomp/module-WebServer) (HTTP-сервера);
 - [WebSocket API](https://github.com/ufocomp/module-WebSocketAPI).
 
