@@ -36,7 +36,7 @@ API
 
 СБОРКА И УСТАНОВКА
 -
-Для установки **Системы** Вам потребуется:
+Для установки **системы** Вам потребуется:
 
 Для сборки проекта Вам потребуется:
 
@@ -98,7 +98,7 @@ $ sudo apt-get install build-essential libssl-dev libcurl4-openssl-dev make cmak
 
 Для установки **системы** (без Git) необходимо:
 
-1. Скачать **системы** по [ссылке](https://github.com/ufocomp/apostol-aws/archive/master.zip);
+1. Скачать **Апостол Веб Сервис** по [ссылке](https://github.com/ufocomp/apostol-aws/archive/master.zip);
 1. Распаковать;
 1. Настроить `CMakeLists.txt` (по необходимости);
 1. Собрать и скомпилировать (см. ниже).
