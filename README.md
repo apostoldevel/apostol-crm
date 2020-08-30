@@ -32,7 +32,7 @@
 API
 -
 
-Доступ к API **Системы** предоставляется с помощью встроенного [Сервера приложений](https://github.com/ufocomp/module-AppServer) (REST API) по адресу: [localhost:8080](http://localhost:8080)
+Доступ к API **Системы** предоставляется с помощью встроенного [сервера приложений](https://github.com/ufocomp/module-AppServer) (REST API) по адресу: [localhost:8080](http://localhost:8080)
 
 СБОРКА И УСТАНОВКА
 -
