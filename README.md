@@ -32,7 +32,7 @@
 API
 -
 
-Доступ к API **Системы** предоставляется с помощью встроенного [сервера приложений](https://github.com/ufocomp/module-AppServer) (REST API) по адресу: [localhost:8080](http://localhost:8080)
+Доступ к API **системы** предоставляется с помощью встроенного [сервера приложений](https://github.com/ufocomp/module-AppServer) (REST API) по адресу: [localhost:8080](http://localhost:8080)
 
 СБОРКА И УСТАНОВКА
 -
@@ -96,14 +96,14 @@ $ sudo apt-get install build-essential libssl-dev libcurl4-openssl-dev make cmak
 
 ###### Параметр `--make` необходим для установки базы данных в первый раз. Далее установочный скрипт можно запускать или без параметров или с параметром `--install`.
 
-Для установки **Системы** (без Git) необходимо:
+Для установки **системы** (без Git) необходимо:
 
-1. Скачать **Системы** по [ссылке](https://github.com/ufocomp/apostol-aws/archive/master.zip);
+1. Скачать **системы** по [ссылке](https://github.com/ufocomp/apostol-aws/archive/master.zip);
 1. Распаковать;
 1. Настроить `CMakeLists.txt` (по необходимости);
 1. Собрать и скомпилировать (см. ниже).
 
-Для установки **Системы** с помощью Git выполните:
+Для установки **системы** с помощью Git выполните:
 ~~~
 $ git clone https://github.com/ufocomp/apostol-aws.git
 ~~~
