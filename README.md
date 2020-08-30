@@ -16,8 +16,7 @@
     ├─core/                     содержит файлы с исходным кодом: Apostol Core
     ├─lib/                      содержит файлы с исходным кодом библиотек
     | └─delphi/                 содержит файлы с исходным кодом библиотеки*: Delphi classes for C++
-    ├─workers/                  содержит файлы с исходным кодом дополнений (модулей)
-    ├─helpers/                  содержит файлы с исходным кодом дополнений (модулей)
+    ├─modules/                  содержит файлы с исходным кодом дополнений (модулей)
     www/                        содержит файлы с Веб-сайтом
 
 ОПИСАНИЕ
@@ -153,16 +152,17 @@ $ sudo service aws status
 
 Результат должен быть **примерно** таким:
 ~~~
-● aws.service - LSB: starts the apostol web servcie
+● aws.service - LSB: starts the apostol web service
    Loaded: loaded (/etc/init.d/aws; generated; vendor preset: enabled)
-   Active: active (running) since Thu 2019-08-15 14:11:34 BST; 1h 1min ago
+   Active: active (running) since Tue 2020-08-25 23:04:53 UTC; 4 days ago
      Docs: man:systemd-sysv-generator(8)
-  Process: 16465 ExecStop=/etc/init.d/aws stop (code=exited, status=0/SUCCESS)
-  Process: 16509 ExecStart=/etc/init.d/aws start (code=exited, status=0/SUCCESS)
+  Process: 6310 ExecStop=/etc/init.d/aws stop (code=exited, status=0/SUCCESS)
+  Process: 6987 ExecStart=/etc/init.d/aws start (code=exited, status=0/SUCCESS)
     Tasks: 3 (limit: 4915)
    CGroup: /system.slice/aws.service
-           ├─16520 aws: master process /usr/sbin/abc
-           └─16521 aws: worker process
+           ├─6999 aws: master process /usr/sbin/aws
+           ├─7000 aws: worker process ("web socket api", "application server", "authorization server", "web server")
+           └─7001 aws: helper process ("certificate downloader")
 ~~~
 
 ### **Управление**.
