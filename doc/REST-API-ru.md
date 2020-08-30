@@ -44,7 +44,7 @@
 
 ## WebSocket API
 
-**WebSocket API** предоставляет возможность подключения и передачи запросов к API системы по протоколу [WebSocket](https://ru.wikipedia.org/wiki/WebSocket).
+**WebSocket API** предоставляет возможность подключения к API системы и передачи запросов по протоколу [WebSocket](https://ru.wikipedia.org/wiki/WebSocket).
 
 [Подробная документация доступна по этой ссылке.](https://github.com/ufocomp/module-WebSocketAPI)
 
