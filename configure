@@ -136,7 +136,7 @@ Success()
 
 make_configuration()
 {
-    if ! [[ BUILD_UPDATE ]]; then
+    if ! [[ $BUILD_UPDATE ]]; then
         create_directory $BUILD_DIR
     fi
 
