@@ -36,7 +36,7 @@ AS $$
 DECLARE
   cn            record;
 
-  nClient       numeric;
+  nClient     numeric;
   nUserId       numeric;
 
   jPhone        jsonb;
@@ -83,11 +83,9 @@ BEGIN
 
   PERFORM SubstituteUser(GetUser('admin'), vSecret);
 
-  nUserId := CreateUser(pUserName, pPassword, coalesce(NULLIF(trim(cn.short), ''), cn.name), pPhone, pEmail, cn.name);
+  nUserId := CreateUser(pUserName, pPassword, coalesce(NULLIF(trim(cn.short), ''), cn.name), pPhone, pEmail, cn.name, true, false, GetArea('guest'));
 
-  PERFORM UserLock(nUserId);
-
-  PERFORM AddMemberToGroup(nUserId, GetGroup('user'));
+  PERFORM AddMemberToGroup(nUserId, GetGroup('guest'));
 
   IF pPhone IS NOT NULL THEN
     jPhone := jsonb_build_object('mobile', pPhone);
@@ -97,7 +95,7 @@ BEGIN
     jEmail := jsonb_build_object('default', pEmail);
   END IF;
 
-  nClient := CreateClient(null, CodeToType(pType, 'client'), pUserName, nUserId, jPhone, jEmail, pInfo, pDescription);
+  nClient := CreateClient(null, CodeToType(pType, 'employee'), pUserName, nUserId, jPhone, jEmail, pInfo, pDescription);
 
   PERFORM NewClientName(nClient, cn.name, cn.short, cn.first, cn.last, cn.middle);
 
@@ -238,290 +236,61 @@ $$ LANGUAGE plpgsql
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
--- LOCALE ----------------------------------------------------------------------
---------------------------------------------------------------------------------
-
---------------------------------------------------------------------------------
--- api.locale ------------------------------------------------------------------
+-- api.whoami ------------------------------------------------------------------
 --------------------------------------------------------------------------------
 /**
- * Язык
+ * Возвращает информацию о виртуальном пользователе.
+ * @out param {numeric} id - Идентификатор клиента
+ * @out param {numeric} userid - Идентификатор виртуального пользователя (учётной записи)
+ * @out param {numeric} suid - Идентификатор системного пользователя (учётной записи)
+ * @out param {boolean} admin - Признак администратора системы
+ * @out param {boolean} guest - Признак гостевого входа в систему
+ * @out param {json} profile - Профиль пользователя
+ * @out param {json} name - Ф.И.О. клиента
+ * @out param {json} email - Справочник электронных адресов клиента
+ * @out param {json} phone - Телефоный справочник клиента
+ * @out param {json} session - Сессия
+ * @out param {json} locale - Язык
+ * @out param {json} area - Зона
+ * @out param {json} interface - Интерфейс
+ * @return {table}
  */
-CREATE OR REPLACE VIEW api.locale
-AS
-  SELECT * FROM Locale;
-
-GRANT SELECT ON api.locale TO administrator;
-
---------------------------------------------------------------------------------
--- EVENT LOG -------------------------------------------------------------------
---------------------------------------------------------------------------------
-
-CREATE OR REPLACE VIEW api.event_log
-AS
-  SELECT * FROM EventLog WHERE username = current_username();
-
-GRANT SELECT ON api.event_log TO administrator;
-
---------------------------------------------------------------------------------
--- api.event_log ---------------------------------------------------------------
---------------------------------------------------------------------------------
-/**
- * Журнал событий текущего пользователя.
- * @param {char} pType - Тип события: {M|W|E}
- * @param {integer} pCode - Код
- * @param {timestamp} pDateFrom - Дата начала периода
- * @param {timestamp} pDateTo - Дата окончания периода
- * @return {SETOF api.event_log} - Записи
- */
-CREATE OR REPLACE FUNCTION api.event_log (
-  pType		    char DEFAULT null,
-  pCode		    numeric DEFAULT null,
-  pDateFrom	    timestamp DEFAULT null,
-  pDateTo	    timestamp DEFAULT null
-) RETURNS	    SETOF api.event_log
+CREATE OR REPLACE FUNCTION api.whoami (
+) RETURNS TABLE (
+  id                numeric,
+  userid            numeric,
+  suid              numeric,
+  admin             boolean,
+  guest             boolean,
+  profile           json,
+  name              json,
+  email             json,
+  phone             json,
+  session           json,
+  locale            json,
+  area              json,
+  interface         json
+)
 AS $$
-  SELECT *
-    FROM api.event_log
-   WHERE type = coalesce(pType, type)
-     AND code = coalesce(pCode, code)
-     AND datetime >= coalesce(pDateFrom, MINDATE())
-     AND datetime < coalesce(pDateTo, MAXDATE())
-   ORDER BY datetime DESC, id
-   LIMIT 500
+  WITH cs AS (
+      SELECT current_session() AS session, oper_date() AS oper_date
+  )
+  SELECT c.id, s.userid, s.suid,
+         IsUserRole(GetGroup('administrator'), s.userid) AS admin,
+         IsUserRole(GetGroup('guest'), s.userid) AS guest,
+         row_to_json(u.*) AS profile,
+         json_build_object('name', c.fullname, 'short', c.shortname, 'first', c.firstname, 'last', c.lastname, 'middle', c.middlename) AS name,
+         c.email::json, c.phone::json,
+         json_build_object('code', s.code, 'created', s.created, 'updated', s.updated, 'agent', s.agent, 'host', s.host) AS session,
+         row_to_json(l.*) AS locale,
+         row_to_json(a.*) AS area,
+         row_to_json(i.*) AS interface
+    FROM db.session s INNER JOIN cs ON s.code = cs.session
+                      INNER JOIN users u ON u.id = s.userid
+                      INNER JOIN db.locale l ON l.id = s.locale
+                      INNER JOIN db.area a ON a.id = s.area
+                      INNER JOIN db.interface i ON i.id = s.interface
+                       LEFT JOIN client c ON c.userid = s.userid
 $$ LANGUAGE SQL
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
-
---------------------------------------------------------------------------------
--- api.write_to_log ------------------------------------------------------------
---------------------------------------------------------------------------------
-
-CREATE OR REPLACE FUNCTION api.write_to_log (
-  pType		    text,
-  pCode		    numeric,
-  pText		    text
-) RETURNS	    boolean
-AS $$
-BEGIN
-  PERFORM WriteToEventLog(pType, pCode, pText);
-
-  RETURN true;
-END;
-$$ LANGUAGE plpgsql
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
-
---------------------------------------------------------------------------------
--- api.get_event_log -----------------------------------------------------------
---------------------------------------------------------------------------------
-/**
- * Возвращает событие
- * @param {numeric} pId - Идентификатор
- * @return {api.event}
- */
-CREATE OR REPLACE FUNCTION api.get_event_log (
-  pId		numeric
-) RETURNS	api.event_log
-AS $$
-  SELECT * FROM api.event_log WHERE id = pId
-$$ LANGUAGE SQL
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
-
---------------------------------------------------------------------------------
--- api.list_event_log ----------------------------------------------------------
---------------------------------------------------------------------------------
-/**
- * Возвращает список событий.
- * @param {jsonb} pSearch - Условие: '[{"condition": "AND|OR", "field": "<поле>", "compare": "EQL|NEQ|LSS|LEQ|GTR|GEQ|GIN|LKE|ISN|INN", "value": "<значение>"}, ...]'
- * @param {jsonb} pFilter - Фильтр: '{"<поле>": "<значение>"}'
- * @param {integer} pLimit - Лимит по количеству строк
- * @param {integer} pOffSet - Пропустить указанное число строк
- * @param {jsonb} pOrderBy - Сортировать по указанным в массиве полям
- * @return {SETOF api.event}
- */
-CREATE OR REPLACE FUNCTION api.list_event_log (
-  pSearch	jsonb default null,
-  pFilter	jsonb default null,
-  pLimit	integer default null,
-  pOffSet	integer default null,
-  pOrderBy	jsonb default null
-) RETURNS	SETOF api.event_log
-AS $$
-BEGIN
-  RETURN QUERY EXECUTE api.sql('api', 'event_log', pSearch, pFilter, pLimit, pOffSet, pOrderBy);
-END;
-$$ LANGUAGE plpgsql
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
-
---------------------------------------------------------------------------------
--- api.sql ---------------------------------------------------------------------
---------------------------------------------------------------------------------
-/**
- * Возвращает динамический SQL запрос.
- * @param {text} pScheme - Схема
- * @param {text} pTable - Таблица
- * @param {jsonb} pSearch - Условие: '[{"condition": "AND|OR", "field": "<поле>", "compare": "EQL|NEQ|LSS|LEQ|GTR|GEQ|GIN|LKE|ISN|INN", "value": "<значение>"}, ...]'
- * @param {jsonb} pFilter - Фильтр: '{"<поле>": "<значение>"}'
- * @param {integer} pLimit - Лимит по количеству строк
- * @param {integer} pOffSet - Пропустить указанное число строк
- * @param {jsonb} pOrderBy - Сортировать по указанным в массиве полям
- * @return {text} - SQL запрос
-
- Где сравнение (compare):
-   EQL - равно
-   NEQ - не равно
-   LSS - меньше
-   LEQ - меньше или равно
-   GTR - больше
-   GEQ - больше или равно
-   GIN - для поиска вхождений JSON
-
-   LKE - LIKE - Значение ключа (value) должно передаваться вместе со знаком '%' в нужном вам месте
-   ISN - IS NULL - Ключ (value) должен быть опушен
-   INN - IS NOT NULL - Ключ (value) должен быть опушен
- */
-CREATE OR REPLACE FUNCTION api.sql (
-  pScheme       text,
-  pTable        text,
-  pSearch       jsonb DEFAULT null,
-  pFilter       jsonb DEFAULT null,
-  pLimit        integer DEFAULT null,
-  pOffSet       integer DEFAULT null,
-  pOrderBy      jsonb DEFAULT null
-) RETURNS       text
-AS $$
-DECLARE
-  r             record;
-
-  vWith         text;
-  vSelect       text;
-  vWhere        text;
-  vJoin         text;
-
-  vCondition    text;
-  vField        text;
-  vCompare      text;
-  vValue        text;
-  vLStr         text;
-  vRStr         text;
-
-  arTables      text[];
-  arValues      text[];
-  arColumns     text[];
-BEGIN
-  pOrderBy := NULLIF(pOrderBy, '{}');
-  pOrderBy := NULLIF(pOrderBy, '[]');
-
-  arTables := array_cat(null, ARRAY[
-      'client',
-      'tariff', 'client_tariff',
-      'address', 'address_tree', 'calendar',
-      'object_file', 'object_data', 'object_address', 'object_coordinates',
-      'type', 'session', 'event_log'
-  ]);
-
-  IF array_position(arTables, pTable) IS NULL THEN
-    PERFORM IncorrectValueInArray(pTable, 'sql/api/table', arTables);
-  END IF;
-
-  vSelect := coalesce(vWith, '') || 'SELECT ' || coalesce(array_to_string(arColumns, ', '), 't.*') || E'\n  FROM ' || pScheme || '.' || pTable || ' t ' || coalesce(vJoin, '');
-
-  IF pFilter IS NOT NULL THEN
-    PERFORM CheckJsonbKeys(pTable || '/filter', arColumns, pFilter);
-
-    FOR r IN SELECT * FROM jsonb_each(pFilter)
-    LOOP
-      pSearch := coalesce(pSearch, '[]'::jsonb) || jsonb_build_object('field', r.key, 'value', r.value);
-    END LOOP;
-  END IF;
-
-  IF pSearch IS NOT NULL THEN
-
-    IF jsonb_typeof(pSearch) = 'array' THEN
-
-      PERFORM CheckJsonbKeys(pTable || '/search', ARRAY['condition', 'field', 'compare', 'value', 'valarr', 'lstr', 'rstr'], pSearch);
-
-      FOR r IN SELECT * FROM jsonb_to_recordset(pSearch) AS x(condition text, field text, compare text, value text, valarr jsonb, lstr text, rstr text)
-      LOOP
-        vCondition := coalesce(upper(r.condition), 'AND');
-        vField     := coalesce(lower(r.field), '<null>');
-        vCompare   := coalesce(upper(r.compare), 'EQL');
-        vLStr	   := coalesce(r.lstr, '');
-        vRStr	   := coalesce(r.rstr, '');
-
-        vField := quote_literal_json(vField);
-
-        arValues := array_cat(null, ARRAY['AND', 'OR']);
-        IF array_position(arValues, vCondition) IS NULL THEN
-          PERFORM IncorrectValueInArray(coalesce(r.condition, '<null>'), 'condition', arValues);
-        END IF;
-/*
-        IF array_position(arColumns, vField) IS NULL THEN
-          PERFORM IncorrectValueInArray(coalesce(r.field, '<null>'), 'field', arColumns);
-        END IF;
-*/
-        IF r.valarr IS NOT NULL THEN
-          vValue := jsonb_array_to_string(r.valarr, ',');
-
-          IF vWhere IS NULL THEN
-            vWhere := E'\n WHERE ' || vField || ' IN (' || vValue || ')';
-          ELSE
-            vWhere := vWhere || E'\n  ' || vCondition || ' ' || vField || ' IN (' || vValue  || ')';
-          END IF;
-
-        ELSE
-          vValue := quote_nullable(r.value);
-
-          arValues := array_cat(null, ARRAY['EQL', 'NEQ', 'LSS', 'LEQ', 'GTR', 'GEQ', 'GIN', 'LKE', 'ISN', 'INN']);
-          IF array_position(arValues, vCompare) IS NULL THEN
-            PERFORM IncorrectValueInArray(coalesce(r.compare, '<null>'), 'compare', arValues);
-          END IF;
-
-          IF vWhere IS NULL THEN
-            vWhere := E'\n WHERE ' || vLStr || vField || GetCompare(vCompare) || vValue || vRStr;
-          ELSE
-            vWhere := vWhere || E'\n  ' || vCondition || ' ' || vLStr || vField || GetCompare(vCompare) || vValue || vRStr;
-          END IF;
-        END IF;
-
-      END LOOP;
-
-    ELSE
-      PERFORM IncorrectJsonType(jsonb_typeof(pSearch), 'array');
-    END IF;
-
-  END IF;
-
-  vSelect := vSelect || coalesce(vWhere, '');
-
-  IF pOrderBy IS NOT NULL THEN
---    PERFORM CheckJsonbValues('orderby', array_cat(arColumns, array_add_text(arColumns, ' desc')), pOrderBy);
-    vSelect := vSelect || E'\n ORDER BY ' || array_to_string(array_quote_literal_json(JsonbToStrArray(pOrderBy)), ',');
-  ELSE
-    IF SubStr(pTable, 1, 7) = 'object_' THEN
-      vSelect := vSelect || E'\n ORDER BY object';
-    ELSIF SubStr(pTable, 1, 7) = 'session' THEN
-      vSelect := vSelect || E'\n ORDER BY created';
-    ELSE
-      vSelect := vSelect || E'\n ORDER BY id';
-    END IF;
-  END IF;
-
-  IF pLimit IS NOT NULL THEN
-    vSelect := vSelect || E'\n LIMIT ' || pLimit;
-  END IF;
-
-  IF pOffSet IS NOT NULL THEN
-    vSelect := vSelect || E'\nOFFSET ' || pOffSet;
-  END IF;
-
-  RAISE NOTICE '%', vSelect;
-
-  RETURN vSelect;
-END;
-$$ LANGUAGE plpgsql
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;

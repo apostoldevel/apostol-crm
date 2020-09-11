@@ -1,29 +1,4 @@
-\echo [M] call exception sql files
-
-\ir './client/exception.sql'
-
-\echo [M] call sequence sql files
-
-\echo [M] call db sql files
-\ir db.sql
-
-\ir './address/db.sql'
-\ir './client/db.sql'
-
-\echo [M] call events sql files
-\ir events.sql
-
-\ir './address/events.sql'
-\ir './client/events.sql'
-
-\echo [M] call api sql files
-\ir api.sql
-
-\ir './address/api.sql'
-\ir './client/api.sql'
-
-\echo [M] call rest sql files
-\ir rest.sql
-
-\ir './address/rest.sql'
-\ir './client/rest.sql'
+\ir './client/client.psql'
+--\ir './contract/contract.psql'
+\ir './card/card.psql'
+\ir './message/message.psql'

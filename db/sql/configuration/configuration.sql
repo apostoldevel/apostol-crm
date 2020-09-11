@@ -5,6 +5,9 @@ SELECT GetErrorMessage();
 SELECT SetDefaultArea(GetArea('default'));
 SELECT SetArea(GetArea('default'));
 
+SELECT RegSetValue(RegCreateKey('CURRENT_CONFIG', 'CONFIG\Department' || E'\u005C' || A.code), 'LocalIP', (3, null, null, null, '127.0.0.1, 192.168.0.*', null)::Variant) FROM area AS A;
+SELECT RegSetValue(RegCreateKey('CURRENT_CONFIG', 'CONFIG\Department' || E'\u005C' || A.code), 'EntrustedIP', (3, null, null, null, null, null)::Variant) FROM area AS A;
+
 SELECT CreateClassTree();
 SELECT CreateObjectType();
 SELECT KernelInit();

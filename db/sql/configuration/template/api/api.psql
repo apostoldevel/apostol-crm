@@ -1,14 +1,5 @@
-\echo [M] call log.sql
-\ir log.sql
-
 \echo [M] call api.sql
 \ir api.sql
 
-\echo [M] call current.sql
-\ir current.sql
-
-\echo [M] call session.sql
-\ir session.sql
-
-\echo [M] call workflow.sql
-\ir workflow.sql
+\echo [M] call rest.sql
+\ir rest.sql

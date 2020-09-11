@@ -6,11 +6,5 @@
 \echo [M] call api.sql
 \ir './api/api.psql'
 
-\echo [M] call rest.sql
-\ir './rest/rest.psql'
-
-\echo [M] call security.sql
-\ir security.sql
-
 \echo [M] call .oauth2.sql
 \ir .oauth2.sql

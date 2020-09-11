@@ -745,17 +745,15 @@ GRANT SELECT ON ObjectClient TO administrator;
 -- ClientTariffs ---------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE VIEW ClientTariffs (Id, Client, Tariff,
-    Type, TypeCode, TypeName, TypeDescription,
+CREATE OR REPLACE VIEW ClientTariffs (Id, Client, Tariff, TypeCode,
     Code, Name, Description, Cost,
     validFromDate, validToDate
 )
 AS
-  SELECT ol.id, ol.object, ol.linked, ol.type, t.code, t.name, t.description,
+  SELECT ol.id, ol.object, ol.linked, ol.key,
          r.code, r.name, r.description, f.cost,
          ol.validfromdate, ol.validtodate
-    FROM db.object_link ol INNER JOIN db.type t ON t.id = ol.type
-                           INNER JOIN db.reference r ON r.id = ol.linked
+    FROM db.object_link ol INNER JOIN db.reference r ON r.id = ol.linked
                            INNER JOIN db.tariff f ON f.reference = r.id;
 
 GRANT SELECT ON ClientTariffs TO administrator;
@@ -772,8 +770,8 @@ GRANT SELECT ON ClientTariffs TO administrator;
  */
 CREATE OR REPLACE FUNCTION GetClientTariff (
   pObject	numeric,
-  pType	    numeric,
-  pDate		timestamp default oper_date()
+  pKey	    varchar,
+  pDate		timestamp DEFAULT oper_date()
 ) RETURNS	numeric
 AS $$
 DECLARE
@@ -782,44 +780,11 @@ BEGIN
   SELECT Linked INTO nTariff
     FROM db.object_link
    WHERE Object = pObject
-     AND Type = pType
+     AND Key = pKey
      AND validFromDate <= pDate
      AND ValidToDate > pDate;
 
   RETURN GetTariffCost(nTariff);
-END;
-$$ LANGUAGE plpgsql
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
-
---------------------------------------------------------------------------------
--- GetClientTariffs ------------------------------------------------------------
---------------------------------------------------------------------------------
-
-CREATE OR REPLACE FUNCTION GetClientTariffs (
-  pClient	numeric,
-  pDate		timestamp default oper_date()
-) RETURNS	text[][]
-AS $$
-DECLARE
-  arResult	text[][];
-  i		    integer default 1;
-  r		    ClientTariffs%rowtype;
-BEGIN
-  FOR r IN
-    SELECT Tariff as Id, Type, TypeCode, TypeName, TypeDescription,
-           Code, Name, Description, Cost, validFromDate, validToDate
-      FROM ClientTariffs
-     WHERE client = pClient
-       AND validFromDate <= pDate
-       AND ValidToDate > pDate
-     ORDER BY Type
-  LOOP
-    arResult[i] := ARRAY[r.tariff, r.typecode, r.typename, r.code, r.cost];
-    i := i + 1;
-  END LOOP;
-
-  RETURN arResult;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -839,15 +804,14 @@ DECLARE
   r		    ClientTariffs%rowtype;
 BEGIN
   FOR r IN
-    SELECT Tariff as Id, Type, TypeCode, TypeName, TypeDescription,
+    SELECT Tariff as Id, TypeCode,
            Code, Name, Description, Cost, validFromDate, validToDate
       FROM ClientTariffs
      WHERE client = pClient
        AND validFromDate <= pDate
        AND ValidToDate > pDate
-     ORDER BY Type
   LOOP
-    arResult := array_cat(arResult, ARRAY[r.id, r.type, r.typecode, r.typename, r.typedescription, r.code, r.name, r.description, r.cost, r.validFromDate, r.validToDate]);
+    arResult := array_cat(arResult, ARRAY[r.id, r.typecode, r.code, r.name, r.description, r.cost, r.validFromDate, r.validToDate]);
   END LOOP;
 
   RETURN arResult;
@@ -870,13 +834,12 @@ DECLARE
   r		    record;
 BEGIN
   FOR r IN
-    SELECT Tariff as Id, Type, TypeCode, TypeName, TypeDescription,
+    SELECT Tariff as Id, TypeCode,
            Code, Name, Description, Cost, validFromDate, validToDate
       FROM ClientTariffs
      WHERE client = pClient
        AND validFromDate <= pDate
        AND ValidToDate > pDate
-     ORDER BY Type
   LOOP
     arResult := array_append(arResult, row_to_json(r));
   END LOOP;
