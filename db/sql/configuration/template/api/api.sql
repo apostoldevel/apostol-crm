@@ -95,7 +95,7 @@ BEGIN
     jEmail := jsonb_build_object('default', pEmail);
   END IF;
 
-  nClient := CreateClient(null, CodeToType(pType, 'employee'), pUserName, nUserId, jPhone, jEmail, pInfo, pDescription);
+  nClient := CreateClient(null, CodeToType(pType, 'client'), pUserName, nUserId, jPhone, jEmail, pInfo, pDescription);
 
   PERFORM NewClientName(nClient, cn.name, cn.short, cn.first, cn.last, cn.middle);
 

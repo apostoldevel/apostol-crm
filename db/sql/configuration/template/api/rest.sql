@@ -161,15 +161,43 @@ BEGIN
     RETURN;
   END IF;
 
-  IF SubStr(pPath, 1, 10) = '/employee/' THEN
+  IF SubStr(pPath, 1, 8) = '/client/' THEN
 
     IF current_session() IS NULL THEN
       PERFORM LoginFailed();
     END IF;
 
-    FOR r IN SELECT * FROM rest.employee(pPath, pPayload)
+    FOR r IN SELECT * FROM rest.client(pPath, pPayload)
     LOOP
-      RETURN NEXT r.employee;
+      RETURN NEXT r.client;
+    END LOOP;
+
+    RETURN;
+  END IF;
+
+  IF SubStr(pPath, 1, 6) = '/card/' THEN
+
+    IF current_session() IS NULL THEN
+      PERFORM LoginFailed();
+    END IF;
+
+    FOR r IN SELECT * FROM rest.card(pPath, pPayload)
+    LOOP
+      RETURN NEXT r.card;
+    END LOOP;
+
+    RETURN;
+  END IF;
+
+  IF SubStr(pPath, 1, 8) = '/tariff/' THEN
+
+    IF current_session() IS NULL THEN
+      PERFORM LoginFailed();
+    END IF;
+
+    FOR r IN SELECT * FROM rest.tariff(pPath, pPayload)
+    LOOP
+      RETURN NEXT r.tariff;
     END LOOP;
 
     RETURN;

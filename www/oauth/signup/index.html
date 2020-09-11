@@ -10,7 +10,7 @@
 
     <!-- SignIn -->
     <meta name="signin-scope" content="api">
-    <meta name="signin-client_id" content="web-ship-safety.ru">
+    <meta name="signin-client_id" content="web-apostol-web-service.ru">
 
     <title>Регистрация | Апостол Веб Сервис</title>
 
@@ -37,7 +37,7 @@
 <div class="form-signin">
     <form id="formSignUp" class="needs-validation" novalidate>
         <div class="text-center mb-4">
-            <h1 class="h3 mb-3 font-weight-normal">Регистрация в Апостол Веб Сервис</h1>
+            <h1 class="h3 mb-3 font-weight-normal">Регистрация в<br>Апостол Веб Сервис</h1>
             <p class="text-center">Для доступа к услугам необходимо зарегистрироваться.</p>
         </div>
 
@@ -250,12 +250,8 @@
      */
     async function AsyncFetch (path, method = "GET", body = null, headers = {}) {
 
-        const apiPath = `/api/v1${path}`;
-
-        console.log(method + ' ' + apiPath);
-
         // await response of fetch call
-        let response = await fetch(apiPath, {
+        let response = await fetch(path, {
             method: method,
             headers: headers,
             body: body,
@@ -295,7 +291,7 @@
             headers.append('Authorization', `Bearer ${clientAccessToken}`)
         }
 
-        return AsyncFetch(path, method, body, headers);
+        return AsyncFetch(`/api/v1/${path}`, method, body, headers);
     }
 
     function SignUpNext() {
@@ -359,7 +355,7 @@
 
         const value = username.val();
 
-        AsyncFetch(`/identifier?value=${value}`
+        AsyncFetch(`/oauth2/identifier?value=${value}`
         ).then((json) => {
             if (json.hasOwnProperty('error')) {
                 usernameFeedback.html(json['error']['message']);
