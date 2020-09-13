@@ -10,7 +10,7 @@ CREATE OR REPLACE VIEW api.card
 AS
   SELECT * FROM ObjectCard;
 
-GRANT SELECT ON api.card TO daemon;
+GRANT SELECT ON api.card TO administrator;
 
 --------------------------------------------------------------------------------
 -- api.add_card ----------------------------------------------------------------

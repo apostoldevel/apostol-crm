@@ -1,1 +1,1 @@
-\ir './template/template.psql'
+\ir './aws/aws.psql'

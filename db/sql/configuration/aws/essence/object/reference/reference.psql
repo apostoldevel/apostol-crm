@@ -1,0 +1,3 @@
+\ir './vendor/vendor.psql'
+\ir './model/model.psql'
+\ir './tariff/tariff.psql'

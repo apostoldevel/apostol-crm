@@ -21,12 +21,15 @@ BEGIN
 
   INSERT INTO db.essence (code, name) VALUES ('address', 'Адрес');
   INSERT INTO db.essence (code, name) VALUES ('client', 'Клиент');
+  INSERT INTO db.essence (code, name) VALUES ('device', 'Устройство');
   INSERT INTO db.essence (code, name) VALUES ('contract', 'Договор');
   INSERT INTO db.essence (code, name) VALUES ('card', 'Карта');
 
   INSERT INTO db.essence (code, name) VALUES ('message', 'Сообщение');
 
   INSERT INTO db.essence (code, name) VALUES ('calendar', 'Календарь');
+  INSERT INTO db.essence (code, name) VALUES ('vendor', 'Производитель');
+  INSERT INTO db.essence (code, name) VALUES ('model', 'Модель');
   INSERT INTO db.essence (code, name) VALUES ('tariff', 'Тариф');
 
   ------------------------------------------------------------------------------
@@ -60,6 +63,17 @@ BEGIN
 
   ------------------------------------------------------------------------------
 
+  INSERT INTO db.action (code, name) VALUES ('heartbeat', 'Heartbeat');
+
+  INSERT INTO db.action (code, name) VALUES ('available', 'Available');
+  INSERT INTO db.action (code, name) VALUES ('preparing', 'Preparing');
+  INSERT INTO db.action (code, name) VALUES ('finishing', 'Finishing');
+  INSERT INTO db.action (code, name) VALUES ('reserved', 'Reserved');
+  INSERT INTO db.action (code, name) VALUES ('unavailable', 'Unavailable');
+  INSERT INTO db.action (code, name) VALUES ('faulted', 'Faulted');
+
+  ------------------------------------------------------------------------------
+
   INSERT INTO db.event_type (code, name) VALUES ('parent', 'События класса родителя');
   INSERT INTO db.event_type (code, name) VALUES ('event', 'Событие');
   INSERT INTO db.event_type (code, name) VALUES ('plpgsql', 'PL/pgSQL код');
@@ -87,6 +101,12 @@ BEGIN
       nEssence := GetEssence('client');
 
       nId[2] := AddClass(nId[1], nEssence, 'client', 'Клиент', false);
+
+      -- Устройство
+
+      nEssence := GetEssence('device');
+
+      nId[2] := AddClass(nId[1], nEssence, 'device', 'Устройство', false);
 
       -- Договор
 
@@ -120,6 +140,18 @@ BEGIN
       nEssence := GetEssence('calendar');
 
       nId[2] := AddClass(nId[1], nEssence, 'calendar', 'Календарь', false);
+
+      -- Производитель
+
+      nEssence := GetEssence('vendor');
+
+      nId[2] := AddClass(nId[1], nEssence, 'vendor', 'Производитель', false);
+
+      -- Модель
+
+      nEssence := GetEssence('model');
+
+      nId[2] := AddClass(nId[1], nEssence, 'model', 'Модель', false);
 
       -- Тариф
 
@@ -163,6 +195,13 @@ BEGIN
       PERFORM AddType(rec_class.id, 'individual.client', 'ИП', 'Индивидуальный предприниматель');
     END IF;
 
+    IF rec_class.code = 'device' THEN
+      PERFORM AddType(rec_class.id, 'modem.device', 'Модем', 'Модем');
+      PERFORM AddType(rec_class.id, 'gateway.device', 'Шлюз', 'Шлюз');
+      PERFORM AddType(rec_class.id, 'hub.device', 'Концентратор', 'Концентратор');
+      PERFORM AddType(rec_class.id, 'meter.device', 'Прибор учёта', 'Прибор учёта');
+    END IF;
+
     IF rec_class.code = 'contract' THEN
       PERFORM AddType(rec_class.id, 'service.contract', 'Обслуживания', 'Договор обслуживания');
     END IF;
@@ -185,6 +224,16 @@ BEGIN
 
     IF rec_class.code = 'calendar' THEN
       PERFORM AddType(rec_class.id, 'workday.calendar', 'Рабочий', 'Календарь рабочих дней');
+    END IF;
+
+    IF rec_class.code = 'vendor' THEN
+      PERFORM AddType(rec_class.id, 'device.vendor', 'Оборудования', 'Производитель оборудования');
+    END IF;
+
+    IF rec_class.code = 'model' THEN
+      PERFORM AddType(rec_class.id, 'null.model', 'Нет', 'Без типа');
+      PERFORM AddType(rec_class.id, 'phase1.model', 'Однофазный', 'Однофазный счётчик');
+      PERFORM AddType(rec_class.id, 'phase3.model', 'Трехфазный', 'Трехфазный счётчик');
     END IF;
 
     IF rec_class.code = 'tariff' THEN
@@ -477,6 +526,186 @@ BEGIN
       LOOP
         IF rec_method.actioncode = 'enable' THEN
           PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'enabled'));
+        END IF;
+
+        IF rec_method.actioncode = 'delete' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'deleted'));
+        END IF;
+      END LOOP;
+
+    WHEN 'deleted' THEN
+
+      FOR rec_method IN SELECT * FROM Method WHERE state = rec_state.id
+      LOOP
+        IF rec_method.actioncode = 'restore' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'created'));
+        END IF;
+      END LOOP;
+    END CASE;
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- AddDeviceMethods ------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION AddDeviceMethods (
+  pClass        numeric
+)
+RETURNS void
+AS $$
+DECLARE
+  nState        numeric;
+
+  rec_type      record;
+  rec_state     record;
+  rec_method    record;
+BEGIN
+  -- Операции (без учёта состояния)
+
+  PERFORM DefaultMethods(pClass);
+
+  -- Операции (с учётом состояния)
+
+  FOR rec_type IN SELECT * FROM StateType
+  LOOP
+
+    CASE rec_type.code
+    WHEN 'created' THEN
+
+      nState := AddState(pClass, rec_type.id, rec_type.code, 'Создано');
+
+        PERFORM AddMethod(null, pClass, nState, GetAction('enable'), null, 'Включить');
+        PERFORM AddMethod(null, pClass, nState, GetAction('delete'), null, 'Удалить');
+
+    WHEN 'enabled' THEN
+
+      nState := AddState(pClass, rec_type.id, 'available', 'Доступно');
+
+        PERFORM AddMethod(null, pClass, nState, GetAction('heartbeat'), null, 'Heartbeat', null, false);
+
+        PERFORM AddMethod(null, pClass, nState, GetAction('available'), null, 'Доступно', null, false);
+        PERFORM AddMethod(null, pClass, nState, GetAction('unavailable'), null, 'Недоступно', null, false);
+        PERFORM AddMethod(null, pClass, nState, GetAction('faulted'), null, 'Неисправно', null, false);
+
+        PERFORM AddMethod(null, pClass, nState, GetAction('disable'), null, 'Отключить');
+
+      nState := AddState(pClass, rec_type.id, 'unavailable', 'Недоступно');
+
+        PERFORM AddMethod(null, pClass, nState, GetAction('heartbeat'), null, 'Heartbeat', null, false);
+
+        PERFORM AddMethod(null, pClass, nState, GetAction('available'), null, 'Доступно', null, false);
+        PERFORM AddMethod(null, pClass, nState, GetAction('unavailable'), null, 'Недоступно', null, false);
+        PERFORM AddMethod(null, pClass, nState, GetAction('faulted'), null, 'Неисправно', null, false);
+
+        PERFORM AddMethod(null, pClass, nState, GetAction('disable'), null, 'Отключить');
+
+      nState := AddState(pClass, rec_type.id, 'faulted', 'Неисправно');
+
+        PERFORM AddMethod(null, pClass, nState, GetAction('heartbeat'), null, 'Heartbeat', null, false);
+
+        PERFORM AddMethod(null, pClass, nState, GetAction('available'), null, 'Доступно', null, false);
+        PERFORM AddMethod(null, pClass, nState, GetAction('unavailable'), null, 'Недоступно');
+        PERFORM AddMethod(null, pClass, nState, GetAction('faulted'), null, 'Неисправно', null, false);
+
+        PERFORM AddMethod(null, pClass, nState, GetAction('disable'), null, 'Отключить');
+
+    WHEN 'disabled' THEN
+
+      nState := AddState(pClass, rec_type.id, rec_type.code, 'Отключено');
+
+        PERFORM AddMethod(null, pClass, nState, GetAction('enable'), null, 'Включить');
+        PERFORM AddMethod(null, pClass, nState, GetAction('delete'), null, 'Удалить');
+
+    WHEN 'deleted' THEN
+
+      nState := AddState(pClass, rec_type.id, rec_type.code, 'Удалено');
+
+        PERFORM AddMethod(null, pClass, nState, GetAction('restore'), null, 'Восстановить');
+        PERFORM AddMethod(null, pClass, nState, GetAction('drop'), null, 'Уничтожить');
+
+    END CASE;
+
+  END LOOP;
+
+  PERFORM DefaultTransition(pClass);
+
+  FOR rec_state IN SELECT * FROM State WHERE class = pClass
+  LOOP
+    CASE rec_state.code
+    WHEN 'created' THEN
+
+      FOR rec_method IN SELECT * FROM Method WHERE state = rec_state.id
+      LOOP
+        IF rec_method.actioncode = 'enable' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'unavailable'));
+        END IF;
+
+        IF rec_method.actioncode = 'delete' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'deleted'));
+        END IF;
+      END LOOP;
+
+    WHEN 'available' THEN
+
+      FOR rec_method IN SELECT * FROM Method WHERE state = rec_state.id
+      LOOP
+        IF rec_method.actioncode = 'unavailable' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'unavailable'));
+        END IF;
+
+        IF rec_method.actioncode = 'faulted' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'faulted'));
+        END IF;
+
+        IF rec_method.actioncode = 'disable' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'disabled'));
+        END IF;
+      END LOOP;
+
+    WHEN 'unavailable' THEN
+
+      FOR rec_method IN SELECT * FROM Method WHERE state = rec_state.id
+      LOOP
+        IF rec_method.actioncode = 'available' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'available'));
+        END IF;
+
+        IF rec_method.actioncode = 'faulted' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'faulted'));
+        END IF;
+
+        IF rec_method.actioncode = 'disable' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'disabled'));
+        END IF;
+      END LOOP;
+
+    WHEN 'faulted' THEN
+
+      FOR rec_method IN SELECT * FROM Method WHERE state = rec_state.id
+      LOOP
+        IF rec_method.actioncode = 'available' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'available'));
+        END IF;
+
+        IF rec_method.actioncode = 'unavailable' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'unavailable'));
+        END IF;
+
+        IF rec_method.actioncode = 'disable' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'disabled'));
+        END IF;
+      END LOOP;
+
+    WHEN 'disabled' THEN
+
+      FOR rec_method IN SELECT * FROM Method WHERE state = rec_state.id
+      LOOP
+        IF rec_method.actioncode = 'enable' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'unavailable'));
         END IF;
 
         IF rec_method.actioncode = 'delete' THEN
@@ -1137,6 +1366,90 @@ BEGIN
       END IF;
 
       PERFORM AddCardMethods(rec_class.id);
+
+    ELSIF rec_class.essencecode = 'device' THEN
+
+      IF rec_class.code = 'device' THEN
+
+        FOR rec_action IN SELECT * FROM Action
+        LOOP
+
+          IF rec_action.code = 'create' THEN
+            PERFORM AddEvent(rec_class.id, nParent, rec_action.id, 'События класса родителя');
+            PERFORM AddEvent(rec_class.id, nEvent, rec_action.id, 'Устройство создано', 'EventDeviceCreate();');
+          END IF;
+
+          IF rec_action.code = 'open' THEN
+            PERFORM AddEvent(rec_class.id, nParent, rec_action.id, 'События класса родителя');
+            PERFORM AddEvent(rec_class.id, nEvent, rec_action.id, 'Устройство открыто', 'EventDeviceOpen();');
+          END IF;
+
+          IF rec_action.code = 'edit' THEN
+            PERFORM AddEvent(rec_class.id, nParent, rec_action.id, 'События класса родителя');
+            PERFORM AddEvent(rec_class.id, nEvent, rec_action.id, 'Устройство измено', 'EventDeviceEdit();');
+          END IF;
+
+          IF rec_action.code = 'save' THEN
+            PERFORM AddEvent(rec_class.id, nParent, rec_action.id, 'События класса родителя');
+            PERFORM AddEvent(rec_class.id, nEvent, rec_action.id, 'Устройство сохрано', 'EventDeviceSave();');
+          END IF;
+
+          IF rec_action.code = 'enable' THEN
+            PERFORM AddEvent(rec_class.id, nParent, rec_action.id, 'События класса родителя');
+            PERFORM AddEvent(rec_class.id, nEvent, rec_action.id, 'Устройство включено', 'EventDeviceEnable();');
+          END IF;
+
+          IF rec_action.code = 'heartbeat' THEN
+            PERFORM AddEvent(rec_class.id, nEvent, rec_action.id, 'Устройство на связи', 'EventDeviceHeartbeat();');
+          END IF;
+
+          IF rec_action.code = 'Available' THEN
+            PERFORM AddEvent(rec_class.id, nEvent, rec_action.id, 'Устройство доступно', 'EventDeviceAvailable();');
+            PERFORM AddEvent(rec_class.id, nEvent, rec_action.id, 'Смена состояния', 'ChangeObjectState();');
+          END IF;
+
+          IF rec_action.code = 'Unavailable' THEN
+            PERFORM AddEvent(rec_class.id, nEvent, rec_action.id, 'Устройство недоступно', 'EventDeviceUnavailable();');
+            PERFORM AddEvent(rec_class.id, nEvent, rec_action.id, 'Смена состояния', 'ChangeObjectState();');
+          END IF;
+
+          IF rec_action.code = 'Faulted' THEN
+            PERFORM AddEvent(rec_class.id, nEvent, rec_action.id, 'Устройство неисправно', 'EventDeviceFaulted();');
+            PERFORM AddEvent(rec_class.id, nEvent, rec_action.id, 'Смена состояния', 'ChangeObjectState();');
+          END IF;
+
+          IF rec_action.code = 'disable' THEN
+            PERFORM AddEvent(rec_class.id, nParent, rec_action.id, 'События класса родителя');
+            PERFORM AddEvent(rec_class.id, nEvent, rec_action.id, 'Устройство отключено', 'EventDeviceDisable();');
+          END IF;
+
+          IF rec_action.code = 'delete' THEN
+            PERFORM AddEvent(rec_class.id, nEvent, rec_action.id, 'Устройство будет удалено', 'EventDeviceDelete();');
+            PERFORM AddEvent(rec_class.id, nParent, rec_action.id, 'События класса родителя');
+          END IF;
+
+          IF rec_action.code = 'restore' THEN
+            PERFORM AddEvent(rec_class.id, nParent, rec_action.id, 'События класса родителя');
+            PERFORM AddEvent(rec_class.id, nEvent, rec_action.id, 'Устройство восстановлено', 'EventDeviceRestore();');
+          END IF;
+
+          IF rec_action.code = 'drop' THEN
+            PERFORM AddEvent(rec_class.id, nEvent, rec_action.id, 'Устройство будет уничтожено', 'EventDeviceDrop();');
+            PERFORM AddEvent(rec_class.id, nParent, rec_action.id, 'События класса родителя');
+          END IF;
+
+        END LOOP;
+
+      ELSE
+        -- Для всех остальных события класса родителя
+        FOR rec_action IN SELECT * FROM Action
+        LOOP
+          PERFORM AddEvent(rec_class.id, nParent, rec_action.id, 'События класса родителя');
+        END LOOP;
+
+      END IF;
+
+      PERFORM AddDeviceMethods(rec_class.id);
 
     ELSIF rec_class.essencecode = 'message' THEN
 

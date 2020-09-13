@@ -189,6 +189,48 @@ BEGIN
     RETURN;
   END IF;
 
+  IF SubStr(pPath, 1, 8) = '/device/' THEN
+
+    IF current_session() IS NULL THEN
+      PERFORM LoginFailed();
+    END IF;
+
+    FOR r IN SELECT * FROM rest.device(pPath, pPayload)
+    LOOP
+      RETURN NEXT r.device;
+    END LOOP;
+
+    RETURN;
+  END IF;
+
+  IF SubStr(pPath, 1, 8) = '/vendor/' THEN
+
+    IF current_session() IS NULL THEN
+      PERFORM LoginFailed();
+    END IF;
+
+    FOR r IN SELECT * FROM rest.vendor(pPath, pPayload)
+    LOOP
+      RETURN NEXT r.vendor;
+    END LOOP;
+
+    RETURN;
+  END IF;
+
+  IF SubStr(pPath, 1, 7) = '/model/' THEN
+
+    IF current_session() IS NULL THEN
+      PERFORM LoginFailed();
+    END IF;
+
+    FOR r IN SELECT * FROM rest.model(pPath, pPayload)
+    LOOP
+      RETURN NEXT r.model;
+    END LOOP;
+
+    RETURN;
+  END IF;
+
   IF SubStr(pPath, 1, 8) = '/tariff/' THEN
 
     IF current_session() IS NULL THEN
