@@ -190,6 +190,11 @@ namespace Apostol {
                 m_ProcessType = ptHelper;
             }
 
+            if (Config()->IniFile().ReadBool("stream", "enable", true)) {
+                AddProcess<CStreamServer>();
+                m_ProcessType = ptCustom;
+            }
+
             CApplication::StartProcess();
         }
         //--------------------------------------------------------------------------------------------------------------

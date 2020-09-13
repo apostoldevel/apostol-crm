@@ -25,8 +25,14 @@ Author:
 #define APOSTOL_PROCESSES_HPP
 //----------------------------------------------------------------------------------------------------------------------
 
-static inline void CreateProcesses(CCustomProcess *AParent, CApplication *AApplication) {
+#include "Header.hpp"
+//----------------------------------------------------------------------------------------------------------------------
 
+#include "StreamServer/StreamServer.hpp"
+//----------------------------------------------------------------------------------------------------------------------
+
+static inline void CreateProcesses(CCustomProcess *AParent, CApplication *AApplication) {
+    CStreamServer::CreateProcess(AParent, AApplication);
 }
 
 #endif //APOSTOL_PROCESSES_HPP
