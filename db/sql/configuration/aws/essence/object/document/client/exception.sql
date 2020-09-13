@@ -7,6 +7,6 @@ CREATE OR REPLACE FUNCTION ClientCodeExists (
 ) RETURNS	void
 AS $$
 BEGIN
-  RAISE EXCEPTION 'Клиент с кодом "%" уже существует.', pCode;
+  RAISE EXCEPTION 'ERR-40000: Клиент с кодом "%" уже существует.', pCode;
 END;
 $$ LANGUAGE plpgsql STRICT IMMUTABLE;

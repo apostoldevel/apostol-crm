@@ -8,3 +8,6 @@
 
 \echo [M] call .oauth2.sql
 \ir .oauth2.sql
+
+\echo [M] call stream.sql
+\ir './stream/stream.psql'

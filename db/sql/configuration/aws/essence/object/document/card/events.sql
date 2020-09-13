@@ -122,7 +122,7 @@ BEGIN
 
   SELECT Count(id) INTO nCount FROM db.transaction WHERE card = pObject;
   IF nCount > 0 THEN
-    RAISE EXCEPTION 'Обнаружены транзакции: (%). Операция прервана.', nCount;
+    RAISE EXCEPTION 'ERR-40000: Обнаружены транзакции: (%). Операция прервана.', nCount;
   END IF;
 
   DELETE FROM db.card WHERE id = pObject;

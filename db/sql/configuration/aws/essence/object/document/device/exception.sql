@@ -7,7 +7,7 @@ CREATE OR REPLACE FUNCTION DeviceExists (
 ) RETURNS	void
 AS $$
 BEGIN
-  RAISE EXCEPTION 'Устройство с идентификатором "%" уже существует.', pCode;
+  RAISE EXCEPTION 'ERR-40000: Устройство с идентификатором "%" уже существует.', pCode;
 END;
 $$ LANGUAGE plpgsql STRICT IMMUTABLE;
 
@@ -20,7 +20,7 @@ CREATE OR REPLACE FUNCTION UnknownTransaction (
 ) RETURNS	void
 AS $$
 BEGIN
-  RAISE EXCEPTION 'Неизвестная транзакия: "%".', pId;
+  RAISE EXCEPTION 'ERR-40000: Неизвестная транзакия: "%".', pId;
 END;
 $$ LANGUAGE plpgsql STRICT IMMUTABLE;
 
