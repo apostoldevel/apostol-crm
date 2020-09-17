@@ -8,9 +8,38 @@
 
 CREATE OR REPLACE VIEW api.client
 AS
-  SELECT * FROM ObjectClient;
+  SELECT o.*, b.data::json as bindings
+    FROM ObjectClient o LEFT JOIN db.object_data b ON b.object = o.object AND b.code = 'bindings';
 
 GRANT SELECT ON api.client TO administrator;
+
+--------------------------------------------------------------------------------
+-- api.client ------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION api.client (
+  pState	numeric
+) RETURNS	SETOF api.client
+AS $$
+  SELECT * FROM api.client WHERE state = pState;
+$$ LANGUAGE SQL
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- api.client ------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION api.client (
+  pState	varchar
+) RETURNS	SETOF api.client
+AS $$
+BEGIN
+  RETURN QUERY SELECT * FROM api.client(GetState(GetClass('client'), pState));
+END;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
 -- api.add_client --------------------------------------------------------------
@@ -227,7 +256,7 @@ GRANT SELECT ON api.client_tariff TO administrator;
 CREATE OR REPLACE FUNCTION api.set_client_tariffs_json (
   pClient	    numeric,
   pTariffs      json
-) RETURNS 	    numeric
+) RETURNS 	    SETOF api.client_tariff
 AS $$
 DECLARE
   nId		    numeric;
@@ -262,14 +291,15 @@ BEGIN
         PERFORM EditTariff(r.id, r.parent, nType, r.code, r.name, r.cost, r.description);
       ELSE
         nTariff := CreateTariff(r.parent, nType, r.code, r.name, r.cost, r.description);
-        nId := SetObjectLink(pClient, nTariff);
       END IF;
+
+      RETURN NEXT api.set_client_tariff(pClient, nTariff);
     END LOOP;
   ELSE
     PERFORM JsonIsEmpty();
   END IF;
 
-  RETURN nId;
+  RETURN;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -282,10 +312,10 @@ $$ LANGUAGE plpgsql
 CREATE OR REPLACE FUNCTION api.set_client_tariffs_jsonb (
   pClient	    numeric,
   pTariffs	    jsonb
-) RETURNS 	    numeric
+) RETURNS 	    SETOF api.client_tariff
 AS $$
 BEGIN
-  RETURN api.set_client_tariffs_json(pClient, pTariffs::json);
+  RETURN QUERY SELECT * FROM api.set_client_tariffs_json(pClient, pTariffs::json);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -329,16 +359,19 @@ $$ LANGUAGE plpgsql
  * @param {numeric} pClient - Идентификатор клиента
  * @param {numeric} pTariff - Идентификатор тарифа
  * @param {timestamp} pDateFrom - Дата операции
- * @return {numeric}
+ * @return {SETOF api.client_tariff}
  */
 CREATE OR REPLACE FUNCTION api.set_client_tariff (
   pClient	    numeric,
   pTariff	    numeric,
   pDateFrom	    timestamp default oper_date()
-) RETURNS       numeric
+) RETURNS       SETOF api.client_tariff
 AS $$
+DECLARE
+  nId           numeric;
 BEGIN
-  RETURN SetObjectLink(pClient, pTariff, pDateFrom);
+  nId := SetObjectLink(pClient, pTariff, pDateFrom);
+  RETURN QUERY SELECT * FROM api.get_client_tariff(nId);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -354,7 +387,7 @@ $$ LANGUAGE plpgsql
  */
 CREATE OR REPLACE FUNCTION api.get_client_tariff (
   pId		numeric
-) RETURNS	api.client_tariff
+) RETURNS	SETOF api.client_tariff
 AS $$
   SELECT * FROM api.client_tariff WHERE id = pId
 $$ LANGUAGE SQL

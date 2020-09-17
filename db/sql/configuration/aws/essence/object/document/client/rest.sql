@@ -182,7 +182,7 @@ BEGIN
       FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id numeric, tariffs json)
       LOOP
         IF r.tariffs IS NOT NULL THEN
-          FOR e IN SELECT api.set_client_tariffs_json(r.id, r.tariffs) AS id
+          FOR e IN SELECT * FROM api.set_client_tariffs_json(r.id, r.tariffs)
           LOOP
             RETURN NEXT row_to_json(e);
           END LOOP;
@@ -196,7 +196,7 @@ BEGIN
       FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id numeric, tariffs json)
       LOOP
         IF r.tariffs IS NOT NULL THEN
-          FOR e IN SELECT api.set_client_tariffs_json(r.id, r.tariffs) AS id
+          FOR e IN SELECT * FROM api.set_client_tariffs_json(r.id, r.tariffs)
           LOOP
             RETURN NEXT row_to_json(e);
           END LOOP;
@@ -220,7 +220,7 @@ BEGIN
 
       FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id numeric, tariff numeric, datefrom timestamp)
       LOOP
-        FOR e IN SELECT api.set_client_tariff(r.id, r.tariff, coalesce(r.datefrom, oper_date())) AS id
+        FOR e IN SELECT * FROM api.set_client_tariff(r.id, r.tariff, coalesce(r.datefrom, oper_date()))
         LOOP
           RETURN NEXT row_to_json(e);
         END LOOP;
@@ -230,7 +230,7 @@ BEGIN
 
       FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id numeric, tariff numeric, datefrom timestamp)
       LOOP
-        FOR e IN SELECT api.set_client_tariff(r.id, r.tariff, coalesce(r.datefrom, oper_date())) AS id
+        FOR e IN SELECT * FROM api.set_client_tariff(r.id, r.tariff, coalesce(r.datefrom, oper_date()))
         LOOP
           RETURN NEXT row_to_json(e);
         END LOOP;
