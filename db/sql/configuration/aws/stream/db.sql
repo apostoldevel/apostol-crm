@@ -13,7 +13,7 @@ CREATE TABLE stream.log (
     runtime     interval
 );
 
-COMMENT ON TABLE stream.log IS 'Лог OCPP.';
+COMMENT ON TABLE stream.log IS 'Лог потоковых данных.';
 
 COMMENT ON COLUMN stream.log.id IS 'Идентификатор';
 COMMENT ON COLUMN stream.log.datetime IS 'Дата и время';
