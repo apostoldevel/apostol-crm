@@ -1207,7 +1207,7 @@ validtodate | TIMESTAMP | Дата окончания периода дейст�
 
 ##### Сверить
 ```http request
-POST /api/v1/verification/<agent>/try
+POST /api/v1/verification/<agent>/confirm
 ```
 Сверяет код подтверждения.
 

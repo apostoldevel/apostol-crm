@@ -42,6 +42,7 @@ CREATE INDEX ON db.client USING GIN (info jsonb_path_ops);
 CREATE OR REPLACE FUNCTION ft_client_insert()
 RETURNS trigger AS $$
 DECLARE
+  vStr    text;
 BEGIN
   IF NEW.ID IS NULL OR NEW.ID = 0 THEN
     SELECT NEW.DOCUMENT INTO NEW.ID;
@@ -53,6 +54,30 @@ BEGIN
 
   IF NEW.USERID IS NOT NULL THEN
     UPDATE db.object SET owner = NEW.USERID WHERE id = NEW.DOCUMENT;
+  END IF;
+
+  IF NEW.email IS NOT NULL THEN
+    IF jsonb_typeof(NEW.email) = 'array' THEN
+      vStr = NEW.email->>0;
+    ELSE
+      vStr = NEW.email->>'default';
+    END IF;
+
+    IF vStr IS NOT NULL THEN
+      UPDATE db.user SET email = vStr WHERE id = NEW.userid;
+    END IF;
+  END IF;
+
+  IF NEW.phone IS NOT NULL THEN
+    IF jsonb_typeof(NEW.phone) = 'array' THEN
+      vStr = NEW.phone->>0;
+    ELSE
+      vStr = NEW.phone->>'mobile';
+    END IF;
+
+    IF vStr IS NOT NULL THEN
+      UPDATE db.user SET phone = vStr WHERE id = NEW.userid;
+    END IF;
   END IF;
 
   RAISE DEBUG 'Создан клиент Id: %', NEW.id;
