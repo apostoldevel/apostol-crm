@@ -288,125 +288,6 @@ $$ LANGUAGE plpgsql
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
--- AddDefaultMethods -----------------------------------------------------------
---------------------------------------------------------------------------------
-
-CREATE OR REPLACE FUNCTION AddDefaultMethods (
-  pClass            numeric
-)
-RETURNS             void
-AS $$
-DECLARE
-  nState            numeric;
-
-  rec_type          record;
-  rec_state         record;
-  rec_method        record;
-BEGIN
-  -- Операции (без учёта состояния)
-
-  PERFORM DefaultMethods(pClass);
-
-  -- Операции (с учётом состояния)
-
-  FOR rec_type IN SELECT * FROM StateType
-  LOOP
-
-    CASE rec_type.code
-    WHEN 'created' THEN
-
-      nState := AddState(pClass, rec_type.id, rec_type.code, 'Создан');
-
-        PERFORM AddMethod(null, pClass, nState, GetAction('enable'), null, 'Открыть');
-        PERFORM AddMethod(null, pClass, nState, GetAction('delete'), null, 'Удалить');
-
-    WHEN 'enabled' THEN
-
-      nState := AddState(pClass, rec_type.id, rec_type.code, 'Открыт');
-
-        PERFORM AddMethod(null, pClass, nState, GetAction('disable'), null, 'Закрыть');
-        PERFORM AddMethod(null, pClass, nState, GetAction('delete'), null, 'Удалить');
-
-    WHEN 'disabled' THEN
-
-      nState := AddState(pClass, rec_type.id, rec_type.code, 'Закрыт');
-
-        PERFORM AddMethod(null, pClass, nState, GetAction('enable'), null, 'Открыть');
-        PERFORM AddMethod(null, pClass, nState, GetAction('delete'), null, 'Удалить');
-
-    WHEN 'deleted' THEN
-
-      nState := AddState(pClass, rec_type.id, rec_type.code, 'Удалён');
-
-        PERFORM AddMethod(null, pClass, nState, GetAction('restore'), null, 'Восстановить');
-        PERFORM AddMethod(null, pClass, nState, GetAction('drop'), null, 'Уничтожить');
-
-    END CASE;
-
-  END LOOP;
-
-  PERFORM DefaultTransition(pClass);
-
-  -- Переходы из состояния в состояние
-
-  FOR rec_state IN SELECT * FROM State WHERE class = pClass
-  LOOP
-    CASE rec_state.code
-    WHEN 'created' THEN
-
-      FOR rec_method IN SELECT * FROM Method WHERE state = rec_state.id
-      LOOP
-        IF rec_method.actioncode = 'enable' THEN
-          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'enabled'));
-        END IF;
-
-        IF rec_method.actioncode = 'delete' THEN
-          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'deleted'));
-        END IF;
-      END LOOP;
-
-    WHEN 'enabled' THEN
-
-      FOR rec_method IN SELECT * FROM Method WHERE state = rec_state.id
-      LOOP
-        IF rec_method.actioncode = 'disable' THEN
-          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'disabled'));
-        END IF;
-
-        IF rec_method.actioncode = 'delete' THEN
-          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'deleted'));
-        END IF;
-      END LOOP;
-
-    WHEN 'disabled' THEN
-
-      FOR rec_method IN SELECT * FROM Method WHERE state = rec_state.id
-      LOOP
-        IF rec_method.actioncode = 'enable' THEN
-          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'enabled'));
-        END IF;
-
-        IF rec_method.actioncode = 'delete' THEN
-          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'deleted'));
-        END IF;
-      END LOOP;
-
-    WHEN 'deleted' THEN
-
-      FOR rec_method IN SELECT * FROM Method WHERE state = rec_state.id
-      LOOP
-        IF rec_method.actioncode = 'restore' THEN
-          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'created'));
-        END IF;
-      END LOOP;
-    END CASE;
-  END LOOP;
-END;
-$$ LANGUAGE plpgsql
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
-
---------------------------------------------------------------------------------
 -- AddInboxMessageMethods ------------------------------------------------------
 --------------------------------------------------------------------------------
 
@@ -840,12 +721,12 @@ BEGIN
 
       nState := AddState(pClass, rec_type.id, rec_type.code, 'Создан');
 
-        PERFORM AddMethod(null, pClass, nState, GetAction('enable'), null, 'Новый');
+        PERFORM AddMethod(null, pClass, nState, GetAction('enable'), null, 'Утвердить');
         PERFORM AddMethod(null, pClass, nState, GetAction('delete'));
 
     WHEN 'enabled' THEN
 
-      nState := AddState(pClass, rec_type.id, rec_type.code, 'Новый');
+      nState := AddState(pClass, rec_type.id, rec_type.code, 'Утверждён');
 
         PERFORM AddMethod(null, pClass, nState, GetAction('confirm'));
         PERFORM AddMethod(null, pClass, nState, GetAction('reconfirm'));
@@ -856,7 +737,7 @@ BEGIN
 
       nState := AddState(pClass, rec_type.id, 'confirmed', 'Подтверждён');
 
-        PERFORM AddMethod(null, pClass, nState, GetAction('enable'), null, 'Новый');
+        PERFORM AddMethod(null, pClass, nState, GetAction('enable'), null, 'Утвердить');
         PERFORM AddMethod(null, pClass, nState, GetAction('disable'), null, 'Скрыть');
         PERFORM AddMethod(null, pClass, nState, GetAction('delete'));
 
@@ -864,7 +745,7 @@ BEGIN
 
       nState := AddState(pClass, rec_type.id, rec_type.code, 'Скрыт');
 
-        PERFORM AddMethod(null, pClass, nState, GetAction('enable'), null, 'Новый');
+        PERFORM AddMethod(null, pClass, nState, GetAction('enable'), null, 'Утвердить');
         PERFORM AddMethod(null, pClass, nState, GetAction('delete'));
 
     WHEN 'deleted' THEN
@@ -923,6 +804,125 @@ BEGIN
           PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'enabled'));
         END IF;
 
+        IF rec_method.actioncode = 'disable' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'disabled'));
+        END IF;
+
+        IF rec_method.actioncode = 'delete' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'deleted'));
+        END IF;
+      END LOOP;
+
+    WHEN 'disabled' THEN
+
+      FOR rec_method IN SELECT * FROM Method WHERE state = rec_state.id
+      LOOP
+        IF rec_method.actioncode = 'enable' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'enabled'));
+        END IF;
+
+        IF rec_method.actioncode = 'delete' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'deleted'));
+        END IF;
+      END LOOP;
+
+    WHEN 'deleted' THEN
+
+      FOR rec_method IN SELECT * FROM Method WHERE state = rec_state.id
+      LOOP
+        IF rec_method.actioncode = 'restore' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'created'));
+        END IF;
+      END LOOP;
+    END CASE;
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- AddDefaultMethods -----------------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION AddDefaultMethods (
+  pClass            numeric
+)
+RETURNS             void
+AS $$
+DECLARE
+  nState            numeric;
+
+  rec_type          record;
+  rec_state         record;
+  rec_method        record;
+BEGIN
+  -- Операции (без учёта состояния)
+
+  PERFORM DefaultMethods(pClass);
+
+  -- Операции (с учётом состояния)
+
+  FOR rec_type IN SELECT * FROM StateType
+  LOOP
+
+    CASE rec_type.code
+    WHEN 'created' THEN
+
+      nState := AddState(pClass, rec_type.id, rec_type.code, 'Создан');
+
+        PERFORM AddMethod(null, pClass, nState, GetAction('enable'), null, 'Открыть');
+        PERFORM AddMethod(null, pClass, nState, GetAction('delete'), null, 'Удалить');
+
+    WHEN 'enabled' THEN
+
+      nState := AddState(pClass, rec_type.id, rec_type.code, 'Открыт');
+
+        PERFORM AddMethod(null, pClass, nState, GetAction('disable'), null, 'Закрыть');
+        PERFORM AddMethod(null, pClass, nState, GetAction('delete'), null, 'Удалить');
+
+    WHEN 'disabled' THEN
+
+      nState := AddState(pClass, rec_type.id, rec_type.code, 'Закрыт');
+
+        PERFORM AddMethod(null, pClass, nState, GetAction('enable'), null, 'Открыть');
+        PERFORM AddMethod(null, pClass, nState, GetAction('delete'), null, 'Удалить');
+
+    WHEN 'deleted' THEN
+
+      nState := AddState(pClass, rec_type.id, rec_type.code, 'Удалён');
+
+        PERFORM AddMethod(null, pClass, nState, GetAction('restore'), null, 'Восстановить');
+        PERFORM AddMethod(null, pClass, nState, GetAction('drop'), null, 'Уничтожить');
+
+    END CASE;
+
+  END LOOP;
+
+  PERFORM DefaultTransition(pClass);
+
+  -- Переходы из состояния в состояние
+
+  FOR rec_state IN SELECT * FROM State WHERE class = pClass
+  LOOP
+    CASE rec_state.code
+    WHEN 'created' THEN
+
+      FOR rec_method IN SELECT * FROM Method WHERE state = rec_state.id
+      LOOP
+        IF rec_method.actioncode = 'enable' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'enabled'));
+        END IF;
+
+        IF rec_method.actioncode = 'delete' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'deleted'));
+        END IF;
+      END LOOP;
+
+    WHEN 'enabled' THEN
+
+      FOR rec_method IN SELECT * FROM Method WHERE state = rec_state.id
+      LOOP
         IF rec_method.actioncode = 'disable' THEN
           PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'disabled'));
         END IF;
@@ -1404,6 +1404,15 @@ BEGIN
           IF rec_action.code = 'enable' THEN
             PERFORM AddEvent(rec_class.id, nParent, rec_action.id, 'События класса родителя');
             PERFORM AddEvent(rec_class.id, nEvent, rec_action.id, 'Карта активирована', 'EventCardEnable();');
+          END IF;
+
+          IF rec_action.code = 'reconfirm' THEN
+            PERFORM AddEvent(rec_class.id, nEvent, rec_action.id, 'Переподтвердить адрес электронной почты', 'EventClientReconfirm();');
+          END IF;
+
+          IF rec_action.code = 'confirm' THEN
+            PERFORM AddEvent(rec_class.id, nEvent, rec_action.id, 'Подтвердить адрес электронной почты', 'EventClientConfirm();');
+            PERFORM AddEvent(rec_class.id, nEvent, rec_action.id, 'Смена состояния', 'ChangeObjectState();');
           END IF;
 
           IF rec_action.code = 'disable' THEN
