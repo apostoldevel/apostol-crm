@@ -110,7 +110,6 @@ github()
     download_from_github src/lib ufocomp libdelphi master delphi
     download_from_github src ufocomp apostol-core master core
 
-    download_from_github src/modules/Helpers ufocomp module-CertificateDownloader master CertificateDownloader
     download_from_github src/modules/Workers ufocomp module-WebServer master WebServer
     download_from_github src/modules/Workers ufocomp module-AppServer master AppServer
     download_from_github src/modules/Workers ufocomp module-AuthServer master AuthServer
