@@ -36,7 +36,7 @@ AS $$
 DECLARE
   cn            record;
 
-  nClient     numeric;
+  nClient       numeric;
   nUserId       numeric;
 
   jPhone        jsonb;
@@ -92,7 +92,7 @@ BEGIN
   END IF;
 
   IF pEmail IS NOT NULL THEN
-    jEmail := jsonb_build_object('default', pEmail);
+    jEmail := jsonb_build_array(pEmail);
   END IF;
 
   nClient := CreateClient(null, CodeToType(pType, 'client'), pUserName, nUserId, jPhone, jEmail, pInfo, pDescription);
@@ -109,169 +109,26 @@ $$ LANGUAGE plpgsql
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
--- api.signin ------------------------------------------------------------------
---------------------------------------------------------------------------------
-/**
- * @brief Вход в систему по имени и паролю пользователя.
- * @param {text} pUserName - Пользователь (login)
- * @param {text} pPassword - Пароль
- * @param {text} pAgent - Агент
- * @param {inet} pHost - IP адрес
- * @out param {text} session - Сессия
- * @out param {text} secret - Секретный ключ для подписи методом HMAC-256
- * @out param {text} code - Одноразовый код авторизации для получения маркера см. OAuth 2.0
- * @return {record}
- */
-CREATE OR REPLACE FUNCTION api.signin (
-  pUserName     text,
-  pPassword     text,
-  pAgent        text DEFAULT null,
-  pHost         inet DEFAULT null,
-  OUT session   text,
-  OUT secret    text,
-  OUT code      text
-) RETURNS       record
-AS $$
-DECLARE
-  nAudience     numeric;
-BEGIN
-  SELECT a.id INTO nAudience FROM oauth2.audience a WHERE a.code = oauth2_current_client_id();
-
-  IF NOT found THEN
-    PERFORM AudienceNotFound();
-  END IF;
-
-  session := SignIn(CreateOAuth2(nAudience, ARRAY['api']), pUserName, pPassword, pAgent, pHost);
-
-  IF session IS NULL THEN
-    RAISE EXCEPTION '%', GetErrorMessage();
-  END IF;
-
-  code := oauth2_current_code(session);
-  secret := session_secret(session);
-END;
-$$ LANGUAGE plpgsql
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
-
---------------------------------------------------------------------------------
--- api.signout -----------------------------------------------------------------
---------------------------------------------------------------------------------
-/**
- * @brief Выход из системы.
- * @param {text} pSession - Сессия
- * @param {boolean} pCloseAll - Закрыть все сессии
- * @out param {boolean} result - Результат
- * @out param {text} message - Текст ошибки
- * @return {record}
- */
-CREATE OR REPLACE FUNCTION api.signout (
-  pSession      text DEFAULT current_session(),
-  pCloseAll 	boolean DEFAULT false
-) RETURNS       boolean
-AS $$
-BEGIN
-  IF NOT SignOut(pSession, pCloseAll) THEN
-    RAISE EXCEPTION '%', GetErrorMessage();
-  END IF;
-  RETURN true;
-END;
-$$ LANGUAGE plpgsql
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
-
---------------------------------------------------------------------------------
--- api.authenticate ------------------------------------------------------------
---------------------------------------------------------------------------------
-/**
- * @brief Аутентификация.
- * @param {text} pSession - Сессия
- * @param {text} pSecret - Секретный код
- * @param {text} pAgent - Агент
- * @param {inet} pHost - IP адрес
- * @return {text}
- */
-CREATE OR REPLACE FUNCTION api.authenticate (
-  pSession    text,
-  pSecret     text,
-  pAgent      text DEFAULT null,
-  pHost       inet DEFAULT null
-) RETURNS     text
-AS $$
-DECLARE
-  vCode       text;
-BEGIN
-  vCode := Authenticate(pSession, pSecret, pAgent, pHost);
-  IF vCode IS NULL THEN
-    RAISE EXCEPTION '%', GetErrorMessage();
-  END IF;
-  RETURN vCode;
-END;
-$$ LANGUAGE plpgsql
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
-
---------------------------------------------------------------------------------
--- api.authorize ---------------------------------------------------------------
---------------------------------------------------------------------------------
-/**
- * Авторизовать.
- * @param {text} pSession - Сессия
- * @param {boolean} authorized - Результат
- * @param {text} message - Сообшение
- * @return {record}
- */
-CREATE OR REPLACE FUNCTION api.authorize (
-  pSession          text,
-  OUT authorized    boolean,
-  OUT message       text
-) RETURNS           record
-AS $$
-BEGIN
-  authorized := Authorize(pSession) IS NOT NULL;
-  message := GetErrorMessage();
-END;
-$$ LANGUAGE plpgsql
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
-
---------------------------------------------------------------------------------
 -- api.whoami ------------------------------------------------------------------
 --------------------------------------------------------------------------------
 /**
  * Возвращает информацию о виртуальном пользователе.
- * @out param {numeric} id - Идентификатор клиента
- * @out param {numeric} userid - Идентификатор виртуального пользователя (учётной записи)
- * @out param {numeric} suid - Идентификатор системного пользователя (учётной записи)
- * @out param {boolean} admin - Признак администратора системы
- * @out param {boolean} guest - Признак гостевого входа в систему
- * @out param {json} profile - Профиль пользователя
- * @out param {json} name - Ф.И.О. клиента
- * @out param {json} email - Справочник электронных адресов клиента
- * @out param {json} phone - Телефоный справочник клиента
- * @out param {json} session - Сессия
- * @out param {json} locale - Язык
- * @out param {json} area - Зона
- * @out param {json} interface - Интерфейс
- * @return {table}
+ * @field {numeric} id - Идентификатор клиента
+ * @field {numeric} userid - Идентификатор виртуального пользователя (учётной записи)
+ * @field {numeric} suid - Идентификатор системного пользователя (учётной записи)
+ * @field {boolean} admin - Признак администратора системы
+ * @field {boolean} guest - Признак гостевого входа в систему
+ * @field {json} profile - Профиль пользователя
+ * @field {json} name - Ф.И.О. клиента
+ * @field {json} email - Справочник электронных адресов клиента
+ * @field {json} phone - Телефоный справочник клиента
+ * @field {json} session - Сессия
+ * @field {json} locale - Язык
+ * @field {json} area - Зона
+ * @field {json} interface - Интерфейс
  */
-CREATE OR REPLACE FUNCTION api.whoami (
-) RETURNS TABLE (
-  id                numeric,
-  userid            numeric,
-  suid              numeric,
-  admin             boolean,
-  guest             boolean,
-  profile           json,
-  name              json,
-  email             json,
-  phone             json,
-  session           json,
-  locale            json,
-  area              json,
-  interface         json
-)
-AS $$
+CREATE OR REPLACE VIEW api.whoami
+AS
   WITH cs AS (
       SELECT current_session() AS session, oper_date() AS oper_date
   )
@@ -290,7 +147,58 @@ AS $$
                       INNER JOIN db.locale l ON l.id = s.locale
                       INNER JOIN db.area a ON a.id = s.area
                       INNER JOIN db.interface i ON i.id = s.interface
-                       LEFT JOIN client c ON c.userid = s.userid
+                       LEFT JOIN client c ON c.userid = s.userid;
+
+--------------------------------------------------------------------------------
+-- api.whoami ------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION api.whoami (
+) RETURNS SETOF api.whoami
+AS $$
+  SELECT * FROM api.whoami
 $$ LANGUAGE SQL
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- api.confirm_email -----------------------------------------------------------
+--------------------------------------------------------------------------------
+/**
+ * Подтверждает адрес электронной почты.
+ * @param {numeric} pId - Идентификатор кода подтверждения
+ * @return {record}
+ */
+CREATE OR REPLACE FUNCTION api.confirm_email (
+  pId		    numeric
+) RETURNS       void
+AS $$
+DECLARE
+  nUserId       numeric;
+  vOAuthSecret  text;
+BEGIN
+  SELECT userid INTO nUserId FROM db.verification_code WHERE id = pId;
+  IF found THEN
+    SELECT a.secret INTO vOAuthSecret FROM oauth2.audience a WHERE a.code = session_username();
+
+    PERFORM SubstituteUser(GetUser('admin'), vOAuthSecret);
+
+    PERFORM DeleteGroupForMember(nUserId, GetGroup('guest'));
+
+    PERFORM AddMemberToGroup(nUserId, GetGroup('user'));
+    PERFORM AddMemberToArea(nUserId, current_area());
+
+    PERFORM SetDefaultArea(current_area(), nUserId);
+    PERFORM SetArea(current_area(), nUserId);
+
+    UPDATE db.session SET area = current_area() WHERE userid = nUserId;
+
+    PERFORM SetDefaultInterface(GetInterface('I:1:0:3'), nUserId);
+    PERFORM SetInterface(GetInterface('I:1:0:3'), nUserId);
+
+    PERFORM ExecuteObjectAction(GetClientByUserId(nUserId), GetAction('confirm'));
+  END IF;
+END;
+$$ LANGUAGE plpgsql
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;

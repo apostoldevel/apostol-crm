@@ -80,41 +80,15 @@ BEGIN
     RETURN;
   END IF;
 
-  IF SubStr(pPath, 1, 7) = '/admin/' THEN
+  IF SubStr(pPath, 1, 14) = '/verification/' THEN
 
     IF current_session() IS NULL THEN
       PERFORM LoginFailed();
     END IF;
 
-    IF session_user <> 'kernel' THEN
-      IF NOT IsUserRole(GetGroup('administrator')) THEN
-        PERFORM AccessDenied();
-      END IF;
-    END IF;
-
-    FOR r IN SELECT * FROM rest.admin(pPath, pPayload)
+    FOR r IN SELECT * FROM rest.verification(pPath, pPayload)
     LOOP
-      RETURN NEXT r.admin;
-    END LOOP;
-
-    RETURN;
-  END IF;
-
-  IF SubStr(pPath, 1, 10) = '/workflow/' THEN
-
-    IF current_session() IS NULL THEN
-      PERFORM LoginFailed();
-    END IF;
-
-    IF session_user <> 'kernel' THEN
-      IF NOT IsUserRole(GetGroup('administrator')) THEN
-        PERFORM AccessDenied();
-      END IF;
-    END IF;
-
-    FOR r IN SELECT * FROM rest.workflow(pPath, pPayload)
-    LOOP
-      RETURN NEXT r.workflow;
+      RETURN NEXT r.verification;
     END LOOP;
 
     RETURN;
@@ -147,6 +121,20 @@ BEGIN
     RETURN;
   END IF;
 
+  IF SubStr(pPath, 1, 9) = '/message/' THEN
+
+    IF current_session() IS NULL THEN
+      PERFORM LoginFailed();
+    END IF;
+
+    FOR r IN SELECT * FROM rest.message(pPath, pPayload)
+    LOOP
+      RETURN NEXT r.message;
+    END LOOP;
+
+    RETURN;
+  END IF;
+
   IF SubStr(pPath, 1, 10) = '/calendar/' THEN
 
     IF current_session() IS NULL THEN
@@ -156,48 +144,6 @@ BEGIN
     FOR r IN SELECT * FROM rest.calendar(pPath, pPayload)
     LOOP
       RETURN NEXT r.calendar;
-    END LOOP;
-
-    RETURN;
-  END IF;
-
-  IF SubStr(pPath, 1, 8) = '/client/' THEN
-
-    IF current_session() IS NULL THEN
-      PERFORM LoginFailed();
-    END IF;
-
-    FOR r IN SELECT * FROM rest.client(pPath, pPayload)
-    LOOP
-      RETURN NEXT r.client;
-    END LOOP;
-
-    RETURN;
-  END IF;
-
-  IF SubStr(pPath, 1, 6) = '/card/' THEN
-
-    IF current_session() IS NULL THEN
-      PERFORM LoginFailed();
-    END IF;
-
-    FOR r IN SELECT * FROM rest.card(pPath, pPayload)
-    LOOP
-      RETURN NEXT r.card;
-    END LOOP;
-
-    RETURN;
-  END IF;
-
-  IF SubStr(pPath, 1, 8) = '/device/' THEN
-
-    IF current_session() IS NULL THEN
-      PERFORM LoginFailed();
-    END IF;
-
-    FOR r IN SELECT * FROM rest.device(pPath, pPayload)
-    LOOP
-      RETURN NEXT r.device;
     END LOOP;
 
     RETURN;
@@ -231,6 +177,34 @@ BEGIN
     RETURN;
   END IF;
 
+  IF SubStr(pPath, 1, 8) = '/client/' THEN
+
+    IF current_session() IS NULL THEN
+      PERFORM LoginFailed();
+    END IF;
+
+    FOR r IN SELECT * FROM rest.client(pPath, pPayload)
+    LOOP
+      RETURN NEXT r.client;
+    END LOOP;
+
+    RETURN;
+  END IF;
+
+  IF SubStr(pPath, 1, 6) = '/card/' THEN
+
+    IF current_session() IS NULL THEN
+      PERFORM LoginFailed();
+    END IF;
+
+    FOR r IN SELECT * FROM rest.card(pPath, pPayload)
+    LOOP
+      RETURN NEXT r.card;
+    END LOOP;
+
+    RETURN;
+  END IF;
+
   IF SubStr(pPath, 1, 8) = '/tariff/' THEN
 
     IF current_session() IS NULL THEN
@@ -240,20 +214,6 @@ BEGIN
     FOR r IN SELECT * FROM rest.tariff(pPath, pPayload)
     LOOP
       RETURN NEXT r.tariff;
-    END LOOP;
-
-    RETURN;
-  END IF;
-
-  IF SubStr(pPath, 1, 9) = '/message/' THEN
-
-    IF current_session() IS NULL THEN
-      PERFORM LoginFailed();
-    END IF;
-
-    FOR r IN SELECT * FROM rest.message(pPath, pPayload)
-    LOOP
-      RETURN NEXT r.message;
     END LOOP;
 
     RETURN;

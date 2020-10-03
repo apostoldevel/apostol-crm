@@ -32,4 +32,4 @@ SELECT CreateAudience(GetProvider('default'), GetApplication('ios'), GetAlgorith
 
 --SELECT CreateAudience(GetProvider('google'), GetApplication('web'), GetAlgorithm('HS256'), '.apps.googleusercontent.com', '', 'Google Client Id for apostol-web-service.ru');
 
-SELECT AddMemberToGroup(CreateUser(code, secret, 'OAuth 2.0 Client Id', null,null, name, false, true, GetArea('root')), GetGroup('system')) FROM oauth2.audience;
+SELECT AddMemberToGroup(CreateUser(code, secret, 'OAuth 2.0 Client Id', null,null, name, false, true, GetArea('system')), GetGroup('system')) FROM oauth2.audience;

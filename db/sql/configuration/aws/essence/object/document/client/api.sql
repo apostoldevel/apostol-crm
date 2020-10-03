@@ -245,7 +245,7 @@ $$ LANGUAGE plpgsql
 
 CREATE OR REPLACE VIEW api.client_tariff
 AS
-  SELECT * FROM ClientTariffs;
+  SELECT * FROM ClientTariff;
 
 GRANT SELECT ON api.client_tariff TO administrator;
 
@@ -330,7 +330,7 @@ CREATE OR REPLACE FUNCTION api.get_client_tariffs_json (
 ) RETURNS	json
 AS $$
 BEGIN
-  RETURN GetClientTariffsJson(pClient);
+  RETURN GetClientTariffJson(pClient);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -345,7 +345,7 @@ CREATE OR REPLACE FUNCTION api.get_client_tariffs_jsonb (
 ) RETURNS	jsonb
 AS $$
 BEGIN
-  RETURN GetClientTariffsJsonb(pClient);
+  RETURN GetClientTariffJsonb(pClient);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
