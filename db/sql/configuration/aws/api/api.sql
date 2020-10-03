@@ -162,40 +162,22 @@ $$ LANGUAGE SQL
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
--- api.confirm_email -----------------------------------------------------------
+-- api.on_confirm_email --------------------------------------------------------
 --------------------------------------------------------------------------------
 /**
- * Подтверждает адрес электронной почты.
+ * СОБЫТИЕ: Подтверждает адрес электронной почты.
  * @param {numeric} pId - Идентификатор кода подтверждения
  * @return {record}
  */
-CREATE OR REPLACE FUNCTION api.confirm_email (
+CREATE OR REPLACE FUNCTION api.on_confirm_email (
   pId		    numeric
 ) RETURNS       void
 AS $$
 DECLARE
   nUserId       numeric;
-  vOAuthSecret  text;
 BEGIN
   SELECT userid INTO nUserId FROM db.verification_code WHERE id = pId;
   IF found THEN
-    SELECT a.secret INTO vOAuthSecret FROM oauth2.audience a WHERE a.code = session_username();
-
-    PERFORM SubstituteUser(GetUser('admin'), vOAuthSecret);
-
-    PERFORM DeleteGroupForMember(nUserId, GetGroup('guest'));
-
-    PERFORM AddMemberToGroup(nUserId, GetGroup('user'));
-    PERFORM AddMemberToArea(nUserId, current_area());
-
-    PERFORM SetDefaultArea(current_area(), nUserId);
-    PERFORM SetArea(current_area(), nUserId);
-
-    UPDATE db.session SET area = current_area() WHERE userid = nUserId;
-
-    PERFORM SetDefaultInterface(GetInterface('I:1:0:3'), nUserId);
-    PERFORM SetInterface(GetInterface('I:1:0:3'), nUserId);
-
     PERFORM ExecuteObjectAction(GetClientByUserId(nUserId), GetAction('confirm'));
   END IF;
 END;

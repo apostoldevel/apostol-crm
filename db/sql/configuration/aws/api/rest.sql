@@ -28,6 +28,46 @@ BEGIN
     PERFORM RouteIsEmpty();
   END IF;
 
+  IF SubStr(pPath, 1, 7) = '/admin/' THEN
+
+    IF current_session() IS NULL THEN
+      PERFORM LoginFailed();
+    END IF;
+
+    IF session_user <> 'kernel' THEN
+      IF NOT IsUserRole(GetGroup('administrator')) THEN
+        PERFORM AccessDenied();
+      END IF;
+    END IF;
+
+    FOR r IN SELECT * FROM rest.admin(pPath, pPayload)
+    LOOP
+      RETURN NEXT r.admin;
+    END LOOP;
+
+    RETURN;
+  END IF;
+
+  IF SubStr(pPath, 1, 10) = '/workflow/' THEN
+
+    IF current_session() IS NULL THEN
+      PERFORM LoginFailed();
+    END IF;
+
+    IF session_user <> 'kernel' THEN
+      IF NOT IsUserRole(GetGroup('administrator')) THEN
+        PERFORM AccessDenied();
+      END IF;
+    END IF;
+
+    FOR r IN SELECT * FROM rest.workflow(pPath, pPayload)
+    LOOP
+      RETURN NEXT r.workflow;
+    END LOOP;
+
+    RETURN;
+  END IF;
+
   IF SubStr(pPath, 1, 9) = '/current/' THEN
 
     FOR r IN SELECT * FROM rest.current(pPath)
@@ -75,20 +115,6 @@ BEGIN
     FOR r IN SELECT * FROM rest.registry(pPath, pPayload)
     LOOP
       RETURN NEXT r.registry;
-    END LOOP;
-
-    RETURN;
-  END IF;
-
-  IF SubStr(pPath, 1, 14) = '/verification/' THEN
-
-    IF current_session() IS NULL THEN
-      PERFORM LoginFailed();
-    END IF;
-
-    FOR r IN SELECT * FROM rest.verification(pPath, pPayload)
-    LOOP
-      RETURN NEXT r.verification;
     END LOOP;
 
     RETURN;
@@ -163,15 +189,15 @@ BEGIN
     RETURN;
   END IF;
 
-  IF SubStr(pPath, 1, 7) = '/model/' THEN
+  IF SubStr(pPath, 1, 7) = '/agent/' THEN
 
     IF current_session() IS NULL THEN
       PERFORM LoginFailed();
     END IF;
 
-    FOR r IN SELECT * FROM rest.model(pPath, pPayload)
+    FOR r IN SELECT * FROM rest.agent(pPath, pPayload)
     LOOP
-      RETURN NEXT r.model;
+      RETURN NEXT r.agent;
     END LOOP;
 
     RETURN;
@@ -344,7 +370,13 @@ BEGIN
       PERFORM LoginFailed();
     END IF;
 
-    RETURN NEXT row_to_json(api.whoami());
+    FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(fields jsonb)
+    LOOP
+      FOR e IN EXECUTE format('SELECT %s FROM api.whoami', JsonbToFields(r.fields, GetColumns('whoami', 'api')))
+      LOOP
+        RETURN NEXT row_to_json(e);
+      END LOOP;
+    END LOOP;
 
   WHEN '/api' THEN
 
