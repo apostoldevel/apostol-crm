@@ -115,7 +115,7 @@ PIN | Регулярное выражение POSIX: `!~*`
 POST /api/v1/object/geolocation/list HTTP/1.1
 Host: localhost:8080
 Content-Type: application/json
-Authorization: Basic YWRtaW46YWRtaW4=
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
 
 {"filter": {"object": 2, "code": "default"}}
 ````
@@ -124,7 +124,7 @@ Authorization: Basic YWRtaW46YWRtaW4=
 POST /api/v1/address/list HTTP/1.1
 Host: localhost:8080
 Content-Type: application/json
-Authorization: Basic YWRtaW46YWRtaW4=
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
 
 {"fields": ["description"], "search": [{"field": "apartment", "compare": "GEQ", "value": "5"}]}
 ````
@@ -133,7 +133,7 @@ Authorization: Basic YWRtaW46YWRtaW4=
 POST /api/v1/admin/session/list HTTP/1.1
 Host: localhost:8080
 Content-Type: application/json
-Authorization: Basic YWRtaW46YWRtaW4=
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
 
 {"search": [{"field":"userid","compare":"EQL","value":"1004","condition":"OR", "lstr": "("},{"field":"userid","compare":"EQL","value":"1010","condition":"OR", "rstr": ")"},{"field":"created","compare":"LSS","value":"12.08.2020"},{"field":"created","compare":"GEQ","value":"11.08.2020"}]}
 ````
@@ -223,8 +223,8 @@ userid | NUMERIC | Идентификатор учётной записи пол
 ```http request
 POST /api/v1/sign/up HTTP/1.1
 Host: localhost:8080
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
 
 {"type":"physical","name":{"name":"User Name","short":"User Name","first":"User","last":"Name","middle":""},"phone":"","email":"mail@mail.ru"}
 ```
@@ -587,7 +587,8 @@ POST /api/v1/action/run
 Имя | Тип | Значение | Описание
 ------------ | ------------ | ------------ |------------
 id | NUMERIC |  | **Обязательный**. Идентификатор объекта.
-action | NUMERIC |  | **Обязательный**. Идентификатор действия.
+action | NUMERIC |  | **Вариативный**. Идентификатор действия имеет приоритет над `code`.
+code | STRING |  | **Вариативный**. Код действия. Можно указать вместо идентификатора действия.  
 form | JSON |  | **Необязательный**. Параметры HTML формы в формате JSON.
 
 #### Типы состояний
@@ -663,7 +664,7 @@ statecode | STRING | Код состояния (вместо идентифик�
 POST /api/v1/method/get HTTP/1.1
 Host: localhost:8080
 Content-Type: application/x-www-form-urlencoded
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
 
 classcode=client&statecode=enabled
 ```
@@ -687,8 +688,23 @@ POST /api/v1/method/run
 Имя | Тип | Значение | Описание
 ------------ | ------------ | ------------ |------------
 id | NUMERIC |  | **Обязательный**. Идентификатор объекта.
-method | NUMERIC |  | **Обязательный**. Идентификатор метода.
+method | NUMERIC |  | **Вариативный**. Идентификатор метода имеет приоритет над `code`.
+code | STRING |  | **Вариативный**. Код действия. Можно указать вместо идентификатора метода.  
 form | JSON |  | **Необязательный**. Параметры HTML формы в формате JSON.
+
+* Обратите внимание, что в `code` передается не код метода, а код действия. 
+
+**Пример:**
+
+Запрос:
+```http request
+POST /api/v1/method/run HTTP/1.1
+Host: localhost:8080
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+
+{"id": 1, "code": "enable"}
+```
 
 #### Журнал событий
 ```http request
@@ -1249,6 +1265,53 @@ POST /api/v1/verification/list
 
 **Параметры запроса:**
 [Общие параметры запроса для списка](#общие-параметры-запроса-для-списка)
+
+## Реестр
+
+* Система предоставляет возможность хранить данные в реестре по аналогии с реестром в операционной системе Windows.
+
+Для доступа к данным нужно указать:
+1. **Идентификатор** - `Id`;
+1. **Наименования значения** - `ValueName`.
+
+или
+
+1. **Ключ** - `Key`;
+1. **Подключ** - `SubKey`;
+1. **Наименования значения** - `ValueName`.
+
+**Ключ** имеет два фиксированных значения (две категории):
+
+Имя | Значение | Описание
+------------ | ------------  |------------
+Текущие настройки | CURRENT_CONFIG | В данной категории хранится информация доступная всем пользователям.
+Текущий пользователь | CURRENT_USER | В данной категории хранится информация доступная только зарегистрированному пользователю.
+ 
+**Подключ** - это строка-путь к значениям. В качестве разделитеся используется обратная косая черта (слеш) ` \ `.
+
+* Подключ по своему формату напоминает путь к файлам в системах Windows. 
+
+* Обязательное условие: Подключ не должен начинатся и заканчиваться знаком обратной черты - ` \ `!  
+
+### Конечные точки
+
+#### Список
+```http request
+POST /api/v1/registry/list
+```
+Реестр в виде списка.
+
+**Параметры запроса:**
+
+Имя | Тип | Значение | Описание
+------------ | ------------ | ------------ |------------
+fields | JSON array |  | **Необязательный**. Массив JSON string полей в таблице, если не указано то запрос вернет все поля.
+
+```http request
+POST /api/v1/registry/list HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+```
 
 ## Конфигурация
 
