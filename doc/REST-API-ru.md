@@ -1287,11 +1287,11 @@ POST /api/v1/verification/list
 Текущие настройки | CURRENT_CONFIG | В данной категории хранится информация доступная всем пользователям.
 Текущий пользователь | CURRENT_USER | В данной категории хранится информация доступная только зарегистрированному пользователю.
  
-**Подключ** - это строка-путь к значениям. В качестве разделитеся используется обратная косая черта (слеш) ` \ `.
+**Подключ** - это строка-путь к значениям. В качестве разделителя используется обратная косая черта (слеш) ` \ `.
 
 * Подключ по своему формату напоминает путь к файлам в системах Windows. 
 
-* Обязательное условие: Подключ не должен начинатся и заканчиваться знаком обратной черты - ` \ `!  
+* Обязательное условие: Подключ не должен начинаться и заканчиваться знаком обратной черты - ` \ `!  
 
 ### Конечные точки
 
@@ -1305,12 +1305,612 @@ POST /api/v1/registry/list
 
 Имя | Тип | Значение | Описание
 ------------ | ------------ | ------------ |------------
-fields | JSON array |  | **Необязательный**. Массив JSON string полей в таблице, если не указано то запрос вернет все поля.
+id | NUMERIC | | **Необязательный**. Идентификатор записи в реестре.
+key | NUMERIC | | **Необязательный**. Идентификатор ключа.
+subkey | NUMERIC | | **Необязательный**. Идентификатор подключа.
+extended | NUMERIC | | **Необязательный**. Расширенный формат значения. При `true` формат `value` будет табличным при `false` в виде вложенного JSON объекта.
 
 ```http request
 POST /api/v1/registry/list HTTP/1.1
 Host: localhost:8080
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+```
+**Формат ответа:**
+
+Поле | Тип | Описание
+------------ | ------------ | ------------
+id | NUMERIC | Идентификатор записи в реестре.
+key | NUMERIC | Идентификатор ключа.
+keyname | STRING | Наименование ключа.
+parent | NUMERIC | Идентификатор ключа родителя.
+subkey | NUMERIC | Идентификатор подключа.
+subkeyname | STRING | Наименование подключа.
+level | NUMERIC | Уровень иерархии.
+valuename | STRING | Наименования значения.
+value | JSON | Значение. При `extended: false` (по умолчанию). 
+
+**Формат `value`:**
+
+Поле | Тип | Описание
+------------ | ------------ | ------------
+vtype | INTEGER | Тип значения. 0 - Целое число; 1 - Число с произвольной точностью; 2 - Дата и время; 3 - Строка; 4 - Логический
+vinteger | INTEGER | Целое число.
+vnumeric | NUMERIC | Число с произвольной точностью.
+vdatetime | TIMESTAMP | Дата и время.
+vstring | STRING | Строка.
+vboolean | BOOLEAN | Логический.
+
+#### Ключ
+```http request
+POST /api/v1/registry/key
+```
+Ключи реестра.
+
+**Параметры запроса:**
+
+Имя | Тип | Значение | Описание
+------------ | ------------ | ------------ |------------
+id | NUMERIC | | **Необязательный**. Идентификатор записи в реестре.
+root | NUMERIC | | **Необязательный**. Идентификатор записи в реестре.
+parent | NUMERIC | | **Необязательный**. Идентификатор подключа.
+key | NUMERIC | | **Необязательный**. Идентификатор ключа.
+
+#### Значение
+```http request
+POST /api/v1/registry/value
+```
+Значения в реестре.
+
+**Параметры запроса:**
+
+Имя | Тип | Значение | Описание
+------------ | ------------ | ------------ |------------
+id | NUMERIC | | **Необязательный**. Идентификатор записи в реестре.
+key | NUMERIC | | **Необязательный**. Идентификатор ключа.
+extended | NUMERIC | | **Необязательный**. Расширенный формат значения. При `true` формат `value` будет табличным при `false` в виде вложенного JSON объекта.
+
+**Формат ответа:**
+
+Поле | Тип | Описание
+------------ | ------------ | ------------
+id | NUMERIC | Идентификатор записи в реестре.
+key | NUMERIC | Идентификатор ключа.
+keyname | STRING | Наименование ключа.
+subkey | NUMERIC | Идентификатор подключа.
+subkeyname | STRING | Наименование подключа.
+valuename | STRING | Наименования значения.
+value | JSON | Значение. При `extended: false` (по умолчанию). 
+
+**Формат `value`:**
+
+Поле | Тип | Описание
+------------ | ------------ | ------------
+vtype | INTEGER | Тип значения. 0 - Целое число; 1 - Число с произвольной точностью; 2 - Дата и время; 3 - Строка; 4 - Логический
+vinteger | INTEGER | Целое число.
+vnumeric | NUMERIC | Число с произвольной точностью.
+vdatetime | TIMESTAMP | Дата и время.
+vstring | STRING | Строка.
+vboolean | BOOLEAN | Логический.
+
+#### Вернуть ключ
+```http request
+POST /api/v1/registry/get/key
+```
+Возвращает ключ реестра.
+
+**Параметры запроса:**
+
+Имя | Тип | Значение | Описание
+------------ | ------------ | ------------ |------------
+id | NUMERIC | | **Необязательный**. Идентификатор ключа.
+
+**Формат ответа:**
+
+Поле | Тип | Описание
+------------ | ------------ | ------------
+id | NUMERIC | Идентификатор записи в реестре.
+root | NUMERIC | Идентификатор корневого ключа.
+parent | NUMERIC | Идентификатор ключа родителя.
+key | STRING | Наименование ключа.
+level | NUMERIC | Уровень иерархии.
+
+#### Перечислить ключи
+```http request
+POST /api/v1/registry/enum/key
+```
+Перечисляет ключи по указанному пути.
+
+**Параметры запроса:**
+
+Имя | Тип | Значение | Описание
+------------ | ------------ | ------------ |------------
+key | STRING | CURRENT_CONFIG, CURRENT_USER | **Обязательный**. Наименование ключа.
+subkey | STRING | | **Обязательный**. Наименование подключа.
+
+**Формат ответа:**
+
+Поле | Тип | Описание
+------------ | ------------ | ------------
+id | NUMERIC | Идентификатор записи в реестре.
+root | NUMERIC | Идентификатор корневого ключа.
+parent | NUMERIC | Идентификатор ключа родителя.
+key | STRING | Наименование ключа.
+level | NUMERIC | Уровень иерархии.
+
+**Пример запроса:**
+
+```http request
+POST /api/v1/registry/enum/key HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+Content-Type: application/json
+
+{"key": "CURRENT_CONFIG", "subkey": "CONFIG"}
+```
+**Пример ответа:**
+
+```json
+[
+  {
+"id": 3,
+"key": "CURRENT_CONFIG",
+"subkey": "CONFIG\\Department"
+},
+  {
+"id": 132,
+"key": "CURRENT_CONFIG",
+"subkey": "CONFIG\\CurrentProject"
+}
+]
+```
+
+**Пример запроса:**
+
+```http request
+POST /api/v1/registry/enum/key HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+Content-Type: application/json
+
+{"key": "CURRENT_CONFIG", "subkey": "CONFIG\\Department"}
+```
+
+**Пример ответа:**
+
+```json
+[
+  {
+"id": 4,
+"key": "CURRENT_CONFIG",
+"subkey": "CONFIG\\Department\\root"
+},
+  {
+"id": 20,
+"key": "CURRENT_CONFIG",
+"subkey": "CONFIG\\Department\\system"
+},
+  {
+"id": 36,
+"key": "CURRENT_CONFIG",
+"subkey": "CONFIG\\Department\\guest"
+},
+  {
+"id": 52,
+"key": "CURRENT_CONFIG",
+"subkey": "CONFIG\\Department\\all"
+},
+  {
+"id": 68,
+"key": "CURRENT_CONFIG",
+"subkey": "CONFIG\\Department\\default"
+}
+]
+```
+
+#### Перечислить значения
+```http request
+POST /api/v1/registry/enum/value
+```
+Перечисляет значения по указанному пути.
+
+**Параметры запроса:**
+
+Имя | Тип | Значение | Описание
+------------ | ------------ | ------------ |------------
+key | STRING | CURRENT_CONFIG, CURRENT_USER | **Обязательный**. Наименование ключа.
+subkey | STRING | | **Обязательный**. Наименование подключа.
+extended | NUMERIC | | **Необязательный**. Расширенный формат значения. При `true` формат `value` будет табличным при `false` в виде вложенного JSON объекта.
+
+**Формат ответа:**
+
+Поле | Тип | Описание
+------------ | ------------ | ------------
+id | NUMERIC | Идентификатор записи в реестре.
+key | STRING | Наименование ключа.
+subkey | STRING | Наименование подключа.
+valuename | STRING | Наименования значения.
+value | JSON | Значение. При `extended: false` (по умолчанию). 
+
+**Формат `value`:**
+
+Поле | Тип | Описание
+------------ | ------------ | ------------
+vtype | INTEGER | Тип значения. 0 - Целое число; 1 - Число с произвольной точностью; 2 - Дата и время; 3 - Строка; 4 - Логический
+vinteger | INTEGER | Целое число.
+vnumeric | NUMERIC | Число с произвольной точностью.
+vdatetime | TIMESTAMP | Дата и время.
+vstring | STRING | Строка.
+vboolean | BOOLEAN | Логический.
+
+**Пример запроса:**
+
+```http request
+POST /api/v1/registry/enum/value HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+Content-Type: application/json
+
+{"key": "CURRENT_CONFIG", "subkey": "CONFIG\\CurrentProject"}
+```
+
+#### Записать
+```http request
+POST /api/v1/registry/write
+```
+Сохранить данные в реестре.
+
+**Параметры запроса:**
+
+Имя | Тип | Значение | Описание
+------------ | ------------ | ------------ |------------
+id | NUMERIC | | **Вариативный** Идентификатор ключа в реестре. Имеет приоритете над парой `Key` и `SubKey` 
+key | STRING | CURRENT_CONFIG, CURRENT_USER | **Вариативный**. Наименование ключа.
+subkey | STRING | | **Вариативный**. Наименование подключа.
+name | STRING | | **Обязательный**. Наименование значения. При отсутствии будет создано.
+type | INTEGER | 0, 1, 2, 3, 4 | **Обязательный**. Тип значения. 0 - Целое число; 1 - Число с произвольной точностью; 2 - Дата и время; 3 - Строка; 4 - Логический
+data | ANYNONARRAY | | **Обязательный**. Данные в соответствии с указанным типом.
+
+**Пример запроса:**
+
+```http request
+POST /api/v1/registry/write HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+Content-Type: application/json
+
+{"key": "CURRENT_CONFIG", "subkey": "CONFIG\\CurrentProject", "name": "Name", "type": 3, "data": "Project name"}
+```
+
+#### Записать (целое число)
+```http request
+POST /api/v1/registry/write/integer
+```
+Сохранить целое число в реестре.
+
+**Параметры запроса:**
+
+Имя | Тип | Значение | Описание
+------------ | ------------ | ------------ |------------
+id | NUMERIC | | **Вариативный** Идентификатор ключа в реестре. Имеет приоритете над парой `Key` и `SubKey` 
+key | STRING | CURRENT_CONFIG, CURRENT_USER | **Вариативный**. Наименование ключа.
+subkey | STRING | | **Вариативный**. Наименование подключа.
+name | STRING | | **Обязательный**. Наименование значения. При отсутствии будет создано.
+value | INTEGER | | **Обязательный**. Значение. 
+
+**Пример запроса:**
+
+```http request
+POST /api/v1/registry/write/integer HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+Content-Type: application/json
+
+{"key": "CURRENT_CONFIG", "subkey": "CONFIG\\CurrentProject", "name": "IntegerValue", "value": 1}
+```
+
+#### Записать (вещественное число)
+```http request
+POST /api/v1/registry/write/numeric
+```
+Сохранить вещественное число в реестре.
+
+**Параметры запроса:**
+
+Имя | Тип | Значение | Описание
+------------ | ------------ | ------------ |------------
+id | NUMERIC | | **Вариативный** Идентификатор ключа в реестре. Имеет приоритете над парой `Key` и `SubKey` 
+key | STRING | CURRENT_CONFIG, CURRENT_USER | **Вариативный**. Наименование ключа.
+subkey | STRING | | **Вариативный**. Наименование подключа.
+name | STRING | | **Обязательный**. Наименование значения. При отсутствии будет создано.
+value | NUMERIC | | **Обязательный**. Значение. 
+
+**Пример запроса:**
+
+```http request
+POST /api/v1/registry/write/numeric HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+Content-Type: application/json
+
+{"key": "CURRENT_CONFIG", "subkey": "CONFIG\\CurrentProject", "name": "NumberValue", "value": 0.1}
+```
+
+#### Записать (дату и время)
+```http request
+POST /api/v1/registry/write/datetime
+```
+Сохранить дату и время в реестре.
+
+**Параметры запроса:**
+
+Имя | Тип | Значение | Описание
+------------ | ------------ | ------------ |------------
+id | NUMERIC | | **Вариативный** Идентификатор ключа в реестре. Имеет приоритете над парой `Key` и `SubKey` 
+key | STRING | CURRENT_CONFIG, CURRENT_USER | **Вариативный**. Наименование ключа.
+subkey | STRING | | **Вариативный**. Наименование подключа.
+name | STRING | | **Обязательный**. Наименование значения. При отсутствии будет создано.
+value | TIMESTAMP | | **Обязательный**. Значение. 
+
+**Пример запроса:**
+
+```http request
+POST /api/v1/registry/write/datetime HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+Content-Type: application/json
+
+{"key": "CURRENT_CONFIG", "subkey": "CONFIG\\CurrentProject", "name": "DateTimeValue", "value": "2020-01-02T03:04:05"}
+```
+
+#### Записать (строку)
+```http request
+POST /api/v1/registry/write/string
+```
+Сохранить строку в реестре.
+
+**Параметры запроса:**
+
+Имя | Тип | Значение | Описание
+------------ | ------------ | ------------ |------------
+id | NUMERIC | | **Вариативный** Идентификатор ключа в реестре. Имеет приоритете над парой `Key` и `SubKey` 
+key | STRING | CURRENT_CONFIG, CURRENT_USER | **Вариативный**. Наименование ключа.
+subkey | STRING | | **Вариативный**. Наименование подключа.
+name | STRING | | **Обязательный**. Наименование значения. При отсутствии будет создано.
+value | STRING | | **Обязательный**. Значение. 
+
+**Пример запроса:**
+
+```http request
+POST /api/v1/registry/write/string HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+Content-Type: application/json
+
+{"key": "CURRENT_CONFIG", "subkey": "CONFIG\\CurrentProject", "name": "StringValue", "value": "Any string"}
+```
+
+#### Записать (логическое значение)
+```http request
+POST /api/v1/registry/write/boolean
+```
+Сохранить логическое значение в реестре.
+
+**Параметры запроса:**
+
+Имя | Тип | Значение | Описание
+------------ | ------------ | ------------ |------------
+id | NUMERIC | | **Вариативный** Идентификатор ключа в реестре. Имеет приоритете над парой `Key` и `SubKey` 
+key | STRING | CURRENT_CONFIG, CURRENT_USER | **Вариативный**. Наименование ключа.
+subkey | STRING | | **Вариативный**. Наименование подключа.
+name | STRING | | **Обязательный**. Наименование значения. При отсутствии будет создано.
+value | BOOLEAN | | **Обязательный**. Значение. 
+
+**Пример запроса:**
+
+```http request
+POST /api/v1/registry/write/boolean HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+Content-Type: application/json
+
+{"key": "CURRENT_CONFIG", "subkey": "CONFIG\\CurrentProject", "name": "LogicValue", "value": true}
+```
+
+#### Прочитать
+```http request
+POST /api/v1/registry/read
+```
+Получить данные из реестра.
+
+**Параметры запроса:**
+
+Имя | Тип | Значение | Описание
+------------ | ------------ | ------------ |------------
+id | NUMERIC | | **Вариативный** Идентификатор ключа в реестре. Имеет приоритете над парой `Key` и `SubKey` 
+key | STRING | CURRENT_CONFIG, CURRENT_USER | **Вариативный**. Наименование ключа.
+subkey | STRING | | **Вариативный**. Наименование подключа.
+name | STRING | | **Обязательный**. Наименование значения.
+
+**Формат ответа:**
+
+Поле | Тип | Описание
+------------ | ------------ | ------------
+vtype | INTEGER | Тип значения. 0 - Целое число; 1 - Число с произвольной точностью; 2 - Дата и время; 3 - Строка; 4 - Логический
+vinteger | INTEGER | Целое число.
+vnumeric | NUMERIC | Число с произвольной точностью.
+vdatetime | TIMESTAMP | Дата и время.
+vstring | STRING | Строка.
+vboolean | BOOLEAN | Логический.
+
+**Пример запроса:**
+
+```http request
+POST /api/v1/registry/read HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+Content-Type: application/json
+
+{"key": "CURRENT_CONFIG", "subkey": "CONFIG\\CurrentProject", "name": "Name"}
+```
+
+#### Прочитать (целое число)
+```http request
+POST /api/v1/registry/read/integer
+```
+Получить целое число из реестра.
+
+**Параметры запроса:**
+
+Имя | Тип | Значение | Описание
+------------ | ------------ | ------------ |------------
+id | NUMERIC | | **Вариативный** Идентификатор ключа в реестре. Имеет приоритете над парой `Key` и `SubKey` 
+key | STRING | CURRENT_CONFIG, CURRENT_USER | **Вариативный**. Наименование ключа.
+subkey | STRING | | **Вариативный**. Наименование подключа.
+name | STRING | | **Обязательный**. Наименование значения.
+
+**Формат ответа:**
+
+Поле | Тип | Описание
+------------ | ------------ | ------------
+value | INTEGER | Значение. 
+
+**Пример запроса:**
+
+```http request
+POST /api/v1/registry/read/integer HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+Content-Type: application/json
+
+{"key": "CURRENT_CONFIG", "subkey": "CONFIG\\CurrentProject", "name": "IntegerValue"}
+```
+
+#### Прочитать (вещественное число)
+```http request
+POST /api/v1/registry/read/numeric
+```
+Получить вещественное число из реестра.
+
+**Параметры запроса:**
+
+Имя | Тип | Значение | Описание
+------------ | ------------ | ------------ |------------
+id | NUMERIC | | **Вариативный** Идентификатор ключа в реестре. Имеет приоритете над парой `Key` и `SubKey` 
+key | STRING | CURRENT_CONFIG, CURRENT_USER | **Вариативный**. Наименование ключа.
+subkey | STRING | | **Вариативный**. Наименование подключа.
+name | STRING | | **Обязательный**. Наименование значения.
+
+**Формат ответа:**
+
+Поле | Тип | Описание
+------------ | ------------ | ------------
+value | NUMERIC | Значение. 
+
+**Пример запроса:**
+
+```http request
+POST /api/v1/registry/read/numeric HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+Content-Type: application/json
+
+{"key": "CURRENT_CONFIG", "subkey": "CONFIG\\CurrentProject", "name": "NumberValue"}
+```
+
+#### Прочитать (дату и время)
+```http request
+POST /api/v1/registry/read/datetime
+```
+Получить дату и время из реестра.
+
+**Параметры запроса:**
+
+Имя | Тип | Значение | Описание
+------------ | ------------ | ------------ |------------
+id | NUMERIC | | **Вариативный** Идентификатор ключа в реестре. Имеет приоритете над парой `Key` и `SubKey` 
+key | STRING | CURRENT_CONFIG, CURRENT_USER | **Вариативный**. Наименование ключа.
+subkey | STRING | | **Вариативный**. Наименование подключа.
+name | STRING | | **Обязательный**. Наименование значения. При отсутствии будет создано.
+
+**Формат ответа:**
+
+Поле | Тип | Описание
+------------ | ------------ | ------------
+value | TIMESTAMP | Значение. 
+
+**Пример запроса:**
+
+```http request
+POST /api/v1/registry/read/datetime HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+Content-Type: application/json
+
+{"key": "CURRENT_CONFIG", "subkey": "CONFIG\\CurrentProject", "name": "DateTimeValue"}
+```
+
+#### Прочитать (строку)
+```http request
+POST /api/v1/registry/read/string
+```
+Получить строку в реестре.
+
+**Параметры запроса:**
+
+Имя | Тип | Значение | Описание
+------------ | ------------ | ------------ |------------
+id | NUMERIC | | **Вариативный** Идентификатор ключа в реестре. Имеет приоритете над парой `Key` и `SubKey` 
+key | STRING | CURRENT_CONFIG, CURRENT_USER | **Вариативный**. Наименование ключа.
+subkey | STRING | | **Вариативный**. Наименование подключа.
+name | STRING | | **Обязательный**. Наименование значения. При отсутствии будет создано.
+
+**Формат ответа:**
+
+Поле | Тип | Описание
+------------ | ------------ | ------------
+value | STRING | Значение. 
+
+**Пример запроса:**
+
+```http request
+POST /api/v1/registry/read/string HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+Content-Type: application/json
+
+{"key": "CURRENT_CONFIG", "subkey": "CONFIG\\CurrentProject", "name": "StringValue"}
+```
+
+#### Прочитать (логическое значение)
+```http request
+POST /api/v1/registry/read/boolean
+```
+Получить логическое значение из реестра.
+
+**Параметры запроса:**
+
+Имя | Тип | Значение | Описание
+------------ | ------------ | ------------ |------------
+id | NUMERIC | | **Вариативный** Идентификатор ключа в реестре. Имеет приоритете над парой `Key` и `SubKey` 
+key | STRING | CURRENT_CONFIG, CURRENT_USER | **Вариативный**. Наименование ключа.
+subkey | STRING | | **Вариативный**. Наименование подключа.
+name | STRING | | **Обязательный**. Наименование значения. При отсутствии будет создано.
+
+**Формат ответа:**
+
+Поле | Тип | Описание
+------------ | ------------ | ------------
+value | BOOLEAN | Значение.
+
+**Пример запроса:**
+
+```http request
+POST /api/v1/registry/read/boolean HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+Content-Type: application/json
+
+{"key": "CURRENT_CONFIG", "subkey": "CONFIG\\CurrentProject", "name": "LogicValue"}
 ```
 
 ## Конфигурация
@@ -1327,7 +1927,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно
 
 * Для всех _объектов_ имеются общие конечные точки:
 
-###### Описание конечных точек сущностей [здесь](#конечные-точки-сущностей).  
+##### Описание конечных точек сущностей [здесь](#конечные-точки-сущностей).  
 
 ```http request
 POST /api/v1/<essence>/<action>
