@@ -1272,13 +1272,13 @@ POST /api/v1/verification/list
 
 Для доступа к данным нужно указать:
 1. **Идентификатор** - `Id`;
-1. **Наименования значения** - `ValueName`.
+1. **Наименование значения** - `ValueName`.
 
 или
 
 1. **Ключ** - `Key`;
 1. **Подключ** - `SubKey`;
-1. **Наименования значения** - `ValueName`.
+1. **Наименование значения** - `ValueName`.
 
 **Ключ** имеет два фиксированных значения (две категории):
 
@@ -1326,7 +1326,7 @@ parent | NUMERIC | Идентификатор ключа родителя.
 subkey | NUMERIC | Идентификатор подключа.
 subkeyname | STRING | Наименование подключа.
 level | NUMERIC | Уровень иерархии.
-valuename | STRING | Наименования значения.
+valuename | STRING | Наименование значения.
 value | JSON | Значение. При `extended: false` (по умолчанию). 
 
 **Формат `value`:**
@@ -1378,7 +1378,7 @@ key | NUMERIC | Идентификатор ключа.
 keyname | STRING | Наименование ключа.
 subkey | NUMERIC | Идентификатор подключа.
 subkeyname | STRING | Наименование подключа.
-valuename | STRING | Наименования значения.
+valuename | STRING | Наименование значения.
 value | JSON | Значение. При `extended: false` (по умолчанию). 
 
 **Формат `value`:**
@@ -1528,7 +1528,7 @@ extended | NUMERIC | | **Необязательный**. Расширенный 
 id | NUMERIC | Идентификатор записи в реестре.
 key | STRING | Наименование ключа.
 subkey | STRING | Наименование подключа.
-valuename | STRING | Наименования значения.
+valuename | STRING | Наименование значения.
 value | JSON | Значение. При `extended: false` (по умолчанию). 
 
 **Формат `value`:**
