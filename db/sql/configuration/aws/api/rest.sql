@@ -445,6 +445,37 @@ BEGIN
       END LOOP;
     END LOOP;
 
+  WHEN '/state/class' THEN
+
+    IF pPayload IS NULL THEN
+      PERFORM JsonIsEmpty();
+    END IF;
+
+    arKeys := array_cat(arKeys, ARRAY['fields', 'class', 'code']);
+    PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+
+    IF jsonb_typeof(pPayload) = 'array' THEN
+
+      FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(fields jsonb, class numeric, code varchar)
+      LOOP
+        FOR e IN EXECUTE format('SELECT %s FROM api.state($1)', JsonbToFields(r.fields, GetColumns('state', 'api'))) USING coalesce(r.class, GetClass(r.code))
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
+      END LOOP;
+
+    ELSE
+
+      FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(fields jsonb, class numeric, code varchar)
+      LOOP
+        FOR e IN EXECUTE format('SELECT %s FROM api.state($1)', JsonbToFields(r.fields, GetColumns('state', 'api'))) USING coalesce(r.class, GetClass(r.code))
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
+      END LOOP;
+
+    END IF;
+
   WHEN '/action' THEN
 
     FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(fields jsonb)

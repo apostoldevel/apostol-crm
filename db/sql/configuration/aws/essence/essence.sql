@@ -176,11 +176,11 @@ BEGIN
     END IF;
 
     IF rec_class.code = 'inbox' THEN
-      PERFORM AddType(rec_class.id, 'inbox.message', 'Входящие', 'Входящие сообщения.');
+      PERFORM AddType(rec_class.id, 'message.inbox', 'Входящие', 'Входящие сообщения.');
     END IF;
 
     IF rec_class.code = 'outbox' THEN
-      PERFORM AddType(rec_class.id, 'outbox.message', 'Исходящие', 'Исходящие сообщения.');
+      PERFORM AddType(rec_class.id, 'message.outbox', 'Исходящие', 'Исходящие сообщения.');
     END IF;
 
     IF rec_class.code = 'calendar' THEN
