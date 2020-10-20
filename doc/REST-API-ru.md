@@ -1102,6 +1102,28 @@ data | JSON array |  | **Обязательный**. Массив JSON объе�
 
 **ВНИМАНИЕ**: Если значение ключа `data` не указано или равно `null`, то действие считается как `Удалить`.   
 
+**Пример:**
+
+Запрос (установить):
+```http request
+POST /api/v1/object/data/set HTTP/1.1
+Host: localhost:8080
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+
+{"id": 2, "data": [{"type": "json", "code": "unique.code", "data": "{\"search\": [{\"field\": \"validfromdate\", \"value\": \"24.03.2020 00:31:23\", \"compare\": \"LEQ\"}, {\"field\": \"validtodate\", \"value\": \"24.03.2020 00:31:23\", \"compare\": \"GTR\"}]}"}]}
+```
+
+Запрос (удалить):
+```http request
+POST /api/v1/object/data/set HTTP/1.1
+Host: localhost:8080
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+
+{"id": 2, "data": [{"type": "json", "code": "unique.code", "data": null}]}
+```
+
 #### Получить
 ```http request
 POST /api/v1/object/data/get
@@ -1113,10 +1135,22 @@ POST /api/v1/object/data/get
 Имя | Тип | Значение | Описание
 ------------ | ------------ | ------------ |------------
 id | NUMERIC |  | **Обязательный**. Идентификатор объекта.
-type | NUMERIC |  | **Вариативный**. Идентификатор типа произвольных данных объекта. 
+type | NUMERIC |  | **Вариативный**. Идентификатор типа произвольных данных объекта (имеет приоритет над кодом типа данных). 
 typecode | STRING | text, json, xml | **Вариативный**. Код типа произвольных данных объекта. 
 code | STRING | | **Обязательный**. Код произвольных данных.
 fields | JSON array |  | **Необязательный**. Массив JSON string полей в таблице, если не указано то запрос вернет все поля.
+
+**Пример:**
+
+Запрос:
+```http request
+POST /api/v1/object/data/get HTTP/1.1
+Host: localhost:8080
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+
+{"id": 2, "typecode": "json", "code": "unique.code"}
+```
 
 #### Список
 ```http request
@@ -1126,6 +1160,16 @@ POST /api/v1/object/data/list
 
 **Параметры запроса:**
 [Общие параметры запроса для списка](#общие-параметры-запроса-для-списка)
+
+Запрос:
+```http request
+POST /api/v1/object/data/list HTTP/1.1
+Host: localhost:8080
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
+
+{"filter": {"object": 2, "typecode": "json", "code": "unique.code"}}
+```
 
 ### Геолокация объекта
 ```http request
