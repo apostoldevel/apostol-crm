@@ -677,6 +677,15 @@ classcode=client&statecode=enabled
 ]
 ```
 
+#### Список
+```http request
+POST /api/v1/method/list
+```
+Возвращает методы в виде списка.
+
+**Параметры запроса:**
+[Общие параметры запроса для списка](#общие-параметры-запроса-для-списка)
+
 #### Выполнить
 ```http request
 POST /api/v1/method/execute
