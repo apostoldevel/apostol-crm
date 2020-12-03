@@ -698,12 +698,12 @@ form | JSON |  | **Необязательный**. Параметры HTML фо�
 
 Запрос:
 ```http request
-POST /api/v1/method/run HTTP/1.1
+POST /api/v1/method/execute HTTP/1.1
 Host: localhost:8080
 Content-Type: application/json
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.[сокращенно для краткости].NorYsi-Ht826HUFCEArVZ60_dEUmYiJYXubnTyweIMg
 
-{"id": 1, "code": "enable"}
+{"object": 1, "code": "enable"}
 ```
 
 ### Журнал событий
