@@ -1,5 +1,2 @@
 \echo [M] call api.sql
 \ir api.sql
-
-\echo [M] call rest.sql
-\ir rest.sql

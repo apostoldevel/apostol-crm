@@ -15,9 +15,10 @@
  * @param {text} pEmail - Электронный адрес
  * @param {jsonb} pInfo - Дополнительная информация
  * @param {text} pDescription - Информация о клиенте
- * @out param {text} session - Сессия
- * @out param {text} secret - Секретный ключ для подписи методом HMAC-256
- * @out param {text} code - Одноразовый код авторизации для получения маркера см. OAuth 2.0
+ * @out param {id} numeric - Идентификатор клиента
+ * @out param {userId} numeric - Идентификатор учетной записи
+ * @out param {text} uid - Login пользователя
+ * @out param {text} secret - Секретный код пользователя
  * @return {record}
  */
 CREATE OR REPLACE FUNCTION api.signup (
@@ -29,8 +30,10 @@ CREATE OR REPLACE FUNCTION api.signup (
   pEmail        text DEFAULT null,
   pInfo         jsonb DEFAULT null,
   pDescription  text DEFAULT null,
-  OUT id        numeric,
-  OUT userId    numeric
+  OUT id		numeric,
+  OUT userId	numeric,
+  OUT uid		text,
+  OUT secret	text
 ) RETURNS       record
 AS $$
 DECLARE
@@ -42,7 +45,8 @@ DECLARE
   jPhone        jsonb;
   jEmail        jsonb;
 
-  vSecret       text;
+  vOAuthSecret	text;
+  vSecret		text;
 
   arKeys        text[];
 BEGIN
@@ -79,13 +83,15 @@ BEGIN
     cn.name := pUserName;
   END IF;
 
-  SELECT secret INTO vSecret FROM oauth2.audience WHERE code = session_username();
+  SELECT a.secret INTO vOAuthSecret FROM oauth2.audience a WHERE a.code = session_username();
 
-  PERFORM SubstituteUser(GetUser('admin'), vSecret);
+  PERFORM SubstituteUser(GetUser('admin'), vOAuthSecret);
 
   nUserId := CreateUser(pUserName, pPassword, coalesce(NULLIF(trim(cn.short), ''), cn.name), pPhone, pEmail, cn.name, true, false, GetArea('guest'));
 
   PERFORM AddMemberToGroup(nUserId, GetGroup('guest'));
+
+  SELECT encode(hmac(u.secret::text, GetSecretKey(), 'sha512'), 'hex') INTO vSecret FROM db.user u WHERE u.id = nUserId;
 
   IF pPhone IS NOT NULL THEN
     jPhone := jsonb_build_object('mobile', pPhone);
@@ -95,14 +101,14 @@ BEGIN
     jEmail := jsonb_build_array(pEmail);
   END IF;
 
-  nClient := CreateClient(null, CodeToType(pType, 'client'), pUserName, nUserId, jPhone, jEmail, pInfo, pDescription);
+  nClient := CreateClient(null, CodeToType(pType, 'client'), pUserName, nUserId, pName, jPhone, jEmail, pInfo, null, pDescription);
 
-  PERFORM NewClientName(nClient, cn.name, cn.short, cn.first, cn.last, cn.middle);
-
-  PERFORM SubstituteUser(session_userid(), vSecret);
+  PERFORM SubstituteUser(session_userid(), vOAuthSecret);
 
   id := nClient;
   userId := nUserId;
+  uid := pUserName;
+  secret := vSecret;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -130,7 +136,7 @@ $$ LANGUAGE plpgsql
 CREATE OR REPLACE VIEW api.whoami
 AS
   WITH cs AS (
-      SELECT current_session() AS session, oper_date() AS oper_date
+      SELECT current_session() AS session
   )
   SELECT c.id, s.userid, s.suid,
          IsUserRole(GetGroup('administrator'), s.userid) AS admin,
@@ -147,7 +153,7 @@ AS
                       INNER JOIN db.locale l ON l.id = s.locale
                       INNER JOIN db.area a ON a.id = s.area
                       INNER JOIN db.interface i ON i.id = s.interface
-                       LEFT JOIN client c ON c.userid = s.userid;
+                       LEFT JOIN Client c ON c.userid = s.userid;
 
 --------------------------------------------------------------------------------
 -- api.whoami ------------------------------------------------------------------
@@ -170,7 +176,7 @@ $$ LANGUAGE SQL
  * @return {record}
  */
 CREATE OR REPLACE FUNCTION api.on_confirm_email (
-  pId		    numeric
+  pId           numeric
 ) RETURNS       void
 AS $$
 DECLARE

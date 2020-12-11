@@ -1,4 +1,0 @@
-\ir './object/object.psql'
-
-\echo [M] call essence.sql
-\ir essence.sql

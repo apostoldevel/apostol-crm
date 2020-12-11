@@ -1,7 +1,7 @@
 \echo [M] aws.psql
 
-\echo [M] call essence.sql
-\ir './essence/essence.psql'
+\echo [M] call entity.sql
+\ir './entity/entity.psql'
 
 \echo [M] call api.sql
 \ir './api/api.psql'
