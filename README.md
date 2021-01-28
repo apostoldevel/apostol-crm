@@ -33,8 +33,10 @@
 
 - [Сервера авторизации](https://github.com/ufocomp/module-AuthServer) (OAuth 2.0);
 - [Сервера приложений](https://github.com/ufocomp/module-AppServer) (REST API);
-- [Веб-сервера](https://github.com/ufocomp/module-WebServer) (HTTP-сервера);
-- [WebSocket API](https://github.com/ufocomp/module-WebSocketAPI).
+- [Сервера сообщений](https://github.com/ufocomp/process-MessageServer) (SMTP/FCM/API);
+- [Сервера потоковых данных](https://github.com/ufocomp/process-StreamServer) (UDP);
+- [Веб-сервера](https://github.com/ufocomp/module-WebServer) (HTTP);
+- [WebSocket API](https://github.com/ufocomp/module-WebSocketAPI) (WebSocket).
 
 Платформа устанавливается на сервер из исходных кодов в виде системной службы под операционную систему Linux.
 
