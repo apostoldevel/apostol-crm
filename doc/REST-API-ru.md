@@ -13,8 +13,10 @@
 
 - [Сервера авторизации](https://github.com/ufocomp/module-AuthServer) (OAuth 2.0);
 - [Сервера приложений](https://github.com/ufocomp/module-AppServer) (REST API);
-- [Веб-сервера](https://github.com/ufocomp/module-WebServer) (HTTP-сервера);
-- [WebSocket API](https://github.com/ufocomp/module-WebSocketAPI).
+- [Сервера сообщений](https://github.com/ufocomp/process-MessageServer) (SMTP/FCM/API);
+- [Сервера потоковых данных](https://github.com/ufocomp/process-StreamServer) (UDP);
+- [Веб-сервера](https://github.com/ufocomp/module-WebServer) (HTTP);
+- [WebSocket API](https://github.com/ufocomp/module-WebSocketAPI) (WebSocket).
 
 Платформа устанавливается на сервер из [исходных кодов](https://github.com/ufocomp/apostol-aws) в виде системной службы под операционную систему Linux.
 
@@ -37,6 +39,18 @@
 **Сервер приложений** используется для удалённого вызова процедур с использованием архитектурного стиля [REST](https://ru.wikipedia.org/wiki/REST) (от англ. Representational State Transfer — _передача состояния представления_).
 
 [Подробная документация доступна по этой ссылке.](https://github.com/ufocomp/module-AppServer)
+
+## Сервер сообщений
+
+**Сервер сообщений** используется для отправки сообщений и взаимодействия с внешними системами.
+
+[Подробная документация доступна по этой ссылке.](https://github.com/ufocomp/process-MessageServer)
+
+## Потоковый сервер
+
+**Потоковый сервер** предназначени для приёма и передачи данных с мобильных устройств и интернет вещей.
+
+[Подробная документация доступна по этой ссылке.](https://github.com/ufocomp/process-StreamServer)
 
 ## Веб-сервер
 
