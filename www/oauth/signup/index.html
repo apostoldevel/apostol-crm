@@ -3,16 +3,16 @@
 <head>
     <!-- Required meta tags -->
     <meta charset="utf-8">
-    <meta name="description" content="Апостол Веб Сервис: Регистрация">
+    <meta name="description" content="AWS: Регистрация">
 
     <!-- Required meta tags -->
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
     <!-- SignIn -->
-    <meta name="signin-scope" content="api">
+    <meta name="signin-scope" content="aws">
     <meta name="signin-client_id" content="web-apostol-web-service.ru">
 
-    <title>Регистрация | Апостол Веб Сервис</title>
+    <title>Регистрация | AWS</title>
 
     <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet" type="text/css">
 
@@ -37,7 +37,7 @@
 <div class="form-signin">
     <form id="formSignUp" class="needs-validation" novalidate>
         <div class="text-center mb-4">
-            <h1 class="h3 mb-3 font-weight-normal">Регистрация в<br>Апостол Веб Сервис</h1>
+            <h1 class="h3 mb-3 font-weight-normal">Регистрация в AWS</h1>
             <p class="text-center">Для доступа к услугам необходимо зарегистрироваться.</p>
         </div>
 
@@ -124,7 +124,7 @@
         <div class="text-muted font-weight mt-3">
             <p class="text-center">Продолжая регистрацию, вы соглашаетесь с <a href="#">Условиями использования</a> и <a href="#">Политикой конфиденциальности</a>.</p>
         </div>
-        <p class="mt-3 text-muted text-center">© Апостол Веб Сервис 2020</p>
+        <p class="mt-3 text-muted text-center">© AWS 2020</p>
     </form>
 </div>
 <!-- Optional JavaScript -->
@@ -133,10 +133,11 @@
 <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
 <script src="/assets/vendor/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script>
 <script>
+    let token;
+
     function empty(e) {
         switch (e) {
             case "":
-            case 0:
             case false:
             case null:
             case undefined:
@@ -168,22 +169,172 @@
         }
     }
 
-    function ExpireToken(accessToken) {
-        if (!empty(accessToken)) {
-            const jwtDecoded = parseJWT(accessToken);
-            if (jwtDecoded) {
-                let now = new Date();
-                let exp = new Date(jwtDecoded.exp * 1000);
-                return now >= exp;
-            }
+    class Token {
+
+        constructor(clientId, accessName, refreshName) {
+            this.clientId = clientId;
+            this.accessName = accessName;
+            this.refreshName = refreshName;
         }
-        return false;
+
+        save(accessToken, refreshToken) {
+            let success = false;
+
+            if (!empty(accessToken)) {
+                localStorage.setItem(this.accessName, accessToken);
+                success = true;
+            }
+
+            if (!empty(refreshToken)) {
+                localStorage.setItem(this.refreshName, refreshToken);
+                success = true;
+            }
+
+            return success;
+        }
+
+        getAccess() {
+            return localStorage.getItem(this.accessName);
+        }
+
+        getRefresh() {
+            return localStorage.getItem(this.refreshName);
+        }
+
+        clear() {
+            localStorage.removeItem(this.accessName);
+            localStorage.removeItem(this.refreshName);
+        }
+
+        parse(hash) {
+            if (empty(hash))
+                return false;
+
+            const search = hash.substr(1);
+
+            let params = new URLSearchParams(search);
+
+            let access_token = params.get("access_token");
+            let refresh_token = decodeURIComponent(params.get("refresh_token"));
+
+            return this.save(access_token, refresh_token);
+        }
+
+        async new() {
+            const body = {
+                client_id: this.clientId,
+                grant_type: 'client_credentials',
+            }
+
+            return await this.fetchToken(body);
+        }
+
+        async refresh() {
+            const refreshToken = this.getRefresh();
+
+            if (empty(refreshToken))
+                return false;
+
+            const body = {
+                client_id: this.clientId,
+                grant_type: 'refresh_token',
+                refresh_token: refreshToken
+            }
+
+            return await this.fetchToken(body);
+        }
+
+        async fetchToken(body) {
+            const response = await fetch('/oauth2/token', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body),
+                mode: "cors",
+                cache: "no-store",
+                credentials: 'omit'
+            });
+
+            if (!response.ok) {
+                this.clear();
+                throw new Error(`Fetch token failed: ${response.statusText}`);
+            }
+
+            const json = await response.json();
+            return this.save(json['access_token'], json['refresh_token']);
+        }
+
+        expired(accessToken) {
+            if (!empty(accessToken)) {
+                const jwtDecoded = parseJWT(accessToken);
+                if (jwtDecoded) {
+                    let now = new Date();
+                    let exp = new Date(jwtDecoded.exp * 1000);
+                    return now >= exp;
+                }
+            }
+            return false;
+        }
+
+        async update() {
+            const accessToken = this.getAccess();
+            if (empty(accessToken))
+                return await this.new();
+            if (this.expired(accessToken)) {
+                return await this.refresh();
+            }
+            return true;
+        }
+
+        async validate() {
+            const accessToken = this.getAccess();
+            if (empty(accessToken))
+                return false;
+            if (this.expired(accessToken)) {
+                return await this.refresh();
+            }
+            return true;
+        }
+    }
+
+    async function AsyncFetch (path, method = "GET", body = null, headers = {}) {
+
+        console.log(`${method} ${path}`);
+        console.log(body);
+
+        // await response of fetch call
+        let response = await fetch(path, {
+            method: method,
+            headers: headers,
+            body: body,
+            mode: "cors",
+            cache: "no-store"
+        });
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new TypeError("Content type not JSON!");
+        }
+
+        const json = await response.json();
+
+        console.log(json);
+        return response.ok ? json : await CheckResponse(json, response.status);
+    }
+
+    /**
+     * @return {json}
+     */
+    async function TokenFetch(path, method = "GET", body = null, initHeaders = {}) {
+        if (await token.update()) {
+            let headers = new Headers(initHeaders);
+            headers.append('Authorization', `Bearer ${token.getAccess()}`)
+            return AsyncFetch(path, method, body, headers);
+        }
     }
 
     async function CheckResponse(json, status) {
         if (status === 403) {
-            localStorage.removeItem('clientAccessToken');
-            localStorage.removeItem('clientRefreshToken');
+            await token.refresh();
         } else if (status === 400) {
             if (json.hasOwnProperty('error')) {
                 $("div[id='alertMessage']").html(json["error"]["message"]);
@@ -194,104 +345,6 @@
                 window.location.replace(window.location = `/oauth/error?code=${status}&error=invalid_request&error_description=${encodeURIComponent(json["error"]["message"])}`);
             }
         }
-    }
-
-    function FetchToken(body) {
-        fetch('/oauth2/token', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(body),
-            mode: "cors",
-            cache: "no-store",
-            credentials: 'omit'
-        }).then((response) => {
-            const json = response.json();
-            if (response.ok) {
-                return json;
-            }
-            CheckResponse(json, response.status);
-        }).then((json) => {
-            if (!empty(json)) {
-                console.log(json);
-
-                let access_token = json['access_token'];
-                let refresh_token = json['refresh_token'];
-
-                localStorage.setItem('clientAccessToken', access_token);
-                localStorage.setItem('clientRefreshToken', refresh_token);
-            }
-        }).catch((e) => {
-            console.log(e.message);
-        });
-    }
-
-    function NewClientToken() {
-        const body = {
-            client_id: $("meta[name='signin-client_id']").attr("content"),
-            grant_type: 'client_credentials',
-            scope: $("meta[name='signin-scope']").attr("content")
-        }
-        FetchToken(body);
-    }
-
-    function RefreshClientToken() {
-        const clientRefreshToken = localStorage.getItem('clientRefreshToken');
-        if (!empty(clientRefreshToken)) {
-            const body = {
-                grant_type: 'refresh_token',
-                refresh_token: clientRefreshToken
-            }
-            FetchToken(body);
-        }
-    }
-
-    /**
-     * @return {json}
-     */
-    async function AsyncFetch (path, method = "GET", body = null, headers = {}) {
-
-        // await response of fetch call
-        let response = await fetch(path, {
-            method: method,
-            headers: headers,
-            body: body,
-            mode: 'cors',
-            cache: 'no-store'
-        });
-
-        const json = await response.json();
-
-        console.log(JSON.stringify(json, undefined, 2));
-
-        await CheckResponse(json, response.status)
-
-        return response.ok ? json : undefined;
-    }
-
-    /**
-     * @return {json}
-     */
-    async function TokenFetch (path, method = "GET", body = null, initHeaders = {}) {
-
-        let clientAccessToken = localStorage.getItem('clientAccessToken');
-        if (empty(clientAccessToken)) {
-            await NewClientToken();
-            clientAccessToken = localStorage.getItem('clientAccessToken');
-        } else if (ExpireToken(clientAccessToken)) {
-            const clientRefreshToken = localStorage.getItem('clientRefreshToken');
-            if (!empty(clientRefreshToken)) {
-                await RefreshClientToken(clientRefreshToken);
-                clientAccessToken = localStorage.getItem('clientAccessToken');
-            }
-        }
-
-        let headers = new Headers(initHeaders);
-
-        if (!empty(clientAccessToken)) {
-            headers.append('Authorization', `Bearer ${clientAccessToken}`)
-        }
-
-        return AsyncFetch(`/api/v1/${path}`, method, body, headers);
     }
 
     function SignUpNext() {
@@ -335,7 +388,7 @@
 
         localStorage.setItem('identifier', username);
 
-        TokenFetch('/sign/up', 'POST', JSON.stringify(body), {
+        TokenFetch('/api/v1/sign/up', 'POST', JSON.stringify(body), {
             'Content-Type': 'application/json'
         }).then(function(json) {
             if (!empty(json)) {
@@ -355,7 +408,7 @@
 
         const value = username.val();
 
-        AsyncFetch(`/oauth2/identifier?value=${value}`
+        TokenFetch(`/oauth2/identifier?value=${value}`
         ).then((json) => {
             if (json.hasOwnProperty('error')) {
                 usernameFeedback.html(json['error']['message']);
@@ -506,28 +559,10 @@
         passwordConfirm.onkeyup = validatePassword;
     })();
 
-    function WhoAmI() {
-        TokenFetch('/whoami', 'POST')
-            .then((json) => {
-                if (empty(json)) {
-                    NewClientToken();
-                }
-            })
-            .catch((e) => {
-                console.log(e.message);
-            });
-    }
-
     $(document).ready(function() {
-        const clientAccessToken = localStorage.getItem('clientAccessToken');
-        if (empty(clientAccessToken)) {
-            NewClientToken();
-        } else if (ExpireToken(clientAccessToken)) {
-            RefreshClientToken();
-        } else {
-            WhoAmI();
-        }
+        token = new Token($("meta[name='signin-client_id']").attr("content"), 'clientAccessToken', 'clientRefreshToken');
     });
+
 </script>
 </body>
 </html>

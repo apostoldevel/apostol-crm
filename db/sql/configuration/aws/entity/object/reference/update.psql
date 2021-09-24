@@ -1,0 +1,7 @@
+\ir './calendar/update.psql'
+\ir './category/update.psql'
+\ir './currency/update.psql'
+\ir './measure/update.psql'
+\ir './mode/update.psql'
+\ir './property/update.psql'
+\ir './model/update.psql'

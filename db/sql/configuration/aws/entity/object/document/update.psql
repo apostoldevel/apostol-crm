@@ -1,0 +1,4 @@
+\ir './address/update.psql'
+\ir './client/update.psql'
+\ir './account/update.psql'
+\ir './device/update.psql'

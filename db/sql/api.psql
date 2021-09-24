@@ -1,0 +1,9 @@
+\echo [M] api.psql
+\ir sets.conf
+\connect :dbname postgres
+\echo [M] Пересоздание схем
+\ir './platform/kernel/api.sql'
+\connect :dbname kernel
+\ir './platform/update.psql'
+\ir './configuration/update.psql'
+\q

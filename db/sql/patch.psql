@@ -1,5 +1,8 @@
 \echo [M] patch.psql
 \ir sets.conf
 \connect :dbname kernel
-\ir './platform/patch/patch.psql'
+\ir './platform/patch.psql'
+\ir './platform/update.psql'
+\ir './configuration/patch.psql'
+\ir './configuration/update.psql'
 \q

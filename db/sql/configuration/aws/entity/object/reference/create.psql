@@ -1,0 +1,7 @@
+\ir './calendar/create.psql'
+\ir './category/create.psql'
+\ir './currency/create.psql'
+\ir './measure/create.psql'
+\ir './mode/create.psql'
+\ir './property/create.psql'
+\ir './model/create.psql'

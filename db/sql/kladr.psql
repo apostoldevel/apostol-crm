@@ -1,4 +1,4 @@
-\echo [M] kladr.psql
+\echo [M] kladr
 \ir sets.conf
 
 \connect :dbname kernel
@@ -10,14 +10,6 @@ DELETE FROM db.kladr;
 \echo [M] Очистка дерева адресов...
 
 DELETE FROM db.address_tree;
-
-DROP SEQUENCE SEQUENCE_ADDRESS;
-
--- Последовательность для идентификаторов справочника адресов.
-CREATE SEQUENCE IF NOT EXISTS SEQUENCE_ADDRESS
- START WITH 1
- INCREMENT BY 1
- MINVALUE 1;
 
 \connect :dbname postgres
 

@@ -1,0 +1,13 @@
+\echo [M] Updating configuration...
+
+\echo [M] call admin
+\ir './admin/update.psql'
+
+\echo [M] call entity
+\ir './entity/update.psql'
+
+\echo [M] call api
+\ir './api/update.psql'
+
+\echo [M] call routine.sql
+\ir routine.sql

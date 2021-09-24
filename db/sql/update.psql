@@ -1,0 +1,7 @@
+\echo [M] update.psql
+\ir sets.conf
+\connect :dbname kernel
+\echo [M] Обновление объектов
+\ir './platform/update.psql'
+\ir './configuration/update.psql'
+\q

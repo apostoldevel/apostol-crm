@@ -3,12 +3,16 @@
 <head>
     <!-- Required meta tags -->
     <meta charset="utf-8">
-    <meta name="description" content="Апостол Веб Сервис: Авторизация">
+    <meta name="description" content="AWS: Авторизация">
 
     <!-- Required meta tags -->
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-    <title>Авторизация | Апостол Веб Сервис</title>
+    <!-- SignIn -->
+    <meta name="signin-scope" content="aws">
+    <meta name="signin-client_id" content="web-apostol-web-service.ru">
+
+    <title>Авторизация | AWS</title>
 
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="/assets/vendor/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
@@ -27,7 +31,7 @@
 <div class="form-signin">
     <form id="formSignIn" class="needs-validation" novalidate>
         <div class="text-center mb-4">
-            <h1 class="h3 mb-3 font-weight-normal">Вход в Апостол Веб Сервис</h1>
+            <h1 class="h3 mb-3 font-weight-normal">Вход в AWS</h1>
         </div>
 
         <div class="form-label-group">
@@ -50,7 +54,7 @@
 
         <div class="mt-3">
             <hr class="my-1">
-            <p class="mt-3 text-muted text-center">© Апостол Веб Сервис 2020</p>
+            <p class="mt-3 text-muted text-center">© AWS 2020</p>
         </div>
     </form>
 </div>
@@ -60,10 +64,11 @@
 <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
 <script src="/assets/vendor/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script>
 <script>
+    let token;
+
     function empty(e) {
         switch (e) {
             case "":
-            case 0:
             case false:
             case null:
             case undefined:
@@ -73,6 +78,194 @@
         }
     }
 
+    function parseJWT(token) {
+        try {
+            // Get Token Header
+            const base64HeaderUrl = token.split('.')[0];
+            const base64Header = base64HeaderUrl.replace('-', '+').replace('_', '/');
+            const headerData = JSON.parse(window.atob(base64Header));
+
+            // Get Token payload and date's
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace('-', '+').replace('_', '/');
+            const dataJWT = JSON.parse(window.atob(base64));
+
+            dataJWT.header = headerData;
+
+            // TODO: add expiration at check ...
+
+            return dataJWT;
+        } catch (err) {
+            return false;
+        }
+    }
+
+    class Token {
+
+        constructor(clientId, accessName, refreshName) {
+            this.clientId = clientId;
+            this.accessName = accessName;
+            this.refreshName = refreshName;
+        }
+
+        save(accessToken, refreshToken) {
+            let success = false;
+
+            if (!empty(accessToken)) {
+                localStorage.setItem(this.accessName, accessToken);
+                success = true;
+            }
+
+            if (!empty(refreshToken)) {
+                localStorage.setItem(this.refreshName, refreshToken);
+                success = true;
+            }
+
+            return success;
+        }
+
+        getAccess() {
+            return localStorage.getItem(this.accessName);
+        }
+
+        getRefresh() {
+            return localStorage.getItem(this.refreshName);
+        }
+
+        clear() {
+            localStorage.removeItem(this.accessName);
+            localStorage.removeItem(this.refreshName);
+        }
+
+        parse(hash) {
+            if (empty(hash))
+                return false;
+
+            const search = hash.substr(1);
+
+            let params = new URLSearchParams(search);
+
+            let access_token = params.get("access_token");
+            let refresh_token = decodeURIComponent(params.get("refresh_token"));
+
+            return this.save(access_token, refresh_token);
+        }
+
+        async new() {
+            const body = {
+                client_id: this.clientId,
+                grant_type: 'client_credentials',
+            }
+
+            return await this.fetchToken(body);
+        }
+
+        async refresh() {
+            const refreshToken = this.getRefresh();
+
+            if (empty(refreshToken))
+                return false;
+
+            const body = {
+                client_id: this.clientId,
+                grant_type: 'refresh_token',
+                refresh_token: refreshToken
+            }
+
+            return await this.fetchToken(body);
+        }
+
+        async fetchToken(body) {
+            const response = await fetch('/oauth2/token', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body),
+                mode: "cors",
+                cache: "no-store",
+                credentials: 'omit'
+            });
+
+            if (!response.ok) {
+                this.clear();
+                throw new Error(`Fetch token failed: ${response.statusText}`);
+            }
+
+            const json = await response.json();
+            return this.save(json['access_token'], json['refresh_token']);
+        }
+
+        expired(accessToken) {
+            if (!empty(accessToken)) {
+                const jwtDecoded = parseJWT(accessToken);
+                if (jwtDecoded) {
+                    let now = new Date();
+                    let exp = new Date(jwtDecoded.exp * 1000);
+                    return now >= exp;
+                }
+            }
+            return false;
+        }
+
+        async update() {
+            const accessToken = this.getAccess();
+            if (empty(accessToken))
+                return await this.new();
+            if (this.expired(accessToken)) {
+                return await this.refresh();
+            }
+            return true;
+        }
+
+        async validate() {
+            const accessToken = this.getAccess();
+            if (empty(accessToken))
+                return false;
+            if (this.expired(accessToken)) {
+                return await this.refresh();
+            }
+            return true;
+        }
+    }
+
+    async function CheckResponse(json, status) {
+        let error;
+        let message;
+        let location;
+
+        if (json.hasOwnProperty('error')) {
+            error = json['error'];
+            if (typeof error === 'object') {
+                message = error["message"];
+            } else {
+                message = json["error_description"];
+            }
+        }
+
+        if (status === 400) {
+            if (typeof error === 'string') {
+                token.clear();
+            }
+            return undefined;
+        } else if (status === 401) {
+            location = '/welcome/';
+        } else if (status === 403) {
+            // Refresh token
+            const refresh = await token.refresh();
+            if (!refresh) {
+                token.clear();
+                location = '/welcome/';
+            }
+        } else if (status === 404) {
+            location = `/error/404/?error=not_found&error_description=${encodeURIComponent(message)}`;
+        } else if (status === 500) {
+            location = `/error/500/?error=server_error&error_description=${encodeURIComponent(message)}`;
+        } else {
+            location = `/error/?code=${status}&error=invalid_request&error_description=${encodeURIComponent(message)}`;
+        }
+
+        return location;
+    }
+
     async function AsyncFetch (path, method = "GET", body = null, headers = {}) {
 
         // await response of fetch call
@@ -80,8 +273,8 @@
             method: method,
             headers: headers,
             body: body,
-            mode: "cors",
-            cache: "no-store"
+            mode: 'cors',
+            cache: 'no-store'
         });
 
         const contentType = response.headers.get('content-type');
@@ -89,7 +282,31 @@
             throw new TypeError("Content type not JSON!");
         }
 
-        return await response.json();
+        const json = await response.json();
+
+        if (response.ok)
+            return json;
+
+        console.log(method + ' ' + path);
+        console.log(json);
+
+        const location = await CheckResponse(json, response.status);
+
+        if (empty(location))
+            return json;
+
+        window.location.replace(location);
+    }
+
+    /**
+     * @return {json}
+     */
+    async function TokenFetch(path, method = "GET", body = null, initHeaders = {}) {
+        if (await token.update()) {
+            let headers = new Headers(initHeaders);
+            headers.append('Authorization', `Bearer ${token.getAccess()}`)
+            return AsyncFetch(path, method, body, headers);
+        }
     }
 
     function Identifier() {
@@ -97,7 +314,7 @@
         let username = $("input[id='username']");
         let message = $("div[id='usernameMessage']");
 
-        AsyncFetch(`/oauth2/identifier?value=${username.val()}`)
+        TokenFetch(`/oauth2/identifier?value=${username.val()}`)
         .then((json) => {
             if (json.hasOwnProperty('error')) {
                 message.html(json['error']['message']);
@@ -114,6 +331,7 @@
                 }
             }
         }).catch((e) => {
+            token.clear();
             console.log(e.message);
         });
     }
@@ -157,6 +375,8 @@
     })();
 
     $(document).ready(function() {
+        token = new Token($("meta[name='signin-client_id']").attr("content"), 'clientAccessToken', 'clientRefreshToken');
+
         $("input[id='username']").val(localStorage.getItem('identifier'));
     });
 </script>
