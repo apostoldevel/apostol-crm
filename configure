@@ -12,7 +12,7 @@
 #------------------------------------------------------------------------------
 set -e
 
-PROJECT_NAME=apostol-aws
+PROJECT_NAME=apostol-crm
 BUILD_TYPE=Release
 
 pop_directory()

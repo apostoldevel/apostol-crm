@@ -18,7 +18,7 @@
 - [Веб-сервера](https://github.com/ufocomp/module-WebServer) (HTTP);
 - [WebSocket API](https://github.com/ufocomp/module-WebSocketAPI) (WebSocket).
 
-Платформа устанавливается на сервер из [исходных кодов](https://github.com/ufocomp/apostol-aws) в виде системной службы под операционную систему Linux.
+Платформа устанавливается на сервер из [исходных кодов](https://github.com/ufocomp/apostol-crm) в виде системной службы под операционную систему Linux.
 
 **Конфигурация** написана на языке программирования PL/pgSQL, используется для разработки бизнес-логики и RESTful API. 
 

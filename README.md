@@ -1,6 +1,6 @@
 # Apostol Web Service
 
-**Апостол Веб Сервис** - это фреймворк для разработки серверной (backend) части информационных систем, веб (SPA) и мобильных приложений, исходные коды.
+**Apostol CRM** - это фреймворк для разработки серверной (backend) части информационных систем, веб (SPA) и мобильных приложений, исходные коды.
 
 СТРУКТУРА КАТАЛОГОВ
 -
@@ -20,7 +20,7 @@
 ОПИСАНИЕ
 -
 
-**Апостол Веб Сервис** состоит из двух частей - **платформы** и **конфигурации**.
+**Apostol CRM** состоит из двух частей - **платформы** и **конфигурации**.
 
 - Платформа - это технологии и протоколы, встроенные службы и модули.
 - Конфигурация - это бизнес логика конкретного проекта.
@@ -71,11 +71,11 @@ $ sudo apt-get install build-essential libssl-dev libcurl4-openssl-dev make cmak
 
 Для того чтобы установить PostgreSQL воспользуйтесь инструкцией по [этой](https://www.postgresql.org/download/) ссылке.
 
-#### База данных `aws`
+#### База данных `crm`
 
 Для того чтобы установить базу данных необходимо выполнить:
 
-1. Прописать наименование базы данных в файле db/sql/sets.conf (по умолчанию: aws)
+1. Прописать наименование базы данных в файле db/sql/sets.conf (по умолчанию: crm)
 1. Прописать пароли для пользователей СУБД [libpq-pgpass](https://postgrespro.ru/docs/postgrespro/11/libpq-pgpass):
    ~~~
    $ sudo -iu postgres -H vim .pgpass
@@ -111,19 +111,19 @@ $ sudo apt-get install build-essential libssl-dev libcurl4-openssl-dev make cmak
 
 Для установки **системы** (без Git) необходимо:
 
-1. Скачать **Апостол Веб Сервис** по [ссылке](https://github.com/ufocomp/apostol-aws/archive/master.zip);
+1. Скачать **Apostol CRM** по [ссылке](https://github.com/ufocomp/apostol-crm/archive/master.zip);
 1. Распаковать;
 1. Настроить `CMakeLists.txt` (по необходимости);
 1. Собрать и скомпилировать (см. ниже).
 
 Для установки **системы** с помощью Git выполните:
 ~~~
-$ git clone https://github.com/ufocomp/apostol-aws.git
+$ git clone https://github.com/ufocomp/apostol-crm.git
 ~~~
 
 ###### Сборка:
 ~~~
-$ cd apostol-aws
+$ cd apostol-crm
 $ ./configure
 ~~~
 
@@ -134,55 +134,55 @@ $ make
 $ sudo make install
 ~~~
 
-По умолчанию бинарный файл `aws` будет установлен в:
+По умолчанию бинарный файл `crm` будет установлен в:
 ~~~
 /usr/sbin
 ~~~
 
 Файл конфигурации и необходимые для работы файлы, в зависимости от варианта установки, будут расположены в: 
 ~~~
-/etc/aws
+/etc/crm
 или
-~/aws
+~/crm
 ~~~
 
 ЗАПУСК 
 -
 ###### Если `INSTALL_AS_ROOT` установлено в `ON`.
 
-**`aws`** - это системная служба (демон) Linux. 
-Для управления **`aws`** используйте стандартные команды управления службами.
+**`crm`** - это системная служба (демон) Linux. 
+Для управления **`crm`** используйте стандартные команды управления службами.
 
-Для запуска `aws` выполните:
+Для запуска `crm` выполните:
 ~~~
-$ sudo service aws start
+$ sudo service crm start
 ~~~
 
 Для проверки статуса выполните:
 ~~~
-$ sudo service aws status
+$ sudo service crm status
 ~~~
 
 Результат должен быть **примерно** таким:
 ~~~
-● aws.service - LSB: starts the apostol web service
-   Loaded: loaded (/etc/init.d/aws; generated; vendor preset: enabled)
+● crm.service - LSB: starts the apostol web service
+   Loaded: loaded (/etc/init.d/crm; generated; vendor preset: enabled)
    Active: active (running) since Tue 2020-08-25 23:04:53 UTC; 4 days ago
      Docs: man:systemd-sysv-generator(8)
-  Process: 6310 ExecStop=/etc/init.d/aws stop (code=exited, status=0/SUCCESS)
-  Process: 6987 ExecStart=/etc/init.d/aws start (code=exited, status=0/SUCCESS)
+  Process: 6310 ExecStop=/etc/init.d/crm stop (code=exited, status=0/SUCCESS)
+  Process: 6987 ExecStart=/etc/init.d/crm start (code=exited, status=0/SUCCESS)
     Tasks: 3 (limit: 4915)
-   CGroup: /system.slice/aws.service
-           ├─6999 aws: master process /usr/sbin/aws
-           ├─7000 aws: worker process ("web socket api", "application server", "authorization server", "web server")
-           └─7001 aws: helper process ("certificate downloader")
+   CGroup: /system.slice/crm.service
+           ├─6999 crm: master process /usr/sbin/crm
+           ├─7000 crm: worker process ("web socket api", "application server", "authorization server", "web server")
+           └─7001 crm: message process ("message server")
 ~~~
 
 ### **Управление**.
 
-Управлять **`aws`** можно с помощью сигналов.
-Номер главного процесса по умолчанию записывается в файл `/run/aws.pid`. 
-Изменить имя этого файла можно при конфигурации сборки или же в `aws.conf` секция `[daemon]` ключ `pid`. 
+Управлять **`crm`** можно с помощью сигналов.
+Номер главного процесса по умолчанию записывается в файл `/run/crm.pid`. 
+Изменить имя этого файла можно при конфигурации сборки или же в `crm.conf` секция `[daemon]` ключ `pid`. 
 
 Главный процесс поддерживает следующие сигналы:
 

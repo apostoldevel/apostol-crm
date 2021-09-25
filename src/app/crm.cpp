@@ -2,11 +2,11 @@
 
 Program name:
 
-  aws
+  crm
 
 Module Name:
 
-  aws.cpp
+  crm.cpp
 
 Notices:
 
@@ -21,7 +21,7 @@ Author:
 
 --*/
 
-#include "aws.hpp"
+#include "crm.hpp"
 //----------------------------------------------------------------------------------------------------------------------
 
 #define exit_failure(msg) {                                 \
@@ -37,9 +37,9 @@ extern "C++" {
 
 namespace Apostol {
 
-    namespace AWS {
+    namespace CRM {
 
-        void CAWS::ShowVersionInfo() {
+        void CApostolCRM::ShowVersionInfo() {
 
             std::cerr << APP_NAME " version: " APP_VERSION " (" APP_DESCRIPTION ")" LINEFEED << std::endl;
 
@@ -66,7 +66,7 @@ namespace Apostol {
         }
         //--------------------------------------------------------------------------------------------------------------
 
-        void CAWS::ParseCmdLine() {
+        void CApostolCRM::ParseCmdLine() {
 
             LPCTSTR P;
 
@@ -185,7 +185,7 @@ namespace Apostol {
         }
         //--------------------------------------------------------------------------------------------------------------
 
-        void CAWS::StartProcess() {
+        void CApostolCRM::StartProcess() {
 
             if (Config()->Helper()) {
                 m_ProcessType = ptHelper;
@@ -195,7 +195,7 @@ namespace Apostol {
         }
         //--------------------------------------------------------------------------------------------------------------
 
-        void CAWS::Run() {
+        void CApostolCRM::Run() {
             CApplication::Run();
         }
         //--------------------------------------------------------------------------------------------------------------
@@ -210,18 +210,18 @@ int main(int argc, char *argv[]) {
 
     DefaultLocale.SetLocale("");
 
-    CAWS aws(argc, argv);
+    CApostolCRM crm(argc, argv);
     
     try
     {
-        aws.Name() = APP_NAME;
-        aws.Description() = APP_DESCRIPTION;
-        aws.Version() = APP_VERSION;
-        aws.Title() = APP_VER;
+        crm.Name() = APP_NAME;
+        crm.Description() = APP_DESCRIPTION;
+        crm.Version() = APP_VERSION;
+        crm.Title() = APP_VER;
 
-        aws.Run();
+        crm.Run();
 
-        exitcode = aws.ExitCode();
+        exitcode = crm.ExitCode();
     }
     catch (std::exception& e)
     {

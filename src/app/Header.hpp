@@ -2,7 +2,7 @@
 
 Program name:
 
-  aws
+  crm
 
 Module Name:
 

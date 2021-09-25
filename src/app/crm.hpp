@@ -2,11 +2,11 @@
 
 Program name:
 
-  aws
+  crm
 
 Module Name:
 
-  aws.hpp
+  crm.hpp
 
 Notices:
 
@@ -21,8 +21,8 @@ Author:
 
 --*/
 
-#ifndef APOSTOL_APOSTOL_HPP
-#define APOSTOL_APOSTOL_HPP
+#ifndef APOSTOL_APOSTOL_CRM_HPP
+#define APOSTOL_APOSTOL_CRM_HPP
 //----------------------------------------------------------------------------------------------------------------------
 
 #include "../../version.h"
@@ -39,9 +39,9 @@ extern "C++" {
 
 namespace Apostol {
 
-    namespace AWS {
+    namespace CRM {
 
-        class CAWS: public CApplication {
+        class CApostolCRM: public CApplication {
         protected:
 
             void ParseCmdLine() override;
@@ -51,14 +51,14 @@ namespace Apostol {
 
         public:
 
-            CAWS(int argc, char *const *argv): CApplication(argc, argv) {
+            CApostolCRM(int argc, char *const *argv): CApplication(argc, argv) {
 
             };
 
-            ~CAWS() override = default;
+            ~CApostolCRM() override = default;
 
-            static class CAWS *Create(int argc, char *const *argv) {
-                return new CAWS(argc, argv);
+            static class CApostolCRM *Create(int argc, char *const *argv) {
+                return new CApostolCRM(argc, argv);
             };
 
             inline void Destroy() override { delete this; };
@@ -69,8 +69,8 @@ namespace Apostol {
     }
 }
 
-using namespace Apostol::AWS;
+using namespace Apostol::CRM;
 }
 
-#endif //APOSTOL_APOSTOL_HPP
+#endif //APOSTOL_APOSTOL_CRM_HPP
 

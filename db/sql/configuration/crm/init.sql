@@ -11,11 +11,11 @@ BEGIN
   SELECT SubStr(setting, 1, 2) INTO vLocaleCode FROM pg_settings WHERE name = 'lc_messages';
   PERFORM RegSetValueString('CURRENT_CONFIG', 'CONFIG\System', 'LocaleCode', vLocaleCode);
 
-  PERFORM RegSetValueString('CURRENT_CONFIG', 'CONFIG\CurrentProject', 'Name', 'Apostol Web Service');
-  PERFORM RegSetValueString('CURRENT_CONFIG', 'CONFIG\CurrentProject', 'Host', 'https://apostol-web-service.ru');
-  PERFORM RegSetValueString('CURRENT_CONFIG', 'CONFIG\CurrentProject', 'Domain', 'apostol-web-service.ru');
+  PERFORM RegSetValueString('CURRENT_CONFIG', 'CONFIG\CurrentProject', 'Name', 'Apostol CRM');
+  PERFORM RegSetValueString('CURRENT_CONFIG', 'CONFIG\CurrentProject', 'Host', 'https://apostol-crm.ru');
+  PERFORM RegSetValueString('CURRENT_CONFIG', 'CONFIG\CurrentProject', 'Domain', 'apostol-crm.ru');
 
-  PERFORM RegSetValueString('CURRENT_CONFIG', 'CONFIG\Firebase', 'ProjectId', 'awsru');
+  PERFORM RegSetValueString('CURRENT_CONFIG', 'CONFIG\Firebase', 'ProjectId', 'apostolcrm');
 
   PERFORM InitConfigurationEntity();
 END;
@@ -48,7 +48,7 @@ BEGIN
   PERFORM CreateModel(null, GetType('device.model'), GetVendor('unknown.vendor'), null, 'android.model', 'Android', 'Неизвестная модель устройства на ОС Android.');
   PERFORM CreateModel(null, GetType('device.model'), GetVendor('unknown.vendor'), null, 'ios.model', 'iOS', 'Неизвестная модель устройства на ОС iOS.');
 
-  PERFORM EditArea(GetArea(current_database()), pName => 'AWS');
+  PERFORM EditArea(GetArea(current_database()), pName => 'Apostol CRM');
   PERFORM SetArea(GetArea(current_database()));
 END
 $$ LANGUAGE plpgsql

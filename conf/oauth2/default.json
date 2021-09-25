@@ -1,8 +1,8 @@
 {
   "web": {
-    "issuers": ["accounts.apostol-web-service.ru"],
-    "scopes": ["aws"],
-    "client_id": "web-apostol-web-service.ru",
+    "issuers": ["accounts.apostol-crm.ru"],
+    "scopes": ["crm"],
+    "client_id": "web-apostol-crm.ru",
     "client_secret": "blgqv0vOOnvZMrnLxrQ7agSX",
     "algorithm": "HS256",
     "auth_uri": "/oauth2/authorize",
@@ -10,37 +10,37 @@
     "redirect_uris": [
       "http://localhost:8080/oauth2/code",
       "http://localhost:8080/oauth2/dashboard/",
-      "https://apostol-web-service.ru/oauth2/code",
+      "https://apostol-crm.ru/oauth2/code",
       "https://oauthdebugger.com/debug",
       "https://auth.advancedrestclient.com/oauth-popup.html"
     ],
     "javascript_origins": [
       "http://localhost:8080",
       "http://localhost:3000",
-      "https://apostol-web-service.ru"
+      "https://apostol-crm.ru"
     ]
   },
   "android": {
-    "issuers": ["accounts.apostol-web-service.ru"],
-    "scopes": ["apostol-web-service"],
-    "client_id": "android-apostol-web-service.ru",
+    "issuers": ["accounts.apostol-crm.ru"],
+    "scopes": ["apostol-crm"],
+    "client_id": "android-apostol-crm.ru",
     "client_secret": "zUc0shAhWnRmcbjHD88rhu3b",
     "algorithm": "HS256",
-    "auth_uri": "https://apostol-web-service.ru/oauth2/authorize",
-    "token_uri": "https://apostol-web-service.ru/oauth2/token",
+    "auth_uri": "https://apostol-crm.ru/oauth2/authorize",
+    "token_uri": "https://apostol-crm.ru/oauth2/token",
     "redirect_uris": [
       "http://127.0.0.1/oauth2/code",
       "http://127.0.0.1/oauth2/callback"
     ]
   },
   "ios": {
-    "issuers": ["accounts.apostol-web-service.ru"],
-    "scopes": ["apostol-web-service"],
-    "client_id": "ios-apostol-web-service.ru",
+    "issuers": ["accounts.apostol-crm.ru"],
+    "scopes": ["apostol-crm"],
+    "client_id": "ios-apostol-crm.ru",
     "client_secret": "zUKUW1LsAEeHDDxqaVpkW78v",
     "algorithm": "HS256",
-    "auth_uri": "https://apostol-web-service.ru/oauth2/authorize",
-    "token_uri": "https://apostol-web-service.ru/oauth2/token",
+    "auth_uri": "https://apostol-crm.ru/oauth2/authorize",
+    "token_uri": "https://apostol-crm.ru/oauth2/token",
     "redirect_uris": [
       "http://127.0.0.1/oauth2/code",
       "http://127.0.0.1/oauth2/callback"

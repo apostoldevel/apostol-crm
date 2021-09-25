@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.13)
-project(apostol-aws)
+project(apostol-crm)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++ -rdynamic")
 
-set(PROJECT_NAME "aws")
+set(PROJECT_NAME "crm")
 set(PROJECT_DESCRIPTION "Apostol Web Service")
 
 message(STATUS "Project name: ${PROJECT_NAME}")
@@ -48,7 +48,7 @@ set(PROJECT_LIB_DIR "src/lib")
 set(DELPHI_LIB_NAME delphi)
 set(DELPHI_LIB_DIR "${PROJECT_LIB_DIR}/${DELPHI_LIB_NAME}")
 
-# -Iinclude
+# Include
 include_directories(${DELPHI_LIB_DIR}/include)
 include_directories(${DELPHI_LIB_DIR}/src)
 
