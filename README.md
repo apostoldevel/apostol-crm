@@ -22,7 +22,7 @@
 
 Конфигурация базируется на API платформы и дополняет её функциями необходимыми для решения задач конкретного проекта.
 
-Подробное описание доступно в [WiKi](https://github.com/apostoldevel/db-platform/wiki).
+Подробное описание доступно в [Wiki](https://github.com/apostoldevel/db-platform/wiki).
 
 API
 -
