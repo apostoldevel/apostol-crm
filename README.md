@@ -55,10 +55,8 @@ $ sudo apt-get install build-essential libssl-dev libcurl4-openssl-dev make cmak
 
 #### База данных `crm`
 
-Для того чтобы установить базу данных необходимо выполнить:
-
-1. Прописать наименование базы данных в файле db/sql/sets.conf (по умолчанию: crm)
-1. Прописать пароли для пользователей СУБД [libpq-pgpass](https://postgrespro.ru/docs/postgrespro/11/libpq-pgpass):
+1. Прописать наименование базы данных в файле `db/sql/sets.conf` (по умолчанию `crm`);
+1. Прописать пароли для пользователей СУБД [libpq-pgpass](https://postgrespro.ru/docs/postgrespro/14/libpq-pgpass):
    ~~~
    $ sudo -iu postgres -H vim .pgpass
    ~~~
@@ -67,29 +65,28 @@ $ sudo apt-get install build-essential libssl-dev libcurl4-openssl-dev make cmak
    *:*:*:admin:admin
    *:*:*:daemon:daemon
    ~~~
-1. Указать в файле настроек /etc/postgresql/<version>/main/postgresql.conf:
-   Пути поиска схемы kernel:
+1. Указать в файле настроек `/etc/postgresql/{version}/main/postgresql.conf` пути поиска схемы kernel:
    ~~~
    search_path = '"$user", kernel, public'	# schema names
    ~~~
-1. Указать в файле настроек /etc/postgresql/<version>/main/pg_hba.conf:
+1. Указать в файле настроек `/etc/postgresql/{version}/main/pg_hba.conf`:
    ~~~
    # TYPE  DATABASE        USER            ADDRESS                 METHOD
    local	all		kernel					md5
    local	all		admin					md5
    local	all		daemon					md5
-    
+
    host	all		kernel		127.0.0.1/32		md5
    host	all		admin		127.0.0.1/32		md5
-   host	all		daemon		127.0.0.1/32		md5   
+   host	all		daemon		127.0.0.1/32		md5
    ~~~
 1. Выполнить:
    ~~~
    $ cd db/
-   $ ./install.sh --make
+   $ ./runme.sh --make
    ~~~
 
-###### Параметр `--make` необходим для установки базы данных в первый раз. Далее установочный скрипт можно запускать или без параметров или с параметром `--install`.
+###### Параметр `--make` необходим для установки базы данных на сервер в первый раз. Для переустановки базы данных установочный скрипт можно запускать с параметром `--install`.
 
 Для установки **системы** (без Git) необходимо:
 
