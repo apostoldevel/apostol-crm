@@ -2,21 +2,6 @@
 
 **Apostol CRM** - это серверная часть (backend) системы управления взаимоотношениями с клиентами (CRM), исходные коды.
 
-СТРУКТУРА КАТАЛОГОВ
--
-    auto/                       содержит файлы со скриптами
-    cmake-modules/              содержит файлы с модулями CMake
-    conf/                       содержит файлы с настройками
-    db/                         содержит файлы со скриптами базы данных
-    doc/                        содержит файлы с документацией
-    src/                        содержит файлы с исходным кодом
-    ├─app/                      содержит файлы с исходным кодом: Apostol Web Service
-    ├─core/                     содержит файлы с исходным кодом: Apostol Core
-    ├─lib/                      содержит файлы с исходным кодом библиотек
-    | └─delphi/                 содержит файлы с исходным кодом библиотеки*: Delphi classes for C++
-    └─modules/                  содержит файлы с исходным кодом дополнений (модулей)
-    www/                        содержит файлы с Веб-сайтом
-
 ОПИСАНИЕ
 -
 
@@ -26,16 +11,6 @@
 - Конфигурация - это бизнес логика конкретного проекта.
 
 **Платформа** построена на базе фреймворка [Апостол](https://github.com/apostoldevel/apostol), имеет модульную конструкцию и включает в себя встроенную поддержку СУБД PostgreSQL.
-
-Платформа состоит из следующих модулей (частей):
-
-- [Сервера авторизации](https://github.com/apostoldevel/module-AuthServer) (OAuth 2.0);
-- [Сервера приложений](https://github.com/apostoldevel/module-AppServer) (REST API);
-- [Сервера сообщений](https://github.com/apostoldevel/process-MessageServer) (SMTP/FCM/API);
-- [Файл сервера](https://github.com/apostoldevel/module-FileServer);
-- [Сервера потоковых данных](https://github.com/apostoldevel/process-StreamServer) (UDP);
-- [Веб-сервера](https://github.com/apostoldevel/module-WebServer) (HTTP);
-- [WebSocket API](https://github.com/apostoldevel/module-WebSocketAPI) (WebSocket).
 
 [Подробнее о составе платформы по этой ссылке.](./doc/REST-API-ru.md)
 
@@ -47,12 +22,7 @@
 
 Конфигурация базируется на API платформы и дополняет её функциями необходимыми для решения задач конкретного проекта.
 
-Проекты
--
-
-- https://ship-safety.ru
-- https://plugme.ru
-- https://fenomy.com
+Подробное описание доступно в [WiKi](https://github.com/apostoldevel/db-platform/wiki).
 
 API
 -
