@@ -20,6 +20,24 @@
       "https://apostol-crm.ru"
     ]
   },
+  "service": {
+    "issuers": ["accounts.apostol-crm.ru"],
+    "scopes": ["apostol-crm"],
+    "client_id": "service-apostol-crm.ru",
+    "client_secret": "CQrv6PfUzV9dbT22pKNgQvNO",
+    "algorithm": "HS256",
+    "auth_uri": "/oauth2/authorize",
+    "token_uri": "/oauth2/token",
+    "redirect_uris": [
+      "https://apostol-crm.ru/dashboard/",
+      "https://oauthdebugger.com/debug"
+    ],
+    "javascript_origins": [
+      "http://localhost:8080",
+      "http://localhost:3000",
+      "https://apostol-crm.ru"
+    ]
+  },
   "android": {
     "issuers": ["accounts.apostol-crm.ru"],
     "scopes": ["apostol-crm"],

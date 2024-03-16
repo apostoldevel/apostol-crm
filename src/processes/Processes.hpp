@@ -28,8 +28,15 @@ Author:
 #include "Header.hpp"
 //----------------------------------------------------------------------------------------------------------------------
 
-static inline void CreateProcesses(CCustomProcess *AParent, CApplication *AApplication) {
+#include "MessageServer/MessageServer.hpp"
+#include "ReportServer/ReportProcess.hpp"
+#include "TaskScheduler/TaskScheduler.hpp"
+//----------------------------------------------------------------------------------------------------------------------
 
+static inline void CreateProcesses(CCustomProcess *AParent, CApplication *AApplication) {
+    CMessageServer::CreateProcess(AParent, AApplication);
+    CTaskScheduler::CreateProcess(AParent, AApplication);
+    CReportProcess::CreateProcess(AParent, AApplication);
 }
 
 #endif //APOSTOL_PROCESSES_HPP

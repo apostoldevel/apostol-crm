@@ -91,8 +91,9 @@ BEGIN
   uClass := AddClass(pParent, pEntity, 'currency', 'Валюта', false);
 
   -- Тип
-  PERFORM AddType(uClass, 'crypto.currency', 'Криптовалюта', 'Криптовалюта.');
   PERFORM AddType(uClass, 'iso.currency', 'ISO', 'ISO 4217.');
+  PERFORM AddType(uClass, 'crypto.currency', 'Криптовалюта', 'Криптовалюта.');
+  PERFORM AddType(uClass, 'unit.currency', 'Условная единица', 'Условная единица измерения.');
 
   -- Событие
   PERFORM AddCurrencyEvents(uClass);
@@ -128,6 +129,26 @@ BEGIN
   PERFORM RegisterRoute('currency', AddEndpoint('SELECT * FROM rest.currency($1, $2);'));
 
   RETURN uEntity;
+END
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- InitCurrency ----------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION InitCurrency()
+RETURNS         void
+AS $$
+DECLARE
+  uType         uuid;
+BEGIN
+  uType := GetType('iso.currency');
+
+  PERFORM CreateCurrency(null, GetType('iso.currency'), 'RUB', 'Рубль', 'Российский рубль.', 643);
+  PERFORM CreateCurrency(null, GetType('iso.currency'), 'USD', 'Доллар США', 'Доллар США.', 840);
+  PERFORM CreateCurrency(null, GetType('iso.currency'), 'EUR', 'Евро', 'Евро.', 978);
 END
 $$ LANGUAGE plpgsql
    SECURITY DEFINER

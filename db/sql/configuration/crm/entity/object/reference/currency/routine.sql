@@ -17,19 +17,19 @@ CREATE OR REPLACE FUNCTION CreateCurrency (
   pType         uuid,
   pCode         text,
   pName         text,
-  pDescription	text default null,
-  pDigital		integer default null,
-  pDecimal		integer default null
+  pDescription    text default null,
+  pDigital        integer default null,
+  pDecimal        integer default null
 ) RETURNS       uuid
 AS $$
 DECLARE
-  uReference	uuid;
+  uReference    uuid;
   uClass        uuid;
   uMethod       uuid;
 BEGIN
   SELECT class INTO uClass FROM db.type WHERE id = pType;
 
-  IF GetEntityCode(uClass) <> 'currency' THEN
+  IF GetClassCode(uClass) <> 'currency' THEN
     PERFORM IncorrectClassType();
   END IF;
 
@@ -68,16 +68,16 @@ CREATE OR REPLACE FUNCTION EditCurrency (
   pType         uuid default null,
   pCode         text default null,
   pName         text default null,
-  pDescription	text default null,
-  pDigital		integer default null,
-  pDecimal		integer default null
+  pDescription    text default null,
+  pDigital        integer default null,
+  pDecimal        integer default null
 ) RETURNS       void
 AS $$
 DECLARE
   uClass        uuid;
   uMethod       uuid;
 BEGIN
-  PERFORM EditReference(pId, pParent, pType, pCode, pName, pDescription);
+  PERFORM EditReference(pId, pParent, pType, pCode, pName, pDescription, current_locale());
 
   UPDATE db.currency
      SET digital = CheckNull(coalesce(pDigital, digital, 0)),
@@ -98,12 +98,56 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION GetCurrency (
-  pCode		text
-) RETURNS 	uuid
+  pCode        text
+) RETURNS     uuid
 AS $$
 BEGIN
   RETURN GetReference(pCode, 'currency');
 END;
 $$ LANGUAGE plpgsql STABLE STRICT
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- FUNCTION GetCurrencyCode ----------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION GetCurrencyCode (
+  pId       uuid
+) RETURNS     text
+AS $$
+BEGIN
+  RETURN GetReferenceCode(pId);
+END;
+$$ LANGUAGE plpgsql STABLE STRICT
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- FUNCTION DefaultCurrencyCode ------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION DefaultCurrencyCode (
+  pDefault  text DEFAULT null
+) RETURNS     text
+AS $$
+BEGIN
+  RETURN coalesce(RegGetValueString('CURRENT_CONFIG', 'CONFIG\CurrentProject', 'Currency'), coalesce(pDefault, 'USD'));
+END;
+$$ LANGUAGE plpgsql STABLE
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- FUNCTION DefaultCurrency ----------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION DefaultCurrency (
+) RETURNS     uuid
+AS $$
+BEGIN
+  RETURN GetCurrency(DefaultCurrencyCode());
+END;
+$$ LANGUAGE plpgsql STABLE
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;

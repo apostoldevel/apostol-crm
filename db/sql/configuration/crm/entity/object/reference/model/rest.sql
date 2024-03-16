@@ -23,7 +23,7 @@ BEGIN
   END IF;
 
   IF current_session() IS NULL THEN
-	PERFORM LoginFailed();
+    PERFORM LoginFailed();
   END IF;
 
   CASE pPath
@@ -50,7 +50,7 @@ BEGIN
 
       FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id uuid)
       LOOP
-        FOR e IN SELECT r.id, api.get_methods(GetObjectClass(r.id), GetObjectState(r.id)) as method FROM api.get_model(r.id) ORDER BY id
+        FOR e IN SELECT * FROM api.get_object_methods(r.id) ORDER BY sequence
         LOOP
           RETURN NEXT row_to_json(e);
         END LOOP;
@@ -60,7 +60,7 @@ BEGIN
 
       FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id uuid)
       LOOP
-        FOR e IN SELECT r.id, api.get_methods(GetObjectClass(r.id), GetObjectState(r.id)) as method FROM api.get_model(r.id) ORDER BY id
+        FOR e IN SELECT * FROM api.get_object_methods(r.id) ORDER BY sequence
         LOOP
           RETURN NEXT row_to_json(e);
         END LOOP;
@@ -174,48 +174,48 @@ BEGIN
 
   WHEN '/model/property' THEN
 
-	IF pPayload IS NULL THEN
-	  PERFORM JsonIsEmpty();
-	END IF;
+    IF pPayload IS NULL THEN
+      PERFORM JsonIsEmpty();
+    END IF;
 
-	arKeys := array_cat(arKeys, ARRAY['id', 'properties']);
-	PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+    arKeys := array_cat(arKeys, ARRAY['id', 'properties']);
+    PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
 
-	IF jsonb_typeof(pPayload) = 'array' THEN
+    IF jsonb_typeof(pPayload) = 'array' THEN
 
-	  FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id uuid, properties json)
-	  LOOP
-		IF r.properties IS NOT NULL THEN
-		  FOR e IN SELECT * FROM api.set_model_property_json(r.id, r.properties)
-		  LOOP
-			RETURN NEXT row_to_json(e);
-		  END LOOP;
-		ELSE
-		  RETURN NEXT api.get_model_property_json(r.id);
-		END IF;
-	  END LOOP;
+      FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id uuid, properties json)
+      LOOP
+        IF r.properties IS NOT NULL THEN
+          FOR e IN SELECT * FROM api.set_model_property_json(r.id, r.properties)
+          LOOP
+            RETURN NEXT row_to_json(e);
+          END LOOP;
+        ELSE
+          RETURN NEXT api.get_model_property_json(r.id);
+        END IF;
+      END LOOP;
 
-	ELSE
+    ELSE
 
-	  FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id uuid, properties json)
-	  LOOP
-		IF r.properties IS NOT NULL THEN
-		  FOR e IN SELECT * FROM api.set_model_property_json(r.id, r.properties)
-		  LOOP
-			RETURN NEXT row_to_json(e);
-		  END LOOP;
-		ELSE
-		  RETURN NEXT api.get_model_property_json(r.id);
-		END IF;
-	  END LOOP;
+      FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id uuid, properties json)
+      LOOP
+        IF r.properties IS NOT NULL THEN
+          FOR e IN SELECT * FROM api.set_model_property_json(r.id, r.properties)
+          LOOP
+            RETURN NEXT row_to_json(e);
+          END LOOP;
+        ELSE
+          RETURN NEXT api.get_model_property_json(r.id);
+        END IF;
+      END LOOP;
 
-	END IF;
+    END IF;
 
   WHEN '/model/property/set' THEN
 
-	IF pPayload IS NULL THEN
-	  PERFORM JsonIsEmpty();
-	END IF;
+    IF pPayload IS NULL THEN
+      PERFORM JsonIsEmpty();
+    END IF;
 
     arKeys := array_cat(arKeys, GetRoutines('set_model_property', 'api', false));
     PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
@@ -238,92 +238,92 @@ BEGIN
 
   WHEN '/model/property/get' THEN
 
-	IF pPayload IS NULL THEN
-	  PERFORM JsonIsEmpty();
-	END IF;
+    IF pPayload IS NULL THEN
+      PERFORM JsonIsEmpty();
+    END IF;
 
-	arKeys := array_cat(arKeys, ARRAY['id', 'property', 'fields']);
-	PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+    arKeys := array_cat(arKeys, ARRAY['id', 'property', 'fields']);
+    PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
 
-	IF jsonb_typeof(pPayload) = 'array' THEN
+    IF jsonb_typeof(pPayload) = 'array' THEN
 
-	  FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id uuid, property uuid, fields jsonb)
-	  LOOP
-		FOR e IN EXECUTE format('SELECT %s FROM api.get_model_property($1, $2)', JsonbToFields(r.fields, GetColumns('model_property', 'api'))) USING r.id, r.property
-		LOOP
-		  RETURN NEXT row_to_json(e);
-		END LOOP;
-	  END LOOP;
+      FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id uuid, property uuid, fields jsonb)
+      LOOP
+        FOR e IN EXECUTE format('SELECT %s FROM api.get_model_property($1, $2)', JsonbToFields(r.fields, GetColumns('model_property', 'api'))) USING r.id, r.property
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
+      END LOOP;
 
-	ELSE
+    ELSE
 
-	  FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id uuid, property uuid, fields jsonb)
-	  LOOP
-		FOR e IN EXECUTE format('SELECT %s FROM api.get_model_property($1, $2)', JsonbToFields(r.fields, GetColumns('model_property', 'api'))) USING r.id, r.property
-		LOOP
-		  RETURN NEXT row_to_json(e);
-		END LOOP;
-	  END LOOP;
+      FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id uuid, property uuid, fields jsonb)
+      LOOP
+        FOR e IN EXECUTE format('SELECT %s FROM api.get_model_property($1, $2)', JsonbToFields(r.fields, GetColumns('model_property', 'api'))) USING r.id, r.property
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
+      END LOOP;
 
-	END IF;
+    END IF;
 
   WHEN '/model/property/delete' THEN
 
-	IF pPayload IS NULL THEN
-	  PERFORM JsonIsEmpty();
-	END IF;
+    IF pPayload IS NULL THEN
+      PERFORM JsonIsEmpty();
+    END IF;
 
-	arKeys := array_cat(arKeys, ARRAY['id', 'property']);
-	PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+    arKeys := array_cat(arKeys, ARRAY['id', 'property']);
+    PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
 
-	IF jsonb_typeof(pPayload) = 'array' THEN
+    IF jsonb_typeof(pPayload) = 'array' THEN
 
-	  FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id uuid, property uuid)
-	  LOOP
-		FOR e IN SELECT r.id, r.property, api.delete_model_property(r.id, r.property) AS deleted
-		LOOP
-		  RETURN NEXT row_to_json(e);
-		END LOOP;
-	  END LOOP;
+      FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id uuid, property uuid)
+      LOOP
+        FOR e IN SELECT r.id, r.property, api.delete_model_property(r.id, r.property) AS deleted
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
+      END LOOP;
 
-	ELSE
+    ELSE
 
-	  FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id uuid, property uuid)
-	  LOOP
-		FOR e IN SELECT r.id, r.property, api.delete_model_property(r.id, r.property) AS deleted
-		LOOP
-		  RETURN NEXT row_to_json(e);
-		END LOOP;
-	  END LOOP;
+      FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id uuid, property uuid)
+      LOOP
+        FOR e IN SELECT r.id, r.property, api.delete_model_property(r.id, r.property) AS deleted
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
+      END LOOP;
 
-	END IF;
+    END IF;
 
   WHEN '/model/property/clear' THEN
 
-	IF pPayload IS NULL THEN
-	  PERFORM JsonIsEmpty();
-	END IF;
+    IF pPayload IS NULL THEN
+      PERFORM JsonIsEmpty();
+    END IF;
 
-	arKeys := array_cat(arKeys, ARRAY['id']);
-	PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+    arKeys := array_cat(arKeys, ARRAY['id']);
+    PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
 
-	IF jsonb_typeof(pPayload) = 'array' THEN
+    IF jsonb_typeof(pPayload) = 'array' THEN
 
-	  FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id uuid)
-	  LOOP
-		PERFORM api.clear_model_property(r.id);
-		RETURN NEXT row_to_json(r);
-	  END LOOP;
+      FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id uuid)
+      LOOP
+        PERFORM api.clear_model_property(r.id);
+        RETURN NEXT row_to_json(r);
+      END LOOP;
 
-	ELSE
+    ELSE
 
-	  FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id uuid)
-	  LOOP
-		PERFORM api.clear_model_property(r.id);
-		RETURN NEXT row_to_json(r);
-	  END LOOP;
+      FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id uuid)
+      LOOP
+        PERFORM api.clear_model_property(r.id);
+        RETURN NEXT row_to_json(r);
+      END LOOP;
 
-	END IF;
+    END IF;
 
   WHEN '/model/property/count' THEN
 
@@ -358,20 +358,20 @@ BEGIN
 
   WHEN '/model/property/list' THEN
 
-	IF pPayload IS NOT NULL THEN
-	  arKeys := array_cat(arKeys, ARRAY['fields', 'search', 'filter', 'reclimit', 'recoffset', 'orderby']);
-	  PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
-	ELSE
-	  pPayload := '{}';
-	END IF;
+    IF pPayload IS NOT NULL THEN
+      arKeys := array_cat(arKeys, ARRAY['fields', 'search', 'filter', 'reclimit', 'recoffset', 'orderby']);
+      PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+    ELSE
+      pPayload := '{}';
+    END IF;
 
-	FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(fields jsonb, search jsonb, filter jsonb, reclimit integer, recoffset integer, orderby jsonb)
-	LOOP
-	  FOR e IN EXECUTE format('SELECT %s FROM api.list_model_property($1, $2, $3, $4, $5)', JsonbToFields(r.fields, GetColumns('model_property', 'api'))) USING r.search, r.filter, r.reclimit, r.recoffset, r.orderby
-	  LOOP
-		RETURN NEXT row_to_json(e);
-	  END LOOP;
-	END LOOP;
+    FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(fields jsonb, search jsonb, filter jsonb, reclimit integer, recoffset integer, orderby jsonb)
+    LOOP
+      FOR e IN EXECUTE format('SELECT %s FROM api.list_model_property($1, $2, $3, $4, $5)', JsonbToFields(r.fields, GetColumns('model_property', 'api'))) USING r.search, r.filter, r.reclimit, r.recoffset, r.orderby
+      LOOP
+        RETURN NEXT row_to_json(e);
+      END LOOP;
+    END LOOP;
 
   ELSE
     RETURN NEXT ExecuteDynamicMethod(pPath, pPayload);

@@ -146,9 +146,23 @@ CREATE OR REPLACE FUNCTION InitMeasure()
 RETURNS         void
 AS $$
 BEGIN
+  PERFORM CreateMeasure(null, GetType('length.measure'), '003', 'мм', 'Миллиметр');
+  PERFORM CreateMeasure(null, GetType('length.measure'), '004', 'см', 'Сантиметр');
+  PERFORM CreateMeasure(null, GetType('length.measure'), '005', 'дм', 'Дециметр');
+  PERFORM CreateMeasure(null, GetType('length.measure'), '006', 'м', 'Метр');
+  PERFORM CreateMeasure(null, GetType('length.measure'), '008', 'км', 'Километр');
+  PERFORM CreateMeasure(null, GetType('length.measure'), '009', 'Мм', 'Мегаметр');
+  PERFORM CreateMeasure(null, GetType('length.measure'), '039', 'дюйм', 'Дюйм (25,4 мм)');
+  PERFORM CreateMeasure(null, GetType('length.measure'), '041', 'фут', 'Фут (0,3048 м)');
+  PERFORM CreateMeasure(null, GetType('length.measure'), '043', 'ярд', 'Ярд (0,9144 м)');
+  PERFORM CreateMeasure(null, GetType('length.measure'), '047', 'миля', 'Морская миля (1852 м)');
+
+  PERFORM CreateMeasure(null, GetType('area.measure'), '055', 'кв. м.', 'Квадратный метр');
+  PERFORM CreateMeasure(null, GetType('area.measure'), '061', 'кв. км.', 'Квадратный километр');
+
   PERFORM CreateMeasure(null, GetType('volume.measure'), '111', 'см3', 'Кубический сантиметр');
   PERFORM CreateMeasure(null, GetType('volume.measure'), '112', 'л', 'Литр');
-  PERFORM CreateMeasure(null, GetType('volume.measure'), '113', 'м3', 'Кубический метр');
+  PERFORM CreateMeasure(null, GetType('volume.measure'), '113', 'куб. м.', 'Кубический метр');
 
   PERFORM CreateMeasure(null, GetType('weight.measure'), '161', 'мг', 'Миллиграмм');
   PERFORM CreateMeasure(null, GetType('weight.measure'), '163', 'г', 'Грамм');
@@ -164,8 +178,17 @@ BEGIN
   PERFORM CreateMeasure(null, GetType('technical.measure'), '222', 'В', 'Вольт');
   PERFORM CreateMeasure(null, GetType('technical.measure'), '223', 'кВ', 'Киловольт');
 
+  PERFORM CreateMeasure(null, GetType('technical.measure'), '233', 'Гкал', 'Гигакалория');
+
   PERFORM CreateMeasure(null, GetType('technical.measure'), '243', 'Вт.ч', 'Ватт-час');
   PERFORM CreateMeasure(null, GetType('technical.measure'), '245', 'кВ.ч', 'Киловатт-час');
+
+  PERFORM CreateMeasure(null, GetType('technical.measure'), '260', 'А', 'Ампер');
+
+  PERFORM CreateMeasure(null, GetType('technical.measure'), '327', 'уз', 'Узел (миля/ч)');
+  PERFORM CreateMeasure(null, GetType('technical.measure'), '328', 'м/с', 'Метр в секунду');
+
+  PERFORM CreateMeasure(null, GetType('technical.measure'), '2355', 'градус', 'Градус (плоского угла)');
 
   PERFORM CreateMeasure(null, GetType('time.measure'), '354', 'с', 'Секунда');
   PERFORM CreateMeasure(null, GetType('time.measure'), '355', 'мин', 'Минута');
@@ -180,7 +203,11 @@ BEGIN
 
   PERFORM CreateMeasure(null, GetType('economic.measure'), '616', 'боб', 'Бобина');
   PERFORM CreateMeasure(null, GetType('economic.measure'), '625', 'л.', 'Лист');
+  PERFORM CreateMeasure(null, GetType('economic.measure'), '744', '%', 'Процент');
   PERFORM CreateMeasure(null, GetType('economic.measure'), '796', 'шт', 'Штука');
+  PERFORM CreateMeasure(null, GetType('economic.measure'), '876', 'усл. ед', 'Условная единица');
+  PERFORM CreateMeasure(null, GetType('economic.measure'), '923', 'слово', 'Слово');
+  PERFORM CreateMeasure(null, GetType('economic.measure'), '7923', 'аб-т', 'Абонент');
 END
 $$ LANGUAGE plpgsql
    SECURITY DEFINER

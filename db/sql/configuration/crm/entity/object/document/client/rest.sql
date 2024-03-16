@@ -23,7 +23,7 @@ BEGIN
   END IF;
 
   IF current_session() IS NULL THEN
-	PERFORM LoginFailed();
+    PERFORM LoginFailed();
   END IF;
 
   CASE pPath
@@ -50,7 +50,7 @@ BEGIN
 
       FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id uuid)
       LOOP
-        FOR e IN SELECT r.id, api.get_methods(GetObjectClass(r.id), GetObjectState(r.id)) as method FROM api.get_client(r.id) ORDER BY id
+        FOR e IN SELECT * FROM api.get_object_methods(r.id) ORDER BY sequence
         LOOP
           RETURN NEXT row_to_json(e);
         END LOOP;
@@ -60,7 +60,7 @@ BEGIN
 
       FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id uuid)
       LOOP
-        FOR e IN SELECT r.id, api.get_methods(GetObjectClass(r.id), GetObjectState(r.id)) as method FROM api.get_client(r.id) ORDER BY id
+        FOR e IN SELECT * FROM api.get_object_methods(r.id) ORDER BY sequence
         LOOP
           RETURN NEXT row_to_json(e);
         END LOOP;
@@ -170,6 +170,34 @@ BEGIN
       LOOP
         RETURN NEXT row_to_json(e);
       END LOOP;
+    END LOOP;
+
+  WHEN '/client/close' THEN
+
+    IF pPayload IS NULL THEN
+      PERFORM JsonIsEmpty();
+    END IF;
+
+    arKeys := array_cat(arKeys, ARRAY['id']);
+    PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+
+    FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id uuid)
+    LOOP
+      RETURN NEXT json_build_object('success', api.close_client(r.id));
+    END LOOP;
+
+  WHEN '/client/balance' THEN
+
+    IF pPayload IS NULL THEN
+      PERFORM JsonIsEmpty();
+    END IF;
+
+    arKeys := array_cat(arKeys, ARRAY['id']);
+    PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+
+    FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id uuid)
+    LOOP
+      RETURN NEXT api.get_client_balance(r.id);
     END LOOP;
 
   ELSE

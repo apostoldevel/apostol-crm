@@ -7,16 +7,16 @@
 --------------------------------------------------------------------------------
 
 CREATE TABLE db.device (
-    id                  uuid PRIMARY KEY,
-    document            uuid NOT NULL REFERENCES db.document(id) ON DELETE CASCADE,
-    model               uuid NOT NULL REFERENCES db.model(id) ON DELETE RESTRICT,
-    client				uuid REFERENCES db.client(id) ON DELETE RESTRICT,
-    identity            text NOT NULL,
-    version             text,
-    serial              text,
-    address				text,
-    iccid               text,
-    imsi                text
+    id              uuid PRIMARY KEY,
+    document        uuid NOT NULL REFERENCES db.document(id) ON DELETE CASCADE,
+    model           uuid NOT NULL REFERENCES db.model(id) ON DELETE RESTRICT,
+    client          uuid REFERENCES db.client(id) ON DELETE RESTRICT,
+    identity        text NOT NULL,
+    version         text,
+    serial          text,
+    address         text,
+    iccid           text,
+    imsi            text
 );
 
 --------------------------------------------------------------------------------
@@ -47,11 +47,11 @@ CREATE INDEX ON db.device (serial);
 
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION ft_device_before_insert()
+CREATE OR REPLACE FUNCTION db.ft_device_before_insert()
 RETURNS trigger AS $$
 DECLARE
-  nOwner		uuid;
-  uUserId		uuid;
+  nOwner        uuid;
+  uUserId        uuid;
 BEGIN
   IF NEW.id IS NULL THEN
     SELECT NEW.document INTO NEW.id;
@@ -80,15 +80,15 @@ $$ LANGUAGE plpgsql
 CREATE TRIGGER t_device_before_insert
   BEFORE INSERT ON db.device
   FOR EACH ROW
-  EXECUTE PROCEDURE ft_device_before_insert();
+  EXECUTE PROCEDURE db.ft_device_before_insert();
 
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION ft_device_before_update()
+CREATE OR REPLACE FUNCTION db.ft_device_before_update()
 RETURNS trigger AS $$
 DECLARE
-  nOwner		uuid;
-  uUserId		uuid;
+  nOwner        uuid;
+  uUserId        uuid;
 BEGIN
   IF OLD.client <> NEW.client THEN
     SELECT owner INTO nOwner FROM db.object WHERE id = NEW.document;
@@ -122,7 +122,7 @@ $$ LANGUAGE plpgsql
 CREATE TRIGGER t_device_before_update
   BEFORE UPDATE ON db.device
   FOR EACH ROW
-  EXECUTE PROCEDURE ft_device_before_update();
+  EXECUTE PROCEDURE db.ft_device_before_update();
 
 --------------------------------------------------------------------------------
 -- db.device_notification ------------------------------------------------------
@@ -131,13 +131,13 @@ CREATE TRIGGER t_device_before_update
 CREATE TABLE db.device_notification (
     id              uuid PRIMARY KEY DEFAULT gen_kernel_uuid('8'),
     device          uuid NOT NULL,
-    interfaceId		integer NOT NULL DEFAULT 0,
+    interfaceId     integer NOT NULL DEFAULT 0,
     status          text NOT NULL,
     errorCode       text NOT NULL,
     info            text,
-    vendorErrorCode	text,
-    validFromDate	timestamp DEFAULT NOW() NOT NULL,
-    validToDate		timestamp DEFAULT TO_DATE('4433-12-31', 'YYYY-MM-DD') NOT NULL,
+    vendorErrorCode text,
+    validFromDate   timestamp DEFAULT NOW() NOT NULL,
+    validToDate     timestamp DEFAULT TO_DATE('4433-12-31', 'YYYY-MM-DD') NOT NULL,
     CONSTRAINT fk_device_notification_device FOREIGN KEY (device) REFERENCES db.device(id)
 );
 
@@ -168,12 +168,12 @@ CREATE UNIQUE INDEX ON db.device_notification (device, interfaceId, validFromDat
 --------------------------------------------------------------------------------
 
 CREATE TABLE db.device_value (
-    id			    uuid PRIMARY KEY DEFAULT gen_kernel_uuid('8'),
+    id              uuid PRIMARY KEY DEFAULT gen_kernel_uuid('8'),
     device          uuid NOT NULL,
-    type			integer NOT NULL,
-    value			jsonb NOT NULL,
-    validFromDate	timestamp DEFAULT NOW() NOT NULL,
-    validToDate		timestamp DEFAULT TO_DATE('4433-12-31', 'YYYY-MM-DD') NOT NULL,
+    type            integer NOT NULL,
+    value           jsonb NOT NULL,
+    validFromDate   timestamp DEFAULT NOW() NOT NULL,
+    validToDate     timestamp DEFAULT TO_DATE('4433-12-31', 'YYYY-MM-DD') NOT NULL,
     CONSTRAINT fk_device_value_device FOREIGN KEY (device) REFERENCES db.device(id)
 );
 

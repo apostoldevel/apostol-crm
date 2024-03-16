@@ -10,25 +10,25 @@
  * @param {text} pMiddle - Отчество
  * @param {text} pShort - Краткое наименование компании
  * @param {uuid} pLocale - Идентификатор локали
- * @param {timestamp} pDateFrom - Дата изменения
+ * @param {timestamptz} pDateFrom - Дата изменения
  * @return {(void|exception)}
  */
 CREATE OR REPLACE FUNCTION NewClientName (
-  pClient	    uuid,
-  pName		    text,
-  pShort	    text default null,
-  pFirst	    text default null,
-  pLast		    text default null,
-  pMiddle	    text default null,
-  pLocale		uuid default current_locale(),
-  pDateFrom	    timestamp default oper_date()
-) RETURNS 	    void
+  pClient       uuid,
+  pName         text,
+  pShort        text default null,
+  pFirst        text default null,
+  pLast         text default null,
+  pMiddle       text default null,
+  pLocale       uuid default current_locale(),
+  pDateFrom     timestamptz default oper_date()
+) RETURNS       void
 AS $$
 DECLARE
-  uId		    uuid;
+  uId           uuid;
 
-  dtDateFrom    timestamp;
-  dtDateTo 	    timestamp;
+  dtDateFrom    timestamptz;
+  dtDateTo      timestamptz;
 BEGIN
   uId := null;
 
@@ -81,38 +81,38 @@ $$ LANGUAGE plpgsql
  * @param {text} pLast - Фамилия
  * @param {text} pMiddle - Отчество
  * @param {uuid} pLocale - Идентификатор локали
- * @param {timestamp} pDateFrom - Дата изменения
+ * @param {timestamptz} pDateFrom - Дата изменения
  * @return {(void|exception)}
  */
 CREATE OR REPLACE FUNCTION EditClientName (
-  pClient	    uuid,
-  pName		    text,
-  pShort	    text default null,
-  pFirst	    text default null,
-  pLast		    text default null,
-  pMiddle	    text default null,
-  pLocale		uuid default current_locale(),
-  pDateFrom	    timestamp default oper_date()
-) RETURNS 	    void
+  pClient       uuid,
+  pName         text,
+  pShort        text default null,
+  pFirst        text default null,
+  pLast         text default null,
+  pMiddle       text default null,
+  pLocale       uuid default current_locale(),
+  pDateFrom     timestamptz default oper_date()
+) RETURNS       void
 AS $$
 DECLARE
-  uMethod	    uuid;
+  uMethod       uuid;
 
-  vHash		    text;
-  cHash		    text;
+  vHash         text;
+  cHash         text;
 
-  r		        record;
+  r             record;
 BEGIN
   SELECT * INTO r FROM GetClientNameRec(pClient, pLocale, pDateFrom);
 
   pName := coalesce(pName, r.name);
-  pShort := coalesce(pShort, r.short, '<null>');
-  pFirst := coalesce(pFirst, r.first, '<null>');
-  pLast := coalesce(pLast, r.last, '<null>');
-  pMiddle := coalesce(pMiddle, r.middle, '<null>');
+  pShort := coalesce(pShort, r.short, '');
+  pFirst := coalesce(pFirst, r.first, '');
+  pLast := coalesce(pLast, r.last, '');
+  pMiddle := coalesce(pMiddle, r.middle, '');
 
   vHash := encode(digest(pName || pShort || pFirst || pLast || pMiddle, 'md5'), 'hex');
-  cHash := encode(digest(r.name || coalesce(r.short, '<null>') || coalesce(r.first, '<null>') || coalesce(r.last, '<null>') || coalesce(r.middle, '<null>'), 'md5'), 'hex');
+  cHash := encode(digest(r.name || coalesce(r.short, '') || coalesce(r.first, '') || coalesce(r.last, '') || coalesce(r.middle, ''), 'md5'), 'hex');
 
   IF vHash IS DISTINCT FROM cHash THEN
     PERFORM NewClientName(pClient, pName, CheckNull(pShort), CheckNull(pFirst), CheckNull(pLast), CheckNull(pMiddle), pLocale, pDateFrom);
@@ -123,7 +123,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
+   SET search_path = kernel, public, pg_temp;
 
 --------------------------------------------------------------------------------
 -- FUNCTION GetClientNameRec ---------------------------------------------------
@@ -132,14 +132,14 @@ $$ LANGUAGE plpgsql
  * Возвращает наименование клиента.
  * @param {uuid} pClient - Идентификатор клиента
  * @param {uuid} pLocale - Идентификатор локали
- * @param {timestamp} pDate - Дата
+ * @param {timestamptz} pDate - Дата
  * @return {SETOF db.client_name}
  */
 CREATE OR REPLACE FUNCTION GetClientNameRec (
-  pClient	    uuid,
-  pLocale		uuid default current_locale(),
-  pDate		    timestamp default oper_date()
-) RETURNS	    SETOF db.client_name
+  pClient       uuid,
+  pLocale       uuid default current_locale(),
+  pDate         timestamptz default oper_date()
+) RETURNS       SETOF db.client_name
 AS $$
 BEGIN
   RETURN QUERY SELECT *
@@ -160,13 +160,13 @@ $$ LANGUAGE plpgsql
  * Возвращает наименование клиента.
  * @param {uuid} pClient - Идентификатор клиента
  * @param {uuid} pLocale - Идентификатор локали
- * @param {timestamp} pDate - Дата
+ * @param {timestamptz} pDate - Дата
  * @return {json}
  */
 CREATE OR REPLACE FUNCTION GetClientNameJson (
-  pClient	    uuid,
-  pLocale		uuid default current_locale(),
-  pDate		    timestamp default oper_date()
+  pClient       uuid,
+  pLocale       uuid default current_locale(),
+  pDate         timestamptz default oper_date()
 ) RETURNS       SETOF json
 AS $$
 DECLARE
@@ -196,23 +196,17 @@ $$ LANGUAGE plpgsql
  * Возвращает полное наименование клиента.
  * @param {uuid} pClient - Идентификатор клиента
  * @param {uuid} pLocale - Идентификатор локали
- * @param {timestamp} pDate - Дата
+ * @param {timestamptz} pDate - Дата
  * @return {(text|null|exception)}
  */
 CREATE OR REPLACE FUNCTION GetClientName (
   pClient       uuid,
-  pLocale		uuid default current_locale(),
-  pDate		    timestamp default oper_date()
+  pLocale       uuid default current_locale(),
+  pDate         timestamptz default oper_date()
 ) RETURNS       text
 AS $$
-DECLARE
-  vName		    text;
-BEGIN
-  SELECT name INTO vName FROM GetClientNameRec(pClient, pLocale, pDate);
-
-  RETURN vName;
-END;
-$$ LANGUAGE plpgsql
+  SELECT name FROM GetClientNameRec(pClient, pLocale, pDate);
+$$ LANGUAGE sql
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;
 
@@ -223,23 +217,17 @@ $$ LANGUAGE plpgsql
  * Возвращает краткое наименование клиента.
  * @param {uuid} pClient - Идентификатор клиента
  * @param {uuid} pLocale - Идентификатор локали
- * @param {timestamp} pDate - Дата
+ * @param {timestamptz} pDate - Дата
  * @return {(text|null|exception)}
  */
 CREATE OR REPLACE FUNCTION GetClientShortName (
-  pClient	    uuid,
-  pLocale		uuid default current_locale(),
-  pDate         timestamp default oper_date()
+  pClient       uuid,
+  pLocale       uuid default current_locale(),
+  pDate         timestamptz default oper_date()
 ) RETURNS       text
 AS $$
-DECLARE
-  vShort        text;
-BEGIN
-  SELECT short INTO vShort FROM GetClientNameRec(pClient, pLocale, pDate);
-
-  RETURN vShort;
-END;
-$$ LANGUAGE plpgsql
+  SELECT short FROM GetClientNameRec(pClient, pLocale, pDate);
+$$ LANGUAGE sql
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;
 
@@ -249,7 +237,7 @@ $$ LANGUAGE plpgsql
 /**
  * Создаёт нового клиента
  * @param {uuid} pParent - Ссылка на родительский объект
- * @param {uuid} pType - Тип
+ * @param {uuid} pType - Идентификатор типа
  * @param {text} pCode - ИНН - для юридического лица | Имя пользователя (login) | null
  * @param {uuid} pUserId - Пользователь (users): Учётная запись клиента
  * @param {jsonb} pName - Полное наименование компании/Ф.И.О.
@@ -257,34 +245,35 @@ $$ LANGUAGE plpgsql
  * @param {jsonb} pEmail - Электронные адреса
  * @param {jsonb} pAddress - Почтовые адреса
  * @param {jsonb} pInfo - Дополнительная информация
- * @param {timestamp} pCreation - Дата открытия | Дата рождения | null
+ * @param {date} pBirthDay - Дата открытия | Дата рождения | null
+ * @param {text} pBirthPlace - Место рождения | null
  * @param {text} pDescription - Описание
  * @return {uuid} - Id клиента
  */
 CREATE OR REPLACE FUNCTION CreateClient (
-  pParent	    uuid,
-  pType		    uuid,
-  pCode		    text,
-  pUserId	    uuid,
+  pParent       uuid,
+  pType         uuid,
+  pCode         text,
+  pUserId       uuid,
   pName         jsonb,
-  pPhone	    jsonb default null,
-  pEmail	    jsonb default null,
+  pPhone        jsonb default null,
+  pEmail        jsonb default null,
   pInfo         jsonb default null,
-  pCreation     timestamp default null,
-  pDescription	text default null
-) RETURNS 	    uuid
+  pBirthDay     date default null,
+  pBirthPlace   text default null,
+  pDescription  text default null
+) RETURNS       uuid
 AS $$
 DECLARE
   l             record;
 
-  uId		    uuid;
-  uClient	    uuid;
-  uDocument	    uuid;
+  uClient       uuid;
+  uDocument     uuid;
 
   cn            record;
 
-  uClass	    uuid;
-  uMethod	    uuid;
+  uClass        uuid;
+  uMethod       uuid;
 BEGIN
   SELECT class INTO uClass FROM db.type WHERE id = pType;
 
@@ -292,7 +281,7 @@ BEGIN
     PERFORM IncorrectClassType();
   END IF;
 
-  SELECT id INTO uId FROM db.client WHERE code = pCode;
+  PERFORM FROM db.client WHERE code = pCode;
 
   IF FOUND THEN
     PERFORM ClientCodeExists(pCode);
@@ -310,8 +299,8 @@ BEGIN
     pUserId := CreateUser(pCode, pCode, cn.short, pPhone->>0, pEmail->>0, NULLIF(trim(cn.name), ''));
   END IF;
 
-  INSERT INTO db.client (id, document, code, creation, userid, phone, email, info)
-  VALUES (uDocument, uDocument, pCode, pCreation, pUserId, pPhone, pEmail, pInfo)
+  INSERT INTO db.client (id, document, code, birthday, birthplace, userid, phone, email, info)
+  VALUES (uDocument, uDocument, pCode, pBirthDay, pBirthPlace, pUserId, pPhone, pEmail, pInfo)
   RETURNING id INTO uClient;
 
   FOR l IN SELECT id FROM db.locale
@@ -335,34 +324,35 @@ $$ LANGUAGE plpgsql
  * Редактирует основные параметры клиента.
  * @param {uuid} pId - Идентификатор клиента
  * @param {uuid} pParent - Ссылка на родительский объект
- * @param {uuid} pType - Тип
+ * @param {uuid} pType - Идентификатор типа
  * @param {text} pCode - ИНН - для юридического лица | Имя пользователя (login) | null
  * @param {uuid} pUserId - Пользователь (users): Учётная запись клиента
  * @param {jsonb} pName - Полное наименование компании/Ф.И.О.
  * @param {jsonb} pPhone - Справочник телефонов
  * @param {jsonb} pEmail - Электронные адреса
  * @param {jsonb} pInfo - Дополнительная информация
- * @param {timestamp} pCreation - Дата открытия | Дата рождения | null
+ * @param {date} pBirthDay - Дата открытия | Дата рождения | null
+ * @param {text} pBirthPlace - Место рождения | null
  * @param {text} pDescription - Описание
  * @return {void}
  */
 CREATE OR REPLACE FUNCTION EditClient (
-  pId		    uuid,
-  pParent	    uuid default null,
-  pType		    uuid default null,
-  pCode		    text default null,
-  pUserId	    uuid default null,
+  pId           uuid,
+  pParent       uuid default null,
+  pType         uuid default null,
+  pCode         text default null,
+  pUserId       uuid default null,
   pName         jsonb default null,
-  pPhone	    jsonb default null,
-  pEmail	    jsonb default null,
+  pPhone        jsonb default null,
+  pEmail        jsonb default null,
   pInfo         jsonb default null,
-  pCreation     timestamp default null,
-  pDescription	text default null
-) RETURNS 	    void
+  pBirthDay     date default null,
+  pBirthPlace   text default null,
+  pDescription  text default null
+) RETURNS       void
 AS $$
 DECLARE
-  uId		    uuid;
-  uMethod	    uuid;
+  uMethod       uuid;
 
   r             record;
 
@@ -370,8 +360,8 @@ DECLARE
   new           Client%rowtype;
 
   -- current
-  cCode		    text;
-  cUserId	    uuid;
+  cCode         text;
+  cUserId       uuid;
 BEGIN
   SELECT code, userid INTO cCode, cUserId FROM db.client WHERE id = pId;
 
@@ -379,13 +369,13 @@ BEGIN
   pUserId := coalesce(pUserId, cUserId, null_uuid());
 
   IF pCode <> cCode THEN
-    SELECT id INTO uId FROM db.client WHERE code = pCode;
+    PERFORM FROM db.client WHERE code = pCode;
     IF FOUND THEN
       PERFORM ClientCodeExists(pCode);
     END IF;
   END IF;
 
-  PERFORM EditDocument(pId, pParent, pType, null, pDescription);
+  PERFORM EditDocument(pId, pParent, pType, null, pDescription, pDescription, current_locale());
 
   SELECT * INTO old FROM Client WHERE id = pId;
 
@@ -395,7 +385,8 @@ BEGIN
          phone = CheckNull(coalesce(pPhone, phone, '{}')),
          email = CheckNull(coalesce(pEmail, email, '{}')),
          info = CheckNull(coalesce(pInfo, info, '{}')),
-         creation = CheckNull(coalesce(pCreation, creation, MINDATE()))
+         birthday = CheckNull(coalesce(pBirthDay, birthday, MINDATE())),
+         birthplace = CheckNull(coalesce(pBirthPlace, birthplace, ''))
    WHERE id = pId;
 
   FOR r IN SELECT * FROM jsonb_to_record(pName) AS x(name text, short text, first text, last text, middle text)
@@ -417,16 +408,11 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION GetClient (
-  pCode		text
-) RETURNS	uuid
+  pCode     text
+) RETURNS   uuid
 AS $$
-DECLARE
-  uId		uuid;
-BEGIN
-  SELECT id INTO uId FROM db.client WHERE code = pCode;
-  RETURN uId;
-END;
-$$ LANGUAGE plpgsql
+  SELECT id FROM db.client WHERE code = pCode;
+$$ LANGUAGE sql
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;
 
@@ -435,16 +421,11 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION GetClientCode (
-  pClient	uuid
-) RETURNS	text
+  pClient   uuid
+) RETURNS   text
 AS $$
-DECLARE
-  vCode     text;
-BEGIN
-  SELECT code INTO vCode FROM db.client WHERE id = pClient;
-  RETURN vCode;
-END;
-$$ LANGUAGE plpgsql
+  SELECT code FROM db.client WHERE id = pClient;
+$$ LANGUAGE sql
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;
 
@@ -453,16 +434,11 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION GetClientUserId (
-  pClient	uuid
-) RETURNS	uuid
+  pClient   uuid
+) RETURNS   uuid
 AS $$
-DECLARE
-  uUserId	uuid;
-BEGIN
-  SELECT userid INTO uUserId FROM db.client WHERE id = pClient;
-  RETURN uUserId;
-END;
-$$ LANGUAGE plpgsql
+  SELECT userid FROM db.client WHERE id = pClient;
+$$ LANGUAGE sql
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;
 
@@ -471,14 +447,120 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION GetClientByUserId (
-  pUserId       uuid
-) RETURNS       uuid
+  pUserId   uuid
+) RETURNS   uuid
+AS $$
+  SELECT id FROM db.client WHERE userid = pUserId
+$$ LANGUAGE sql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- FUNCTION current_client -----------------------------------------------------
+--------------------------------------------------------------------------------
+/**
+ * Возвращает идентификатор текущего клиента.
+ * @return {uuid} - Клиент
+ */
+CREATE OR REPLACE FUNCTION current_client()
+RETURNS     uuid
+AS $$
+  SELECT id FROM db.client WHERE userid = current_userid();
+$$ LANGUAGE sql STABLE
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- SendPushAll -----------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION SendPushAll (
+  pTitle    text,
+  pBody     text
+) RETURNS   integer
 AS $$
 DECLARE
-  uId           uuid;
+  r         record;
+  result    integer DEFAULT 0;
 BEGIN
-  SELECT id INTO uId FROM db.client WHERE userid = pUserId;
-  RETURN uId;
+  IF NOT IsUserRole(GetGroup('message')) THEN
+    PERFORM AccessDenied();
+  END IF;
+
+  FOR r IN SELECT c.id, userId FROM db.client c INNER JOIN db.object o ON c.document = o.id AND o.state_type = '00000000-0000-4000-b001-000000000002'::uuid
+  LOOP
+    PERFORM SendPush(r.id, pTitle, pBody, r.userid);
+    result := result + 1;
+  END LOOP;
+
+  RETURN result;
+END;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- CreateClientAccounts --------------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION CreateClientAccounts (
+  pClient       uuid
+) RETURNS       void
+AS $$
+DECLARE
+  uActive       uuid;
+  uPassive      uuid;
+  uCurrency     uuid;
+  uCategory     uuid;
+  uDebit        uuid;
+  uCredit       uuid;
+BEGIN
+  uActive := GetType('active.account');
+  uPassive := GetType('passive.account');
+
+  uCategory := GetCategory('chat.category');
+
+  uCurrency := GetCurrency('USD');
+
+  PERFORM DoEnable(CreateAccount(pClient, uActive, uCurrency, pClient, uCategory, GenAccountCode(pClient, uActive, uCurrency), 'USD account (active)'));
+  PERFORM DoEnable(CreateAccount(pClient, uPassive, uCurrency, pClient, uCategory, GenAccountCode(pClient, uPassive, uCurrency), 'USD account (passive)'));
+
+  uCurrency := GetCurrency('NIL');
+
+  uDebit := CreateAccount(pClient, uActive, uCurrency, pClient, uCategory, GenAccountCode(pClient, uActive, uCurrency, 'gpt'), 'The account for counting the number of spent tokens (ChatGPT) (active)');
+  uCredit := CreateAccount(pClient, uPassive, uCurrency, pClient, uCategory, GenAccountCode(pClient, uPassive, uCurrency, 'gpt'), 'The account for counting the number of spent tokens (ChatGPT) (passive)');
+
+  PERFORM DoEnable(uDebit);
+  PERFORM DoEnable(uCredit);
+
+  uDebit := CreateAccount(pClient, uActive, uCurrency, pClient, uCategory, GenAccountCode(pClient, uActive, uCurrency, 'wrd'), 'An account for counting the number of words (active)');
+  uCredit := CreateAccount(pClient, uPassive, uCurrency, pClient, uCategory, GenAccountCode(pClient, uPassive, uCurrency, 'wrd'), 'An account for counting the number of words (passive)');
+
+  PERFORM DoEnable(uDebit);
+  PERFORM DoEnable(uCredit);
+
+  PERFORM DoDisable(Payment(pClient, uDebit, uCredit, 1000, 'Trial words for Chat.'));
+
+  uCurrency := GetCurrency('GEN');
+  uCategory := GetCategory('text.category');
+
+  uDebit := CreateAccount(pClient, uActive, uCurrency, pClient, uCategory, GenAccountCode(pClient, uActive, uCurrency, 'txt'), 'Text generation account (active)');
+  uCredit := CreateAccount(pClient, uPassive, uCurrency, pClient, uCategory, GenAccountCode(pClient, uPassive, uCurrency, 'txt'), 'Text generation account (passive)');
+
+  PERFORM DoEnable(uDebit);
+  PERFORM DoEnable(uCredit);
+
+  PERFORM DoDisable(Payment(pClient, uDebit, uCredit, 5, 'For trial text generation.'));
+
+  uCategory := GetCategory('media.category');
+
+  uDebit := CreateAccount(pClient, uActive, uCurrency, pClient, uCategory, GenAccountCode(pClient, uActive, uCurrency, 'img'), 'Image generation account (active)');
+  uCredit := CreateAccount(pClient, uPassive, uCurrency, pClient, uCategory, GenAccountCode(pClient, uPassive, uCurrency, 'img'), 'Image generation account (passive)');
+
+  PERFORM DoEnable(uDebit);
+  PERFORM DoEnable(uCredit);
+
+  --PERFORM DoDisable(Payment(pClient, uDebit, uCredit, 3, 'For trial media generation.'));
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER

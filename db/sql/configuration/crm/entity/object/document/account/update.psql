@@ -1,3 +1,5 @@
+\ir './balance/update.psql'
+
 \echo [M] call view.sql
 \ir view.sql
 

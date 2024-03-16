@@ -12,7 +12,6 @@ CREATE OR REPLACE FUNCTION EventAddressCreate (
 AS $$
 BEGIN
   PERFORM WriteToEventLog('M', 1000, 'create', 'Адрес создан.', pObject);
-  PERFORM DoEnable(pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -123,6 +122,6 @@ BEGIN
   DELETE FROM db.object_link WHERE linked = pObject;
   DELETE FROM db.address WHERE id = pObject;
 
-  PERFORM WriteToEventLog('W', 1000, 'drop', '[' || pObject || '] [' || coalesce(r.label, '<null>') || '] Адрес уничтожен.');
+  PERFORM WriteToEventLog('W', 1000, 'drop', '[' || pObject || '] [' || coalesce(r.label, '') || '] Адрес уничтожен.');
 END;
 $$ LANGUAGE plpgsql;

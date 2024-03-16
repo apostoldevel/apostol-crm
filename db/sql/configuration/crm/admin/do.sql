@@ -48,7 +48,7 @@ BEGIN
   SELECT * INTO r FROM Area WHERE id = pArea;
 
   PERFORM SetVar('object', 'id', r.id);
-  PERFORM DoEnable(CreateClient(null, GetType('subdivision.client'), r.code, null, jsonb_build_object('name', r.name), null, null, null, null, r.description));
+  PERFORM DoEnable(CreateClient(null, GetType('subdivision.client'), r.code, null, jsonb_build_object('name', r.name), null, null, null, null, null, r.description));
   PERFORM SetVar('object', 'id', null);
 EXCEPTION
 WHEN others THEN

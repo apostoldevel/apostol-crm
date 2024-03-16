@@ -18,10 +18,11 @@ GRANT SELECT ON api.address TO administrator;
 /**
  * Добавляет новый адрес.
  * @param {uuid} pParent - Идентификатор родителя | null
- * @param {text} pType - Код типа адреса
- * @param {text} pCode - Код: ФФ СС РРР ГГГ ППП УУУУ. Где: ФФ - код страны; СС - код субъекта РФ; РРР - код района; ГГГ - код города; ППП - код населенного пункта; УУУУ - код улицы.
+ * @param {uuid} pType - Идентификатор типа
+ * @param {uuid} pCountry - Идентификатор страны
+ * @param {text} pCode - Код.
+ * @param {text} pKladr - Код КЛАДР: ФФ СС РРР ГГГ ППП УУУУ. Где: ФФ - код страны; СС - код субъекта РФ; РРР - код района; ГГГ - код города; ППП - код населенного пункта; УУУУ - код улицы.
  * @param {text} pIndex - Почтовый индекс
- * @param {text} pCountry - Страна
  * @param {text} pRegion - Регион
  * @param {text} pDistrict - Район
  * @param {text} pCity - Город
@@ -31,15 +32,16 @@ GRANT SELECT ON api.address TO administrator;
  * @param {text} pBuilding - Корпус
  * @param {text} pStructure - Строение
  * @param {text} pApartment - Квартира
- * @param {text} pAddress - Полный адрес
+ * @param {text} pAddressText - Полный адрес
  * @return {uuid}
  */
 CREATE OR REPLACE FUNCTION api.add_address (
   pParent       uuid,
-  pType         text,
+  pType         uuid,
+  pCountry      uuid,
   pCode         text,
+  pKladr        text,
   pIndex        text,
-  pCountry      text,
   pRegion       text,
   pDistrict     text,
   pCity         text,
@@ -49,11 +51,11 @@ CREATE OR REPLACE FUNCTION api.add_address (
   pBuilding     text,
   pStructure    text,
   pApartment    text,
-  pAddress      text DEFAULT null
+  pAddressText  text DEFAULT null
 ) RETURNS       uuid
 AS $$
 BEGIN
-  RETURN CreateAddress(pParent, CodeToType(lower(coalesce(pType, 'post')), 'address'), pCode, pIndex, pCountry, pRegion, pDistrict, pCity, pSettlement, pStreet, pHouse, pBuilding, pStructure, pApartment, pAddress);
+  RETURN CreateAddress(pParent, coalesce(pType, GetType('post.address')), pCountry, pCode, pKladr, pIndex, pRegion, pDistrict, pCity, pSettlement, pStreet, pHouse, pBuilding, pStructure, pApartment, pAddressText);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -66,10 +68,11 @@ $$ LANGUAGE plpgsql
  * Обновляет данные адреса.
  * @param {uuid} pId - Идентификатор адреса
  * @param {uuid} pParent - Идентификатор родителя | null
- * @param {text} pType - Код типа адреса
- * @param {text} pCode - Код: ФФ СС РРР ГГГ ППП УУУУ. Где: ФФ - код страны; СС - код субъекта РФ; РРР - код района; ГГГ - код города; ППП - код населенного пункта; УУУУ - код улицы.
+ * @param {uuid} pType - Идентификатор типа
+ * @param {uuid} pCountry - Идентификатор страны
+ * @param {text} pCode - Код.
+ * @param {text} pKladr - Код КЛАДР: ФФ СС РРР ГГГ ППП УУУУ. Где: ФФ - код страны; СС - код субъекта РФ; РРР - код района; ГГГ - код города; ППП - код населенного пункта; УУУУ - код улицы.
  * @param {text} pIndex - Почтовый индекс
- * @param {text} pCountry - Страна
  * @param {text} pRegion - Регион
  * @param {text} pDistrict - Район
  * @param {text} pCity - Город
@@ -79,16 +82,17 @@ $$ LANGUAGE plpgsql
  * @param {text} pBuilding - Корпус
  * @param {text} pStructure - Строение
  * @param {text} pApartment - Квартира
- * @param {text} pAddress - Полный адрес
+ * @param {text} pAddressText - Полный адрес
  * @return {void}
  */
 CREATE OR REPLACE FUNCTION api.update_address (
   pId           uuid,
   pParent       uuid DEFAULT null,
-  pType         text DEFAULT null,
+  pType         uuid DEFAULT null,
+  pCountry      uuid DEFAULT null,
   pCode         text DEFAULT null,
+  pKladr        text DEFAULT null,
   pIndex        text DEFAULT null,
-  pCountry      text DEFAULT null,
   pRegion       text DEFAULT null,
   pDistrict     text DEFAULT null,
   pCity         text DEFAULT null,
@@ -98,25 +102,18 @@ CREATE OR REPLACE FUNCTION api.update_address (
   pBuilding     text DEFAULT null,
   pStructure    text DEFAULT null,
   pApartment    text DEFAULT null,
-  pAddress      text DEFAULT null
+  pAddressText  text DEFAULT null
 ) RETURNS       void
 AS $$
 DECLARE
   uAddress      uuid;
-  uType         uuid;
 BEGIN
   SELECT a.id INTO uAddress FROM db.address a WHERE a.id = pId;
   IF NOT FOUND THEN
     PERFORM ObjectNotFound('адрес', 'id', pId);
   END IF;
 
-  IF pType IS NOT NULL THEN
-    uType := CodeToType(lower(pType), 'address');
-  ELSE
-    SELECT o.type INTO uType FROM db.object o WHERE o.id = pId;
-  END IF;
-
-  PERFORM EditAddress(uAddress, pParent, uType, pCode, pIndex, pCountry, pRegion, pDistrict, pCity, pSettlement, pStreet, pHouse, pBuilding, pStructure, pApartment, pAddress);
+  PERFORM EditAddress(uAddress, pParent, pType, pCountry, pCode, pKladr, pIndex, pRegion, pDistrict, pCity, pSettlement, pStreet, pHouse, pBuilding, pStructure, pApartment, pAddressText);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -129,10 +126,11 @@ $$ LANGUAGE plpgsql
 CREATE OR REPLACE FUNCTION api.set_address (
   pId           uuid,
   pParent       uuid DEFAULT null,
-  pType         text DEFAULT null,
+  pType         uuid DEFAULT null,
+  pCountry      uuid DEFAULT null,
   pCode         text DEFAULT null,
+  pKladr        text DEFAULT null,
   pIndex        text DEFAULT null,
-  pCountry      text DEFAULT null,
   pRegion       text DEFAULT null,
   pDistrict     text DEFAULT null,
   pCity         text DEFAULT null,
@@ -142,14 +140,14 @@ CREATE OR REPLACE FUNCTION api.set_address (
   pBuilding     text DEFAULT null,
   pStructure    text DEFAULT null,
   pApartment    text DEFAULT null,
-  pAddress      text DEFAULT null
+  pAddressText  text DEFAULT null
 ) RETURNS       SETOF api.address
 AS $$
 BEGIN
   IF pId IS NULL THEN
-    pId := api.add_address(pParent, pType, pCode, pIndex, pCountry, pRegion, pDistrict, pCity, pSettlement, pStreet, pHouse, pBuilding, pStructure, pApartment, pAddress);
+    pId := api.add_address(pParent, pType, pCountry, pCode, pKladr, pIndex, pRegion, pDistrict, pCity, pSettlement, pStreet, pHouse, pBuilding, pStructure, pApartment, pAddressText);
   ELSE
-    PERFORM api.update_address(pId, pParent, pType, pCode, pIndex, pCountry, pRegion, pDistrict, pCity, pSettlement, pStreet, pHouse, pBuilding, pStructure, pApartment, pAddress);
+    PERFORM api.update_address(pId, pParent, pType, pCountry, pCode, pKladr, pIndex, pRegion, pDistrict, pCity, pSettlement, pStreet, pHouse, pBuilding, pStructure, pApartment, pAddressText);
   END IF;
 
   RETURN QUERY SELECT * FROM api.address WHERE id = pId;
@@ -246,10 +244,11 @@ CREATE OR REPLACE FUNCTION api.set_object_addresses (
   pObject       uuid,
   pAddress      uuid,
   pParent       uuid,
-  pType         text,
+  pType         uuid,
+  pCountry      uuid,
   pCode         text,
+  pKladr        text,
   pIndex        text,
-  pCountry      text,
   pRegion       text,
   pDistrict     text,
   pCity         text,
@@ -259,11 +258,11 @@ CREATE OR REPLACE FUNCTION api.set_object_addresses (
   pBuilding     text,
   pStructure    text,
   pApartment    text,
-  pText         text DEFAULT null
+  pAddressText  text DEFAULT null
 ) RETURNS       SETOF api.object_address
 AS $$
 BEGIN
-  SELECT id INTO pAddress FROM api.set_address(pAddress, pParent, pType, pCode, pIndex, pCountry, pRegion, pDistrict, pCity, pSettlement, pStreet, pHouse, pBuilding, pStructure, pApartment, pText);
+  SELECT id INTO pAddress FROM api.set_address(pAddress, pParent, pType, pCountry, pCode, pKladr, pIndex, pRegion, pDistrict, pCity, pSettlement, pStreet, pHouse, pBuilding, pStructure, pApartment, pAddressText);
   RETURN QUERY SELECT * FROM api.set_object_address(pObject, pAddress);
 END;
 $$ LANGUAGE plpgsql
@@ -290,12 +289,12 @@ BEGIN
   END IF;
 
   IF pAddresses IS NOT NULL THEN
-    arKeys := array_cat(arKeys, ARRAY['id', 'parent', 'type', 'code', 'index', 'country', 'region', 'district', 'city', 'settlement', 'street', 'house', 'building', 'structure', 'apartment', 'address']);
+    arKeys := array_cat(arKeys, GetRoutines('set_address', 'api', false));
     PERFORM CheckJsonKeys('/object/address/addresses', arKeys, pAddresses);
 
-    FOR r IN SELECT * FROM json_to_recordset(pAddresses) AS addresses(id uuid, parent uuid, type text, code text, index text, country text, region text, district text, city text, settlement text, street text, house text, building text, structure text, apartment text, address text)
+    FOR r IN SELECT * FROM json_to_recordset(pAddresses) AS addresses(id uuid, parent uuid, type uuid, country uuid, code text, kladr text, index text, region text, district text, city text, settlement text, street text, house text, building text, structure text, apartment text, addresstext text)
     LOOP
-      RETURN NEXT api.set_object_addresses(pObject, r.Id, r.Parent, r.Type, r.Code, r.Index, r.Country, r.Region, r.District, r.City, r.Settlement, r.Street, r.House, r.Building, r.Structure, r.Apartment, r.Address);
+      RETURN NEXT api.set_object_addresses(pObject, r.id, r.parent, r.type, r.country, r.code, r.kladr, r.index, r.region, r.district, r.city, r.settlement, r.street, r.house, r.building, r.structure, r.apartment, r.addresstext);
     END LOOP;
   ELSE
     PERFORM JsonIsEmpty();

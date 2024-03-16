@@ -7,10 +7,10 @@
 --------------------------------------------------------------------------------
 
 CREATE TABLE db.currency (
-    id			    uuid PRIMARY KEY,
-    reference		uuid NOT NULL REFERENCES db.reference(id) ON DELETE CASCADE,
-    digital			integer,
-    decimal			integer DEFAULT 2
+    id              uuid PRIMARY KEY,
+    reference       uuid NOT NULL REFERENCES db.reference(id) ON DELETE CASCADE,
+    digital         integer,
+    decimal         integer DEFAULT 2
 );
 
 COMMENT ON TABLE db.currency IS 'Валюта.';
@@ -24,7 +24,7 @@ CREATE INDEX ON db.currency (reference);
 
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION ft_currency_insert()
+CREATE OR REPLACE FUNCTION db.ft_currency_insert()
 RETURNS trigger AS $$
 BEGIN
   IF NEW.id IS NULL THEN
@@ -42,4 +42,4 @@ $$ LANGUAGE plpgsql
 CREATE TRIGGER t_currency_insert
   BEFORE INSERT ON db.currency
   FOR EACH ROW
-  EXECUTE PROCEDURE ft_currency_insert();
+  EXECUTE PROCEDURE db.ft_currency_insert();

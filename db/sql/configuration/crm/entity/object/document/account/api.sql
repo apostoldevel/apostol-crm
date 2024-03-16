@@ -17,8 +17,8 @@ GRANT SELECT ON api.account TO administrator;
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION api.account (
-  pState	uuid
-) RETURNS	SETOF api.account
+  pState    uuid
+) RETURNS   SETOF api.account
 AS $$
   SELECT * FROM api.account WHERE state = pState;
 $$ LANGUAGE SQL
@@ -30,8 +30,8 @@ $$ LANGUAGE SQL
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION api.account (
-  pState	text
-) RETURNS	SETOF api.account
+  pState    text
+) RETURNS   SETOF api.account
 AS $$
 BEGIN
   RETURN QUERY SELECT * FROM api.account(GetState(GetClass('account'), pState));
@@ -48,8 +48,8 @@ $$ LANGUAGE plpgsql
  * @param {uuid} pParent - Ссылка на родительский объект: api.document | null
  * @param {uuid} pType - Tип
  * @param {uuid} pCurrency - Валюта
- * @param {uuid} pCategory - Категория
  * @param {uuid} pClient - Клиент
+ * @param {uuid} pCategory - Категория
  * @param {text} pCode - Код
  * @param {text} pLabel - Метка
  * @param {text} pDescription - Описание
@@ -58,16 +58,16 @@ $$ LANGUAGE plpgsql
 CREATE OR REPLACE FUNCTION api.add_account (
   pParent       uuid,
   pType         uuid,
-  pCurrency		uuid,
-  pCategory		uuid,
+  pCurrency     uuid,
   pClient       uuid,
-  pCode         text,
+  pCategory     uuid default null,
+  pCode         text default null,
   pLabel        text default null,
   pDescription  text default null
 ) RETURNS       uuid
 AS $$
 BEGIN
-  RETURN CreateAccount(pParent, coalesce(pType, GetType('debit.account')), pCurrency, pCategory, pClient, pCode, pLabel, pDescription);
+  RETURN CreateAccount(pParent, coalesce(pType, GetType('passive.account')), pCurrency, pClient, pCategory, pCode, pLabel, pDescription);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -82,8 +82,8 @@ $$ LANGUAGE plpgsql
  * @param {uuid} pParent - Ссылка на родительский объект: api.document | null
  * @param {uuid} pType - Tип
  * @param {uuid} pCurrency - Валюта
- * @param {uuid} pCategory - Категория
  * @param {uuid} pClient - Клиент
+ * @param {uuid} pCategory - Категория
  * @param {text} pCode - Код
  * @param {text} pLabel - Метка
  * @param {text} pDescription - Описание
@@ -93,24 +93,21 @@ CREATE OR REPLACE FUNCTION api.update_account (
   pId           uuid,
   pParent       uuid default null,
   pType         uuid default null,
-  pCurrency		uuid default null,
-  pCategory		uuid default null,
+  pCurrency     uuid default null,
   pClient       uuid default null,
+  pCategory     uuid default null,
   pCode         text default null,
   pLabel        text default null,
   pDescription  text default null
 ) RETURNS       void
 AS $$
-DECLARE
-  uAccount		uuid;
 BEGIN
-  SELECT c.id INTO uAccount FROM db.account c WHERE c.id = pId;
-
+  PERFORM FROM db.account WHERE id = pId;
   IF NOT FOUND THEN
     PERFORM ObjectNotFound('account', 'id', pId);
   END IF;
 
-  PERFORM EditAccount(uAccount, pParent, pType, pCurrency, pCategory, pClient, pCode, pLabel, pDescription);
+  PERFORM EditAccount(pId, pParent, pType, pCurrency, pClient, pCategory, pCode, pLabel, pDescription);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -124,9 +121,9 @@ CREATE OR REPLACE FUNCTION api.set_account (
   pId           uuid,
   pParent       uuid default null,
   pType         uuid default null,
-  pCurrency		uuid default null,
-  pCategory		uuid default null,
+  pCurrency     uuid default null,
   pClient       uuid default null,
+  pCategory     uuid default null,
   pCode         text default null,
   pLabel        text default null,
   pDescription  text default null
@@ -134,9 +131,9 @@ CREATE OR REPLACE FUNCTION api.set_account (
 AS $$
 BEGIN
   IF pId IS NULL THEN
-    pId := api.add_account(pParent, pType, pCurrency, pCategory, pClient, pCode, pLabel, pDescription);
+    pId := api.add_account(pParent, pType, pCurrency, pClient, pCategory, pCode, pLabel, pDescription);
   ELSE
-    PERFORM api.update_account(pId, pParent, pType, pCurrency, pCategory, pClient, pCode, pLabel, pDescription);
+    PERFORM api.update_account(pId, pParent, pType, pCurrency, pClient, pCategory, pCode, pLabel, pDescription);
   END IF;
 
   RETURN QUERY SELECT * FROM api.account WHERE id = pId;
@@ -154,8 +151,8 @@ $$ LANGUAGE plpgsql
  * @return {api.account}
  */
 CREATE OR REPLACE FUNCTION api.get_account (
-  pId		uuid
-) RETURNS	api.account
+  pId       uuid
+) RETURNS   api.account
 AS $$
   SELECT * FROM api.account WHERE id = pId
 $$ LANGUAGE SQL
@@ -165,22 +162,14 @@ $$ LANGUAGE SQL
 --------------------------------------------------------------------------------
 -- api.list_account ------------------------------------------------------------
 --------------------------------------------------------------------------------
-/**
- * Возвращает список счетов.
- * @param {jsonb} pSearch - Условие: '[{"condition": "AND|OR", "field": "<поле>", "compare": "EQL|NEQ|LSS|LEQ|GTR|GEQ|GIN|LKE|ISN|INN", "value": "<значение>"}, ...]'
- * @param {jsonb} pFilter - Фильтр: '{"<поле>": "<значение>"}'
- * @param {integer} pLimit - Лимит по количеству строк
- * @param {integer} pOffSet - Пропустить указанное число строк
- * @param {jsonb} pOrderBy - Сортировать по указанным в массиве полям
- * @return {SETOF api.account}
- */
+
 CREATE OR REPLACE FUNCTION api.list_account (
-  pSearch	jsonb default null,
-  pFilter	jsonb default null,
-  pLimit	integer default null,
-  pOffSet	integer default null,
-  pOrderBy	jsonb default null
-) RETURNS	SETOF api.account
+  pSearch   jsonb default null,
+  pFilter   jsonb default null,
+  pLimit    integer default null,
+  pOffSet   integer default null,
+  pOrderBy  jsonb default null
+) RETURNS   SETOF api.account
 AS $$
 BEGIN
   RETURN QUERY EXECUTE api.sql('api', 'account', pSearch, pFilter, pLimit, pOffSet, pOrderBy);
@@ -192,15 +181,11 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 -- api.get_account_id ----------------------------------------------------------
 --------------------------------------------------------------------------------
-/**
- * Возвращает uuid по коду.
- * @param {text} pCode - Код счёта
- * @return {uuid}
- */
+
 CREATE OR REPLACE FUNCTION api.get_account_id (
-  pCode		text,
+  pCode     text,
   pCurrency text
-) RETURNS	uuid
+) RETURNS   uuid
 AS $$
 BEGIN
   RETURN GetAccount(pCode, GetCurrency(pCurrency));
@@ -220,7 +205,7 @@ CREATE OR REPLACE FUNCTION api.get_account_balance (
 AS $$
 BEGIN
   IF NOT CheckObjectAccess(pId, B'100') THEN
-	PERFORM AccessDenied();
+    PERFORM AccessDenied();
   END IF;
 
   RETURN GetBalance(pId, pDateFrom);

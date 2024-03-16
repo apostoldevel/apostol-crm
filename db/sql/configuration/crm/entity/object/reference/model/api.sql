@@ -30,14 +30,14 @@ CREATE OR REPLACE FUNCTION api.add_model (
   pParent       uuid,
   pType         text,
   pVendor       uuid,
-  pCategory		uuid,
+  pCategory        uuid,
   pCode         text,
   pName         text,
-  pDescription	text default null
+  pDescription    text default null
 ) RETURNS       uuid
 AS $$
 BEGIN
-  RETURN CreateModel(pParent, CodeToType(lower(coalesce(pType, 'device')), 'model'), pVendor, pCategory, pCode, pName, pDescription);
+  RETURN CreateModel(pParent, CodeToType(lower(coalesce(pType, 'car')), 'model'), pVendor, pCategory, pCode, pName, pDescription);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -58,14 +58,14 @@ $$ LANGUAGE plpgsql
  * @return {void}
  */
 CREATE OR REPLACE FUNCTION api.update_model (
-  pId		    uuid,
+  pId            uuid,
   pParent       uuid default null,
   pType         text default null,
   pVendor       uuid default null,
-  pCategory		uuid default null,
+  pCategory        uuid default null,
   pCode         text default null,
   pName         text default null,
-  pDescription	text default null
+  pDescription    text default null
 ) RETURNS       void
 AS $$
 DECLARE
@@ -99,10 +99,10 @@ CREATE OR REPLACE FUNCTION api.set_model (
   pParent       uuid default null,
   pType         text default null,
   pVendor       uuid default null,
-  pCategory		uuid default null,
+  pCategory        uuid default null,
   pCode         text default null,
   pName         text default null,
-  pDescription	text default null
+  pDescription    text default null
 ) RETURNS       SETOF api.model
 AS $$
 BEGIN
@@ -127,8 +127,8 @@ $$ LANGUAGE plpgsql
  * @return {api.model}
  */
 CREATE OR REPLACE FUNCTION api.get_model (
-  pId		uuid
-) RETURNS	api.model
+  pId        uuid
+) RETURNS    api.model
 AS $$
   SELECT * FROM api.model WHERE id = pId
 $$ LANGUAGE SQL
@@ -148,12 +148,12 @@ $$ LANGUAGE SQL
  * @return {SETOF api.model}
  */
 CREATE OR REPLACE FUNCTION api.list_model (
-  pSearch	jsonb default null,
-  pFilter	jsonb default null,
-  pLimit	integer default null,
-  pOffSet	integer default null,
-  pOrderBy	jsonb default null
-) RETURNS	SETOF api.model
+  pSearch    jsonb default null,
+  pFilter    jsonb default null,
+  pLimit    integer default null,
+  pOffSet    integer default null,
+  pOrderBy    jsonb default null
+) RETURNS    SETOF api.model
 AS $$
 BEGIN
   RETURN QUERY EXECUTE api.sql('api', 'model', pSearch, pFilter, pLimit, pOffSet, pOrderBy);
@@ -181,19 +181,19 @@ GRANT SELECT ON api.model_property TO administrator;
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION api.set_model_property_json (
-  pModel		uuid,
-  pProperties	json
-) RETURNS		SETOF api.model_property
+  pModel        uuid,
+  pProperties    json
+) RETURNS        SETOF api.model_property
 AS $$
 DECLARE
-  r				record;
-  e				record;
+  r                record;
+  e                record;
 
-  uId			uuid;
-  uProperty		uuid;
-  uMeasure		uuid;
+  uId            uuid;
+  uProperty        uuid;
+  uMeasure        uuid;
 
-  arKeys		text[];
+  arKeys        text[];
 BEGIN
   SELECT id INTO uId FROM db.model WHERE id = pModel;
 
@@ -218,18 +218,18 @@ BEGIN
     IF r.property IS NOT NULL THEN
       FOR e IN SELECT * FROM json_to_record(r.property) AS x(id uuid, parent uuid, type uuid, typecode text, code text, name text, description text)
       LOOP
-	    SELECT id INTO uProperty FROM api.set_property(e.id, e.parent, coalesce(e.typecode, GetTypeCode(e.type)), e.code, e.name, e.description);
+        SELECT id INTO uProperty FROM api.set_property(e.id, e.parent, coalesce(e.typecode, GetTypeCode(e.type)), e.code, e.name, e.description);
       END LOOP;
-	END IF;
+    END IF;
 
     IF r.measure IS NOT NULL THEN
       FOR e IN SELECT * FROM json_to_record(r.measure) AS x(id uuid, parent uuid, type uuid, typecode text, code text, name text, description text)
       LOOP
-	    SELECT id INTO uMeasure FROM api.set_measure(e.id, e.parent, coalesce(e.typecode, GetTypeCode(e.type)), e.code, e.name, e.description);
+        SELECT id INTO uMeasure FROM api.set_measure(e.id, e.parent, coalesce(e.typecode, GetTypeCode(e.type)), e.code, e.name, e.description);
       END LOOP;
-	END IF;
+    END IF;
 
-	RETURN QUERY SELECT * FROM api.set_model_property(pModel, coalesce(r.propertyId, uProperty), coalesce(r.measureId, uMeasure), r.typeValue, r.value, r.format, r.sequence);
+    RETURN QUERY SELECT * FROM api.set_model_property(pModel, coalesce(r.propertyId, uProperty), coalesce(r.measureId, uMeasure), r.typeValue, r.value, r.format, r.sequence);
   END LOOP;
 
   RETURN;
@@ -243,9 +243,9 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION api.set_model_property_jsonb (
-  pModel		uuid,
-  pProperties	jsonb
-) RETURNS		SETOF api.model_property
+  pModel        uuid,
+  pProperties    jsonb
+) RETURNS        SETOF api.model_property
 AS $$
 BEGIN
   RETURN QUERY SELECT * FROM api.set_model_property_json(pModel, pProperties::json);
@@ -259,8 +259,8 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION api.get_model_property_json (
-  pModel  		uuid
-) RETURNS		json
+  pModel          uuid
+) RETURNS        json
 AS $$
 BEGIN
   RETURN GetModelPropertyJson(pModel);
@@ -274,8 +274,8 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION api.get_model_property_jsonb (
-  pModel		uuid
-) RETURNS		jsonb
+  pModel        uuid
+) RETURNS        jsonb
 AS $$
 BEGIN
   RETURN GetModelPropertyJsonb(pModel);
@@ -294,17 +294,17 @@ $$ LANGUAGE plpgsql
  * @return {SETOF api.model_property}
  */
 CREATE OR REPLACE FUNCTION api.set_model_property (
-  pModel		uuid,
-  pProperty		uuid,
-  pMeasure		uuid,
+  pModel        uuid,
+  pProperty        uuid,
+  pMeasure        uuid,
   pTypeValue    integer,
-  pValue		text,
-  pFormat		text,
-  pSequence		integer DEFAULT null
+  pValue        text,
+  pFormat        text,
+  pSequence        integer DEFAULT null
 ) RETURNS       SETOF api.model_property
 AS $$
 DECLARE
-  vValue		Variant;
+  vValue        Variant;
 BEGIN
   vValue.vType := coalesce(pTypeValue, 3);
 
@@ -334,8 +334,8 @@ $$ LANGUAGE plpgsql
  * @return {SETOF api.model_property}
  */
 CREATE OR REPLACE FUNCTION api.get_model_property (
-  pModel		uuid,
-  pProperty		uuid
+  pModel        uuid,
+  pProperty        uuid
 ) RETURNS       SETOF api.model_property
 AS $$
   SELECT *
@@ -356,8 +356,8 @@ $$ LANGUAGE SQL
  * @return {boolean}
  */
 CREATE OR REPLACE FUNCTION api.delete_model_property (
-  pModel  		uuid,
-  pProperty		uuid
+  pModel          uuid,
+  pProperty        uuid
 ) RETURNS       boolean
 AS $$
 BEGIN
@@ -376,8 +376,8 @@ $$ LANGUAGE plpgsql
  * @return {void}
  */
 CREATE OR REPLACE FUNCTION api.clear_model_property (
-  pModel  	uuid
-) RETURNS	boolean
+  pModel      uuid
+) RETURNS    boolean
 AS $$
 BEGIN
   RETURN DeleteModelProperty(pModel);
@@ -399,12 +399,12 @@ $$ LANGUAGE plpgsql
  * @return {SETOF api.model_property}
  */
 CREATE OR REPLACE FUNCTION api.list_model_property (
-  pSearch	jsonb default null,
-  pFilter	jsonb default null,
-  pLimit	integer default null,
-  pOffSet	integer default null,
-  pOrderBy	jsonb default null
-) RETURNS	SETOF api.model_property
+  pSearch    jsonb default null,
+  pFilter    jsonb default null,
+  pLimit    integer default null,
+  pOffSet    integer default null,
+  pOrderBy    jsonb default null
+) RETURNS    SETOF api.model_property
 AS $$
 BEGIN
   RETURN QUERY EXECUTE api.sql('api', 'model_property', pSearch, pFilter, pLimit, pOffSet, pOrderBy);

@@ -7,8 +7,8 @@
 --------------------------------------------------------------------------------
 
 CREATE TABLE db.category (
-    id			    uuid PRIMARY KEY,
-    reference		uuid NOT NULL REFERENCES db.reference(id) ON DELETE CASCADE
+    id          uuid PRIMARY KEY,
+    reference   uuid NOT NULL REFERENCES db.reference(id) ON DELETE CASCADE
 );
 
 COMMENT ON TABLE db.category IS 'Категория.';
@@ -20,7 +20,7 @@ CREATE INDEX ON db.category (reference);
 
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION ft_category_insert()
+CREATE OR REPLACE FUNCTION db.ft_category_insert()
 RETURNS trigger AS $$
 BEGIN
   IF NEW.id IS NULL THEN
@@ -38,5 +38,5 @@ $$ LANGUAGE plpgsql
 CREATE TRIGGER t_category_insert
   BEFORE INSERT ON db.category
   FOR EACH ROW
-  EXECUTE PROCEDURE ft_category_insert();
+  EXECUTE PROCEDURE db.ft_category_insert();
 

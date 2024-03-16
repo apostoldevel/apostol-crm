@@ -1,0 +1,21 @@
+[Unit]
+Description=Apostol CRM
+After=network.target remote-fs.target nss-lookup.target
+
+[Service]
+Type=forking
+PIDFile=/run/apostol-crm.pid
+# apostol-crm will fail to start if /run/apostol-crm.pid already exists but has the wrong
+# SELinux context. This might happen when running `apostol-crm -t` from the cmdline.
+# https://bugzilla.redhat.com/show_bug.cgi?id=1268621
+ExecStartPre=/usr/bin/rm -f /run/apostol-crm.pid
+ExecStartPre=/usr/sbin/apostol-crm -t
+ExecStart=/usr/sbin/apostol-crm
+ExecReload=/bin/kill -s HUP $MAINPID
+KillSignal=SIGQUIT
+TimeoutStopSec=5
+KillMode=mixed
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

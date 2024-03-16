@@ -40,22 +40,23 @@ GRANT SELECT ON api.calendar TO administrator;
 /**
  * Создает календарь.
  * @param {uuid} pParent - Ссылка на родительский объект: api.document | null
- * @param {text} pType - Тип
+ * @param {uuid} pType - Идентификатор типа
  * @param {text} pCode - Код
  * @param {text} pName - Наименование
  * @param {integer} pWeek - Количество используемых (рабочих) дней в неделе
  * @param {jsonb} pDayOff - Массив выходных дней в неделе. Допустимые значения [1..7, ...]
- * @param {jsonb} pHoliday - Двухмерный массив праздничных дней в году в формате [[MM,DD], ...]. Допустимые значения [[1..12,1..31], ...]
+ * @param {jsonb} pHoliday - Двухмерный массив праздничных дней в году в формате [[MM,DD], ...]. Допустимые значения [[1..12, 1..31], ...]
  * @param {interval} pWorkStart - Начало рабочего дня
  * @param {interval} pWorkCount - Количество рабочих часов
  * @param {interval} pRestStart - Начало перерыва
  * @param {interval} pRestCount - Количество часов перерыва
+ * @param {jsonb} pSchedule - Расписание на неделю. Формат: [[day_of_week, start_time, stop_time], ...]
  * @param {text} pDescription - Описание
  * @return {uuid}
  */
 CREATE OR REPLACE FUNCTION api.add_calendar (
   pParent       uuid,
-  pType         text,
+  pType         uuid,
   pCode         text,
   pName         text,
   pWeek         integer,
@@ -65,17 +66,20 @@ CREATE OR REPLACE FUNCTION api.add_calendar (
   pWorkCount    interval,
   pRestStart    interval,
   pRestCount    interval,
+  pSchedule     jsonb DEFAULT null,
   pDescription  text DEFAULT null
 ) RETURNS       uuid
 AS $$
 DECLARE
-  aHoliday      integer[][2];
   r             record;
+
+  aHoliday      integer[][2];
+  aSchedule     text[][3];
 BEGIN
+  pHoliday := coalesce(pHoliday, '[[1,1], [1,7], [2,23], [3,8], [5,1], [5,9], [6,12], [11,4]]'::jsonb);
+
   IF pHoliday IS NOT NULL THEN
-
     aHoliday := ARRAY[[0,0]];
-
     IF jsonb_typeof(pHoliday) = 'array' THEN
       FOR r IN SELECT * FROM jsonb_array_elements(pHoliday)
       LOOP
@@ -90,7 +94,23 @@ BEGIN
     END IF;
   END IF;
 
-  RETURN CreateCalendar(pParent, CodeToType(lower(coalesce(pType, 'workday')), 'calendar'), pCode, pName, pWeek, JsonbToIntArray(pDayOff), aHoliday[2:], pWorkStart, pWorkCount, pRestStart, pRestCount, pDescription);
+  IF pSchedule IS NOT NULL THEN
+    aSchedule := ARRAY[['0','0','0']];
+    IF jsonb_typeof(pSchedule) = 'array' THEN
+      FOR r IN SELECT * FROM jsonb_array_elements(pSchedule)
+      LOOP
+        IF jsonb_typeof(r.value) = 'array' THEN
+          aSchedule := array_cat(aSchedule, JsonbToStrArray(r.value));
+        ELSE
+          PERFORM IncorrectJsonType(jsonb_typeof(r.value), 'array');
+        END IF;
+      END LOOP;
+    ELSE
+      PERFORM IncorrectJsonType(jsonb_typeof(pSchedule), 'array');
+    END IF;
+  END IF;
+
+  RETURN CreateCalendar(pParent, coalesce(pType, GetType('workday.calendar')), pCode, pName, coalesce(pWeek, 5), JsonbToIntArray(coalesce(pDayOff, '[6,7]'::jsonb)), aHoliday[2:], coalesce(pWorkStart, '9 hour'::interval), coalesce(pWorkCount, '8 hour'::interval), coalesce(pRestStart, '13 hour'), coalesce(pRestCount, '1 hour'), aSchedule[2:], pDescription);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -103,23 +123,24 @@ $$ LANGUAGE plpgsql
  * Обновляет календарь.
  * @param {uuid} pId - Идентификатор календаря (api.get_calendar)
  * @param {uuid} pParent - Ссылка на родительский объект: api.document | null
- * @param {text} pType - Тип
+ * @param {uuid} pType - Идентификатор типа
  * @param {text} pCode - Код
  * @param {text} pName - Наименование
  * @param {integer} pWeek - Количество используемых (рабочих) дней в неделе
  * @param {jsonb} pDayOff - Массив выходных дней в неделе. Допустимые значения [1..7, ...]
- * @param {jsonb} pHoliday - Двухмерный массив праздничных дней в году в формате [[MM,DD], ...]. Допустимые значения [[1..12,1..31], ...]
+ * @param {jsonb} pHoliday - Двухмерный массив праздничных дней в году в формате [[MM,DD], ...]. Допустимые значения [[1..12, 1..31], ...]
  * @param {interval} pWorkStart - Начало рабочего дня
  * @param {interval} pWorkCount - Количество рабочих часов
  * @param {interval} pRestStart - Начало перерыва
  * @param {interval} pRestCount - Количество часов перерыва
+ * @param {jsonb} pSchedule - Расписание на неделю. Формат: [[day_of_week, start_time, stop_time], ...]
  * @param {text} pDescription - Описание
  * @return {void}
  */
 CREATE OR REPLACE FUNCTION api.update_calendar (
   pId           uuid,
   pParent       uuid DEFAULT null,
-  pType         text DEFAULT null,
+  pType         uuid DEFAULT null,
   pCode         text DEFAULT null,
   pName         text DEFAULT null,
   pWeek         integer DEFAULT null,
@@ -129,30 +150,23 @@ CREATE OR REPLACE FUNCTION api.update_calendar (
   pWorkCount    interval DEFAULT null,
   pRestStart    interval DEFAULT null,
   pRestCount    interval DEFAULT null,
+  pSchedule     jsonb DEFAULT null,
   pDescription  text DEFAULT null
 ) RETURNS       void
 AS $$
 DECLARE
   r             record;
-  uType         uuid;
   nCalendar     uuid;
   aHoliday      integer[][2];
+  aSchedule     text[][3];
 BEGIN
   SELECT c.id INTO nCalendar FROM calendar c WHERE c.id = pId;
   IF NOT FOUND THEN
     PERFORM ObjectNotFound('календарь', 'id', pId);
   END IF;
 
-  IF pType IS NOT NULL THEN
-    uType := CodeToType(lower(pType), 'calendar');
-  ELSE
-    SELECT o.type INTO uType FROM db.object o WHERE o.id = pId;
-  END IF;
-
   IF pHoliday IS NOT NULL THEN
-
     aHoliday := ARRAY[[0,0]];
-
     IF jsonb_typeof(pHoliday) = 'array' THEN
       FOR r IN SELECT * FROM jsonb_array_elements(pHoliday)
       LOOP
@@ -167,7 +181,23 @@ BEGIN
     END IF;
   END IF;
 
-  PERFORM EditCalendar(nCalendar, pParent, uType, pCode, pName, pWeek, JsonbToIntArray(pDayOff), aHoliday[2:], pWorkStart, pWorkCount, pRestStart, pRestCount, pDescription);
+  IF pSchedule IS NOT NULL THEN
+    aSchedule := ARRAY[['0','0','0']];
+    IF jsonb_typeof(pSchedule) = 'array' THEN
+      FOR r IN SELECT * FROM jsonb_array_elements(pSchedule)
+      LOOP
+        IF jsonb_typeof(r.value) = 'array' THEN
+          aSchedule := array_cat(aSchedule, JsonbToStrArray(r.value));
+        ELSE
+          PERFORM IncorrectJsonType(jsonb_typeof(r.value), 'array');
+        END IF;
+      END LOOP;
+    ELSE
+      PERFORM IncorrectJsonType(jsonb_typeof(pSchedule), 'array');
+    END IF;
+  END IF;
+
+  PERFORM EditCalendar(nCalendar, pParent, pType, pCode, pName, pWeek, JsonbToIntArray(pDayOff), aHoliday[2:], pWorkStart, pWorkCount, pRestStart, pRestCount, aSchedule[2:], pDescription);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -180,7 +210,7 @@ $$ LANGUAGE plpgsql
 CREATE OR REPLACE FUNCTION api.set_calendar (
   pId           uuid,
   pParent       uuid DEFAULT null,
-  pType         text DEFAULT null,
+  pType         uuid DEFAULT null,
   pCode         text DEFAULT null,
   pName         text DEFAULT null,
   pWeek         integer DEFAULT null,
@@ -190,14 +220,15 @@ CREATE OR REPLACE FUNCTION api.set_calendar (
   pWorkCount    interval DEFAULT null,
   pRestStart    interval DEFAULT null,
   pRestCount    interval DEFAULT null,
+  pSchedule     jsonb DEFAULT null,
   pDescription  text DEFAULT null
 ) RETURNS       SETOF api.calendar
 AS $$
 BEGIN
   IF pId IS NULL THEN
-    pId := api.add_calendar(pParent, pType, pCode, pName, pWeek, pDayOff, pHoliday, pWorkStart, pWorkCount, pRestStart, pRestCount, pDescription);
+    pId := api.add_calendar(pParent, pType, pCode, pName, pWeek, pDayOff, pHoliday, pWorkStart, pWorkCount, pRestStart, pRestCount, pSchedule, pDescription);
   ELSE
-    PERFORM api.update_calendar(pId, pParent, pType, pCode, pName, pWeek, pDayOff, pHoliday, pWorkStart, pWorkCount, pRestStart, pRestCount, pDescription);
+    PERFORM api.update_calendar(pId, pParent, pType, pCode, pName, pWeek, pDayOff, pHoliday, pWorkStart, pWorkCount, pRestStart, pRestCount, pSchedule, pDescription);
   END IF;
 
   RETURN QUERY SELECT * FROM api.calendar WHERE id = pId;
@@ -334,15 +365,15 @@ CREATE OR REPLACE FUNCTION api.list_calendar_user (
   pCalendar     uuid,
   pDateFrom     date,
   pDateTo       date,
-  pUserId       uuid DEFAULT null
+  pUserId       uuid DEFAULT current_userid()
 ) RETURNS       SETOF api.calendar_date
 AS $$
   SELECT *
     FROM calendar_date
    WHERE calendar = pCalendar
-     AND (date >= coalesce(pDateFrom, date_trunc('year', now())::date) AND
-          date <= coalesce(pDateTo, (date_trunc('year', now()) + INTERVAL '1 year' - INTERVAL '1 day')::date))
+     AND (date >= coalesce(pDateFrom, date_trunc('year', now())::date) AND date < coalesce(pDateTo, (date_trunc('year', now()) + INTERVAL '1 year')::date))
      AND userid = coalesce(pUserId, userid)
+   ORDER BY date
 $$ LANGUAGE SQL
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;
@@ -380,6 +411,7 @@ $$ LANGUAGE SQL
  * @param {interval} pWorkCount - Количество рабочих часов
  * @param {interval} pRestStart - Начало перерыва
  * @param {interval} pRestCount - Количество часов перерыва
+ * @param {jsonb} pSchedule - Расписание. Формат: [[start_time, stop_time], ...]
  * @param {uuid} pUserId - Идентификатор учётной записи пользователя
  * @out param {uuid} id - Идентификатор даты календаря
  * @return {uuid}
@@ -392,30 +424,39 @@ CREATE OR REPLACE FUNCTION api.set_calendar_date (
   pWorkCount    interval DEFAULT null,
   pRestStart    interval DEFAULT null,
   pRestCount    interval DEFAULT null,
+  pSchedule     jsonb DEFAULT null,
   pUserId       uuid DEFAULT null
-) RETURNS       uuid
+) RETURNS       SETOF api.calendar_date
 AS $$
 DECLARE
-  uId           uuid;
   r             record;
+  uId           uuid;
+  aSchedule     interval[][];
 BEGIN
-  uId := GetCalendarDate(pCalendar, pDate, pUserId);
-  IF uId IS NOT NULL THEN
-    SELECT * INTO r FROM db.cdate WHERE calendar = pCalendar AND date = pDate AND userid IS NULL;
-    IF r.flag = coalesce(pFlag, r.flag) AND
-       r.work_start = coalesce(pWorkStart, r.work_start) AND
-       r.work_count = coalesce(pWorkCount, r.work_count) AND
-       r.rest_start = coalesce(pRestStart, r.rest_start) AND
-       r.rest_count = coalesce(pRestCount, r.rest_count) THEN
-      PERFORM DeleteCalendarDate(uId);
+  IF pSchedule IS NOT NULL THEN
+    aSchedule := ARRAY[[interval '00:00', interval '00:00']];
+    IF jsonb_typeof(pSchedule) = 'array' THEN
+      FOR r IN SELECT * FROM jsonb_array_elements(pSchedule)
+      LOOP
+        IF jsonb_typeof(r.value) = 'array' THEN
+          aSchedule := array_cat(aSchedule, JsonbToIntervalArray(r.value));
+        ELSE
+          PERFORM IncorrectJsonType(jsonb_typeof(r.value), 'array');
+        END IF;
+      END LOOP;
     ELSE
-      PERFORM EditCalendarDate(uId, pCalendar, pDate, pFlag, pWorkStart, pWorkCount, pRestStart, pRestCount, pUserId);
+      PERFORM IncorrectJsonType(jsonb_typeof(pSchedule), 'array');
     END IF;
-  ELSE
-    uId := AddCalendarDate(pCalendar, pDate, pFlag, pWorkStart, pWorkCount, pRestStart, pRestCount, pUserId);
   END IF;
 
-  RETURN uId;
+  uId := GetCalendarDate(pCalendar, pDate, pUserId);
+  IF uId IS NOT NULL THEN
+    PERFORM EditCalendarDate(uId, pCalendar, pDate, pFlag, pWorkStart, pWorkCount, pRestStart, pRestCount, aSchedule[2:], pUserId);
+  ELSE
+    uId := AddCalendarDate(pCalendar, pDate, pFlag, pWorkStart, pWorkCount, pRestStart, pRestCount, aSchedule[2:], pUserId);
+  END IF;
+
+  RETURN QUERY SELECT * FROM api.calendar_date WHERE id = uId;
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER

@@ -3,14 +3,15 @@
 --------------------------------------------------------------------------------
 
 CREATE TABLE db.client (
-    id			uuid PRIMARY KEY,
-    document	uuid NOT NULL REFERENCES db.document(id) ON DELETE CASCADE,
-    code		text NOT NULL,
-    creation    timestamp,
-    userId		uuid REFERENCES db.user(id) ON DELETE RESTRICT,
-    phone		jsonb,
-    email		jsonb,
-    info		jsonb
+    id          uuid PRIMARY KEY,
+    document    uuid NOT NULL REFERENCES db.document(id) ON DELETE CASCADE,
+    userId      uuid REFERENCES db.user(id) ON DELETE RESTRICT,
+    code        text NOT NULL,
+    birthday    date,
+    birthplace  text,
+    phone       jsonb,
+    email       jsonb,
+    info        jsonb
 );
 
 --------------------------------------------------------------------------------
@@ -19,9 +20,10 @@ COMMENT ON TABLE db.client IS 'Клиент.';
 
 COMMENT ON COLUMN db.client.id IS 'Идентификатор';
 COMMENT ON COLUMN db.client.document IS 'Документ';
-COMMENT ON COLUMN db.client.code IS 'Код клиента';
-COMMENT ON COLUMN db.client.creation IS 'Дата создания (день рождения)';
 COMMENT ON COLUMN db.client.userid IS 'Учетная запись клиента';
+COMMENT ON COLUMN db.client.code IS 'Код клиента';
+COMMENT ON COLUMN db.client.birthday IS 'Дата рождения';
+COMMENT ON COLUMN db.client.birthplace IS 'Место рождения';
 COMMENT ON COLUMN db.client.phone IS 'Справочник телефонов';
 COMMENT ON COLUMN db.client.email IS 'Электронные адреса';
 COMMENT ON COLUMN db.client.info IS 'Дополнительная информация';
@@ -39,7 +41,7 @@ CREATE INDEX ON db.client USING GIN (info jsonb_path_ops);
 
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION ft_client_insert()
+CREATE OR REPLACE FUNCTION db.ft_client_insert()
 RETURNS trigger AS $$
 BEGIN
   IF NEW.id IS NULL THEN
@@ -58,18 +60,18 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
+   SET search_path = kernel, public, pg_temp;
 
 --------------------------------------------------------------------------------
 
 CREATE TRIGGER t_client_insert
   BEFORE INSERT ON db.client
   FOR EACH ROW
-  EXECUTE PROCEDURE ft_client_insert();
+  EXECUTE PROCEDURE db.ft_client_insert();
 
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION ft_client_update()
+CREATE OR REPLACE FUNCTION db.ft_client_update()
 RETURNS trigger AS $$
 DECLARE
   vStr    text;
@@ -121,25 +123,23 @@ $$ LANGUAGE plpgsql
 CREATE TRIGGER t_client_update
   BEFORE UPDATE ON db.client
   FOR EACH ROW
-  EXECUTE PROCEDURE ft_client_update();
+  EXECUTE PROCEDURE db.ft_client_update();
 
 --------------------------------------------------------------------------------
 -- db.client_name --------------------------------------------------------------
 --------------------------------------------------------------------------------
 
 CREATE TABLE db.client_name (
-    id			    uuid PRIMARY KEY DEFAULT gen_kernel_uuid('8'),
-    client		    uuid NOT NULL,
-    locale		    uuid NOT NULL,
-    name		    text NOT NULL,
-    short		    text,
-    first		    text,
-    last		    text,
-    middle		    text,
-    validFromDate	timestamp DEFAULT Now() NOT NULL,
-    validToDate		timestamp DEFAULT TO_DATE('4433-12-31', 'YYYY-MM-DD') NOT NULL,
-    CONSTRAINT fk_client_name_client FOREIGN KEY (client) REFERENCES db.client(id),
-    CONSTRAINT fk_client_name_locale FOREIGN KEY (locale) REFERENCES db.locale(id)
+    id              uuid PRIMARY KEY DEFAULT gen_kernel_uuid('8'),
+    client          uuid NOT NULL REFERENCES db.client(id) ON DELETE CASCADE,
+    locale          uuid NOT NULL REFERENCES db.locale(id) ON DELETE RESTRICT,
+    name            text NOT NULL,
+    short           text,
+    first           text,
+    last            text,
+    middle          text,
+    validFromDate   timestamptz DEFAULT Now() NOT NULL,
+    validToDate     timestamptz DEFAULT TO_DATE('4433-12-31', 'YYYY-MM-DD') NOT NULL
 );
 
 --------------------------------------------------------------------------------
@@ -178,10 +178,10 @@ CREATE UNIQUE INDEX ON db.client_name (client, locale, validFromDate, validToDat
 
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION ft_client_name_insert_update()
+CREATE OR REPLACE FUNCTION db.ft_client_name_insert_update()
 RETURNS trigger AS $$
 DECLARE
-  uUserId	uuid;
+  uUserId    uuid;
 BEGIN
   IF NEW.locale IS NULL THEN
     NEW.locale := current_locale();
@@ -234,4 +234,4 @@ $$ LANGUAGE plpgsql
 CREATE TRIGGER t_client_name_insert_update
   BEFORE INSERT OR UPDATE ON db.client_name
   FOR EACH ROW
-  EXECUTE PROCEDURE ft_client_name_insert_update();
+  EXECUTE PROCEDURE db.ft_client_name_insert_update();

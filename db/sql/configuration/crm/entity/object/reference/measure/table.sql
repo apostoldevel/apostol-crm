@@ -7,8 +7,8 @@
 --------------------------------------------------------------------------------
 
 CREATE TABLE db.measure (
-    id			    uuid PRIMARY KEY,
-    reference		uuid NOT NULL REFERENCES db.reference(id) ON DELETE CASCADE
+    id              uuid PRIMARY KEY,
+    reference       uuid NOT NULL REFERENCES db.reference(id) ON DELETE CASCADE
 );
 
 COMMENT ON TABLE db.measure IS 'Мера.';
@@ -20,7 +20,7 @@ CREATE INDEX ON db.measure (reference);
 
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION ft_measure_insert()
+CREATE OR REPLACE FUNCTION db.ft_measure_insert()
 RETURNS trigger AS $$
 BEGIN
   IF NEW.id IS NULL THEN
@@ -38,4 +38,4 @@ $$ LANGUAGE plpgsql
 CREATE TRIGGER t_measure_insert
   BEFORE INSERT ON db.measure
   FOR EACH ROW
-  EXECUTE PROCEDURE ft_measure_insert();
+  EXECUTE PROCEDURE db.ft_measure_insert();

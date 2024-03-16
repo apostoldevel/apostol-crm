@@ -4,8 +4,8 @@ project(apostol-crm)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++ -rdynamic")
 
-set(PROJECT_NAME "crm")
-set(PROJECT_DESCRIPTION "Apostol Web Service")
+set(PROJECT_NAME "apostol-crm")
+set(PROJECT_DESCRIPTION "Apostol CRM")
 
 message(STATUS "Project name: ${PROJECT_NAME}")
 message(STATUS "Project description: ${PROJECT_DESCRIPTION}")
@@ -16,7 +16,7 @@ set(INSTALL_AS_ROOT  ON  CACHE BOOL "Install as root")
 set(USE_SYSTEMD      ON  CACHE BOOL "Use systemd")
 set(WITH_POSTGRESQL  ON  CACHE BOOL "Build with PostgreSQL")
 set(WITH_SSL         ON  CACHE BOOL "Build with SSL")
-set(WITH_CURL        OFF CACHE BOOL "Build with cURL")
+set(WITH_CURL        ON  CACHE BOOL "Build with cURL")
 set(WITH_SQLITE3     OFF CACHE BOOL "Build with Sqlite3")
 # ----------------------------------------------------------------------------------------------------------------------
 
@@ -33,13 +33,12 @@ list( APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake-modules" )
 add_compile_options("$<$<CONFIG:DEBUG>:-D_DEBUG>")
 
 set(CORE_LIB_NAME apostol-core)
-#set(MODULES_LIB_NAME apostol-modules)
 
 add_custom_target(
         auto_increment_version
         ${CMAKE_COMMAND}
         -D VERSION_FILE=${CMAKE_SOURCE_DIR}/version.h
-        -P ${CMAKE_SOURCE_DIR}/AutoVersion.cmake
+        -P ${CMAKE_MODULE_PATH}/AutoVersion.cmake
 )
 
 set(PROJECT_LIB_DIR "src/lib")
@@ -49,7 +48,7 @@ set(PROJECT_LIB_DIR "src/lib")
 set(DELPHI_LIB_NAME delphi)
 set(DELPHI_LIB_DIR "${PROJECT_LIB_DIR}/${DELPHI_LIB_NAME}")
 
-# Include
+# -Iinclude
 include_directories(${DELPHI_LIB_DIR}/include)
 include_directories(${DELPHI_LIB_DIR}/src)
 
@@ -59,6 +58,7 @@ add_compile_options(-DWWWServerName="${PROJECT_DESCRIPTION}")
 if (WITH_POSTGRESQL)
     set(PQ_LIB_NAME "pq")
     add_compile_options("-DWITH_POSTGRESQL")
+    add_compile_options("-DPOSTGRESQL_VERSION_14")
 endif()
 
 if (WITH_SSL)
@@ -120,10 +120,11 @@ endforeach()
 
 # Apostol
 # ----------------------------------------------------------------------------------------------------------------------
-include_directories(src/app src/core src/modules src/modules/Workers src/modules/Helpers src/processes)
+include_directories(src/app src/core src/common src/modules src/modules/Workers src/modules/Helpers src/processes)
 
 file(GLOB app_files version.h src/app/*.hpp src/app/*.cpp)
 file(GLOB core_files src/core/*.hpp src/core/*.cpp)
+file(GLOB common_files src/common/*.hpp src/common/*.cpp)
 file(GLOB modules_files src/modules/Modules.hpp src/modules/*/*.hpp src/modules/*/*/*.hpp src/modules/*/*/*.cpp)
 file(GLOB processes_files src/processes/Processes.hpp src/processes/*/*.hpp src/processes/*/*.cpp)
 
@@ -133,9 +134,10 @@ add_library(${CORE_LIB_NAME} STATIC
         $<TARGET_OBJECTS:delphi>
         ${lib_files}
         ${core_files}
+        ${common_files}
         ${modules_files}
         ${processes_files}
-        )
+)
 
 target_compile_definitions(${CORE_LIB_NAME} PUBLIC
         APP_NAME="${PROJECT_NAME}"
@@ -158,14 +160,9 @@ target_compile_definitions(${CORE_LIB_NAME} PUBLIC
         APP_POSTGRES_LOG_FILE="logs/postgres.log"
         APP_STREAM_LOG_FILE="logs/stream.log"
         APP_DOC_ROOT="www"
-        )
+)
 
 target_link_libraries(${CORE_LIB_NAME} pthread ${PQ_LIB_NAME} ${SQLITE3_LIB_NAME} ${CURL_LIB_NAME} ${SSL_LIB_NAME} crypto)
-
-# Apostol modules
-# ----------------------------------------------------------------------------------------------------------------------
-#add_library(${MODULES_LIB_NAME} STATIC ${modules_files})
-#target_link_libraries(${MODULES_LIB_NAME} ${CORE_LIB_NAME})
 
 # Apostol
 # ----------------------------------------------------------------------------------------------------------------------
@@ -194,6 +191,12 @@ install(FILES ${conf_files} DESTINATION ${INSTALL_PATH}/conf)
 install(FILES conf/default.conf DESTINATION ${INSTALL_PATH} RENAME ${PROJECT_NAME}.conf)
 
 if (INSTALL_AS_ROOT)
-    install(FILES auto/daemon DESTINATION /etc/init.d RENAME ${PROJECT_NAME} PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
-    install(CODE "execute_process(COMMAND update-rc.d ${PROJECT_NAME} defaults)")
+    if (USE_SYSTEMD)
+        install(FILES auto/unit.service DESTINATION /lib/systemd/system RENAME ${PROJECT_NAME}.service PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
+        install(CODE "execute_process(COMMAND systemctl daemon-reload)")
+        install(CODE "execute_process(COMMAND systemctl enable ${PROJECT_NAME}.service)")
+    else()
+        install(FILES auto/daemon DESTINATION /etc/init.d RENAME ${PROJECT_NAME} PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+        install(CODE "execute_process(COMMAND update-rc.d ${PROJECT_NAME} defaults)")
+    endif()
 endif()

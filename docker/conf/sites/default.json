@@ -1,0 +1,9 @@
+{
+  "hosts": ["localhost:8080"],
+  "root": "/opt/apostol-crm/www",
+  "oauth2": {
+    "identifier": "/oauth/identifier",
+    "callback": "/dashboard",
+    "error": "/oauth/error"
+  }
+}

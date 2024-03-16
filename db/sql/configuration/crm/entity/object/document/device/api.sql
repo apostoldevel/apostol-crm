@@ -18,8 +18,8 @@ GRANT SELECT ON api.device TO administrator;
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION api.device (
-  pState	uuid
-) RETURNS	SETOF api.device
+  pState    uuid
+) RETURNS    SETOF api.device
 AS $$
   SELECT * FROM api.device WHERE state = pState;
 $$ LANGUAGE SQL
@@ -31,8 +31,8 @@ $$ LANGUAGE SQL
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION api.device (
-  pState	text
-) RETURNS	SETOF api.device
+  pState    text
+) RETURNS    SETOF api.device
 AS $$
 BEGIN
   RETURN QUERY SELECT * FROM api.device(GetState(GetClass('device'), pState));
@@ -61,19 +61,19 @@ $$ LANGUAGE plpgsql
  * @return {uuid}
  */
 CREATE OR REPLACE FUNCTION api.add_device (
-  pParent			uuid,
-  pType				text,
-  pModel			uuid,
-  pClient			uuid,
-  pIdentity			text,
-  pVersion			text default null,
-  pSerial			text default null,
-  pAddress			text default null,
-  piccid			text default null,
-  pimsi				text default null,
-  pLabel			text default null,
-  pDescription		text default null
-) RETURNS			uuid
+  pParent            uuid,
+  pType                text,
+  pModel            uuid,
+  pClient            uuid,
+  pIdentity            text,
+  pVersion            text default null,
+  pSerial            text default null,
+  pAddress            text default null,
+  piccid            text default null,
+  pimsi                text default null,
+  pLabel            text default null,
+  pDescription        text default null
+) RETURNS            uuid
 AS $$
 BEGIN
   RETURN CreateDevice(pParent, CodeToType(lower(coalesce(pType, 'mobile')), 'device'),
@@ -104,24 +104,24 @@ $$ LANGUAGE plpgsql
  * @return {void}
  */
 CREATE OR REPLACE FUNCTION api.update_device (
-  pId				uuid,
-  pParent			uuid default null,
-  pType				text default null,
-  pModel			uuid default null,
-  pClient			uuid default null,
-  pIdentity			text default null,
-  pVersion			text default null,
-  pSerial			text default null,
-  pAddress			text default null,
-  piccid			text default null,
-  pimsi				text default null,
-  pLabel			text default null,
-  pDescription		text default null
-) RETURNS			void
+  pId                uuid,
+  pParent            uuid default null,
+  pType                text default null,
+  pModel            uuid default null,
+  pClient            uuid default null,
+  pIdentity            text default null,
+  pVersion            text default null,
+  pSerial            text default null,
+  pAddress            text default null,
+  piccid            text default null,
+  pimsi                text default null,
+  pLabel            text default null,
+  pDescription        text default null
+) RETURNS            void
 AS $$
 DECLARE
-  uId				uuid;
-  uType				uuid;
+  uId                uuid;
+  uType                uuid;
 BEGIN
   SELECT c.id INTO uId FROM db.device c WHERE c.id = pId;
 
@@ -146,20 +146,20 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION api.set_device (
-  pId				uuid,
-  pParent			uuid default null,
-  pType				text default null,
-  pModel			uuid default null,
-  pClient			uuid default null,
-  pIdentity			text default null,
-  pVersion			text default null,
-  pSerial			text default null,
-  pAddress			text default null,
-  piccid			text default null,
-  pimsi				text default null,
-  pLabel			text default null,
-  pDescription		text default null
-) RETURNS			SETOF api.device
+  pId                uuid,
+  pParent            uuid default null,
+  pType                text default null,
+  pModel            uuid default null,
+  pClient            uuid default null,
+  pIdentity            text default null,
+  pVersion            text default null,
+  pSerial            text default null,
+  pAddress            text default null,
+  piccid            text default null,
+  pimsi                text default null,
+  pLabel            text default null,
+  pDescription        text default null
+) RETURNS            SETOF api.device
 AS $$
 BEGIN
   IF pId IS NULL THEN
@@ -179,12 +179,12 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION api.switch_device (
-  pDevice			uuid,
-  pClient			uuid
-) RETURNS			void
+  pDevice            uuid,
+  pClient            uuid
+) RETURNS            void
 AS $$
 DECLARE
-  uClient			uuid;
+  uClient            uuid;
 BEGIN
   SELECT client INTO uClient FROM db.device WHERE id = pDevice;
   IF FOUND AND coalesce(pClient, uClient) <> uClient THEN
@@ -200,23 +200,23 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION api.init_device (
-  pParent			uuid,
-  pType				text,
-  pModel			text,
-  pClient			uuid,
-  pIdentity			text,
-  pVersion			text default null,
-  pSerial			text default null,
-  pAddress			text default null,
-  piccid			text default null,
-  pimsi				text default null,
-  pLabel			text default null,
-  pDescription		text default null
-) RETURNS			SETOF api.device
+  pParent            uuid,
+  pType                text,
+  pModel            text,
+  pClient            uuid,
+  pIdentity            text,
+  pVersion            text default null,
+  pSerial            text default null,
+  pAddress            text default null,
+  piccid            text default null,
+  pimsi                text default null,
+  pLabel            text default null,
+  pDescription        text default null
+) RETURNS            SETOF api.device
 AS $$
 DECLARE
-  uId				uuid;
-  uModel			uuid;
+  uId                uuid;
+  uModel            uuid;
 BEGIN
   pIdentity := coalesce(pIdentity, pSerial);
   uModel := GetModel(pModel);
@@ -229,6 +229,10 @@ BEGIN
   ELSE
     PERFORM api.switch_device(uId, pClient);
     PERFORM api.update_device(uId, pParent, pType, uModel, pClient, pIdentity, pVersion, pSerial, pAddress, piccid, pimsi, pLabel, pDescription);
+
+    IF IsDisabled(uId) THEN
+      PERFORM DoEnable(uId);
+    END IF;
   END IF;
 
   RETURN QUERY SELECT * FROM api.device WHERE id = uId;
@@ -326,7 +330,7 @@ CREATE OR REPLACE FUNCTION api.device_notification (
   pDevice       uuid,
   pInterfaceId  integer default null,
   pDate         timestamptz default current_timestamp at time zone 'utc'
-) RETURNS	    SETOF api.device_notification
+) RETURNS        SETOF api.device_notification
 AS $$
   SELECT *
     FROM api.device_notification
@@ -346,8 +350,8 @@ $$ LANGUAGE SQL
  * @return {api.device_notification}
  */
 CREATE OR REPLACE FUNCTION api.get_device_notification (
-  pId		uuid
-) RETURNS	api.device_notification
+  pId        uuid
+) RETURNS    api.device_notification
 AS $$
   SELECT * FROM api.device_notification WHERE id = pId
 $$ LANGUAGE SQL
@@ -404,8 +408,8 @@ GRANT SELECT ON api.device_value TO administrator;
  * @return {api.device_value}
  */
 CREATE OR REPLACE FUNCTION api.get_device_value (
-  pId		uuid
-) RETURNS	api.device_value
+  pId        uuid
+) RETURNS    api.device_value
 AS $$
   SELECT * FROM api.device_value WHERE id = pId
 $$ LANGUAGE SQL
@@ -425,12 +429,12 @@ $$ LANGUAGE SQL
  * @return {SETOF api.device_value}
  */
 CREATE OR REPLACE FUNCTION api.list_device_value (
-  pSearch	jsonb default null,
-  pFilter	jsonb default null,
-  pLimit	integer default null,
-  pOffSet	integer default null,
-  pOrderBy	jsonb default null
-) RETURNS	SETOF api.device_value
+  pSearch    jsonb default null,
+  pFilter    jsonb default null,
+  pLimit    integer default null,
+  pOffSet    integer default null,
+  pOrderBy    jsonb default null
+) RETURNS    SETOF api.device_value
 AS $$
 BEGIN
   RETURN QUERY EXECUTE api.sql('api', 'device_value', pSearch, pFilter, pLimit, pOffSet, pOrderBy);

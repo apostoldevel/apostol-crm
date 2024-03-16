@@ -15,17 +15,17 @@ CREATE OR REPLACE FUNCTION CreateProperty (
   pType         uuid,
   pCode         text,
   pName         text,
-  pDescription	text default null
+  pDescription    text default null
 ) RETURNS       uuid
 AS $$
 DECLARE
-  uReference	uuid;
+  uReference    uuid;
   uClass        uuid;
   uMethod       uuid;
 BEGIN
   SELECT class INTO uClass FROM db.type WHERE id = pType;
 
-  IF GetEntityCode(uClass) <> 'property' THEN
+  IF GetClassCode(uClass) <> 'property' THEN
     PERFORM IncorrectClassType();
   END IF;
 
@@ -62,14 +62,14 @@ CREATE OR REPLACE FUNCTION EditProperty (
   pType         uuid default null,
   pCode         text default null,
   pName         text default null,
-  pDescription	text default null
+  pDescription    text default null
 ) RETURNS       void
 AS $$
 DECLARE
   uClass        uuid;
   uMethod       uuid;
 BEGIN
-  PERFORM EditReference(pId, pParent, pType, pCode, pName, pDescription);
+  PERFORM EditReference(pId, pParent, pType, pCode, pName, pDescription, current_locale());
 
   SELECT class INTO uClass FROM db.object WHERE id = pId;
 
@@ -85,8 +85,8 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION GetProperty (
-  pCode		text
-) RETURNS 	uuid
+  pCode        text
+) RETURNS     uuid
 AS $$
 BEGIN
   RETURN GetReference(pCode, 'property');

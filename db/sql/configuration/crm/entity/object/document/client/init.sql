@@ -34,6 +34,7 @@ BEGIN
       uState := AddState(pClass, rec_type.id, rec_type.code, 'Создан');
 
         PERFORM AddMethod(null, pClass, uState, GetAction('enable'), null, 'Утвердить');
+        PERFORM AddMethod(null, pClass, uState, GetAction('disable'), null, 'Закрыть');
         PERFORM AddMethod(null, pClass, uState, GetAction('delete'));
 
     WHEN 'enabled' THEN
@@ -79,6 +80,10 @@ BEGIN
       LOOP
         IF rec_method.actioncode = 'enable' THEN
           PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'enabled'));
+        END IF;
+
+        IF rec_method.actioncode = 'disable' THEN
+          PERFORM AddTransition(rec_state.id, rec_method.id, GetState(pClass, 'disabled'));
         END IF;
 
         IF rec_method.actioncode = 'delete' THEN
@@ -228,9 +233,9 @@ BEGIN
   uClass := AddClass(pParent, pEntity, 'client', 'Клиент', false);
 
   -- Тип
-  PERFORM AddType(uClass, 'entity.client', 'ЮЛ', 'Юридическое лицо');
-  PERFORM AddType(uClass, 'physical.client', 'ФЛ', 'Физическое лицо');
-  PERFORM AddType(uClass, 'individual.client', 'ИП', 'Индивидуальный предприниматель');
+  PERFORM AddType(uClass, 'internet.client', 'Internet', 'Интернет-клиент.');
+  PERFORM AddType(uClass, 'internal.client', 'Internal', 'Внутренний клиент.');
+  PERFORM AddType(uClass, 'subdivision.client', 'Подразделение', 'Структурное подразделение');
 
   -- Событие
   PERFORM AddClientEvents(uClass);

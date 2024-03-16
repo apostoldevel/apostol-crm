@@ -14,6 +14,7 @@
  * @param {interval} pWorkCount - Количество рабочих часов
  * @param {interval} pRestStart - Начало перерыва
  * @param {interval} pRestCount - Количество часов перерыва
+ * @param {interval[]} pSchedule - Расписание на неделю. Формат: [[day_of_week, start_time, stop_time], ...]
  * @param {text} pDescription - Описание
  * @return {(id|exception)} - Id или ошибку
  */
@@ -29,6 +30,7 @@ CREATE OR REPLACE FUNCTION CreateCalendar (
   pWorkCount    interval,
   pRestStart    interval,
   pRestCount    interval,
+  pSchedule     text[][],
   pDescription  text DEFAULT null
 ) RETURNS       uuid
 AS $$
@@ -39,14 +41,14 @@ DECLARE
 BEGIN
   SELECT class INTO uClass FROM db.type WHERE id = pType;
 
-  IF GetEntityCode(uClass) <> 'calendar' THEN
+  IF GetClassCode(uClass) <> 'calendar' THEN
     PERFORM IncorrectClassType();
   END IF;
 
   uReference := CreateReference(pParent, pType, pCode, pName, pDescription);
 
-  INSERT INTO db.calendar (id, reference, week, dayoff, holiday, work_start, work_count, rest_start, rest_count)
-  VALUES (uReference, uReference, pWeek, pDayOff, pHoliday, pWorkStart, pWorkCount, pRestStart, pRestCount);
+  INSERT INTO db.calendar (id, reference, week, dayoff, holiday, work_start, work_count, rest_start, rest_count, schedule)
+  VALUES (uReference, uReference, pWeek, pDayOff, pHoliday, pWorkStart, pWorkCount, pRestStart, pRestCount, pSchedule);
 
   uMethod := GetMethod(uClass, GetAction('create'));
   PERFORM ExecuteMethod(uReference, uMethod);
@@ -74,6 +76,7 @@ $$ LANGUAGE plpgsql
  * @param {interval} pWorkCount - Количество рабочих часов
  * @param {interval} pRestStart - Начало перерыва
  * @param {interval} pRestCount - Количество часов перерыва
+ * @param {interval[]} pSchedule - Расписание на неделю. Формат: [[day_of_week, start_time, stop_time], ...]
  * @param {text} pDescription - Описание
  * @return {(void|exception)}
  */
@@ -90,6 +93,7 @@ CREATE OR REPLACE FUNCTION EditCalendar (
   pWorkCount    interval DEFAULT null,
   pRestStart    interval DEFAULT null,
   pRestCount    interval DEFAULT null,
+  pSchedule     text[][] DEFAULT null,
   pDescription  text DEFAULT null
 ) RETURNS       void
 AS $$
@@ -97,7 +101,7 @@ DECLARE
   uClass        uuid;
   uMethod       uuid;
 BEGIN
-  PERFORM EditReference(pId, pParent, pType, pCode, pName, pDescription);
+  PERFORM EditReference(pId, pParent, pType, pCode, pName, pDescription, current_locale());
 
   UPDATE db.calendar
      SET week = coalesce(pWeek, week),
@@ -106,7 +110,8 @@ BEGIN
          work_start = coalesce(pWorkStart, work_start),
          work_count = coalesce(pWorkCount, work_count),
          rest_start = coalesce(pRestStart, rest_start),
-         rest_count = coalesce(pRestCount, rest_count)
+         rest_count = coalesce(pRestCount, rest_count),
+         schedule = coalesce(pSchedule, schedule)
    WHERE id = pId;
 
   SELECT class INTO uClass FROM db.object WHERE id = pId;
@@ -145,6 +150,7 @@ CREATE OR REPLACE FUNCTION AddCalendarDate (
   pWorkCount    interval,
   pRestStart    interval,
   pRestCount    interval,
+  pSchedule     interval[][] DEFAULT null,
   pUserId       uuid DEFAULT null
 ) RETURNS       uuid
 AS $$
@@ -154,9 +160,11 @@ DECLARE
 BEGIN
   SELECT * INTO r FROM db.calendar WHERE id = pCalendar;
 
-  INSERT INTO db.cdate (calendar, date, flag, work_start, work_count, rest_start, rest_count, userid)
-  VALUES (pCalendar, pDate, pFlag, coalesce(pWorkStart, r.work_start), coalesce(pWorkCount, r.work_count),
-                                   coalesce(pRestStart, r.rest_start), coalesce(pRestCount, r.rest_count), pUserId)
+  INSERT INTO db.cdate (calendar, date, flag, work_start, work_count, rest_start, rest_count, schedule, userid)
+  VALUES (pCalendar, pDate, coalesce(pFlag, B'0000'),
+          coalesce(pWorkStart, r.work_start), coalesce(pWorkCount, r.work_count),
+          coalesce(pRestStart, r.rest_start), coalesce(pRestCount, r.rest_count),
+          pSchedule, pUserId)
   RETURNING id INTO uId;
 
   RETURN uId;
@@ -178,6 +186,7 @@ CREATE OR REPLACE FUNCTION EditCalendarDate (
   pWorkCount    interval DEFAULT null,
   pRestStart    interval DEFAULT null,
   pRestCount    interval DEFAULT null,
+  pSchedule     interval[][] DEFAULT null,
   pUserId       uuid DEFAULT null
 ) RETURNS       void
 AS $$
@@ -190,6 +199,7 @@ BEGIN
          work_count = coalesce(pWorkCount, work_count),
          rest_start = coalesce(pRestStart, rest_start),
          rest_count = coalesce(pRestCount, rest_count),
+         schedule = coalesce(pSchedule, schedule),
          userid = CheckNull(coalesce(pUserId, userid, null_uuid()))
    WHERE id = pId;
 END;
@@ -222,13 +232,8 @@ CREATE OR REPLACE FUNCTION GetCalendarDate (
   pUserId     uuid DEFAULT null
 ) RETURNS     uuid
 AS $$
-DECLARE
-  uId         uuid;
-BEGIN
-  SELECT id INTO uId FROM db.cdate WHERE calendar = pCalendar AND date = pDate AND userid IS NOT DISTINCT FROM pUserId;
-  RETURN uId;
-END;
-$$ LANGUAGE plpgsql
+  SELECT id FROM db.cdate WHERE calendar = pCalendar AND date = pDate AND userid IS NOT DISTINCT FROM pUserId;
+$$ LANGUAGE sql
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;
 
@@ -287,7 +292,7 @@ DECLARE
   nDay        integer;
   nWeek       integer;
 
-  aHoliday    integer[][];
+  aSchedule   interval[][];
 
   dtCurDate   date;
   flag        bit(4);
@@ -301,7 +306,6 @@ BEGIN
   WHILE dtCurDate <= pDateTo
   LOOP
     flag := B'0000';
-    aHoliday := r.holiday;
 
     nMonth := EXTRACT(MONTH FROM dtCurDate);
     nDay := EXTRACT(DAY FROM dtCurDate);
@@ -313,9 +317,9 @@ BEGIN
     END IF;
 
     i := 1;
-    WHILE (i <= array_length(aHoliday, 1)) AND NOT (flag & B'0100' = B'0100')
+    WHILE (i <= array_length(r.holiday, 1)) AND NOT (flag & B'0100' = B'0100')
     LOOP
-      IF aHoliday[i][1] = nMonth AND aHoliday[i][2] = nDay THEN
+      IF r.holiday[i][1] = nMonth AND r.holiday[i][2] = nDay THEN
         flag := set_bit(flag, 1, 1);
         flag := set_bit(flag, 3, 1);
       END IF;
@@ -327,29 +331,86 @@ BEGIN
       nDay := EXTRACT(DAY FROM dtCurDate + 1);
       nWeek := EXTRACT(ISODOW FROM dtCurDate + 1);
 
-      IF array_position(r.dayoff, nWeek) IS NOT NULL THEN
+      IF nWeek = ANY (r.dayoff) THEN
         flag := set_bit(flag, 0, 1);
       END IF;
 
       i := 1;
-      WHILE (i <= array_length(aHoliday, 1)) AND NOT (flag & B'1000' = B'1000')
+      WHILE (i <= array_length(r.holiday, 1)) AND NOT (flag & B'1000' = B'1000')
       LOOP
-        IF aHoliday[i][1] = nMonth AND aHoliday[i][2] = nDay THEN
+        IF r.holiday[i][1] = nMonth AND r.holiday[i][2] = nDay THEN
           flag := set_bit(flag, 0, 1);
         END IF;
         i := i + 1;
       END LOOP;
     END IF;
 
+    aSchedule := null;
+
+    i := 1;
+    WHILE (i <= array_length(r.schedule, 1))
+    LOOP
+      IF r.schedule[i][1]::int = nWeek THEN
+        aSchedule := array_cat(aSchedule, ARRAY[StrToInterval(r.schedule[i][2]), StrToInterval(r.schedule[i][3])]);
+      END IF;
+      i := i + 1;
+    END LOOP;
+
     uId := GetCalendarDate(pCalendar, dtCurDate, pUserId);
     IF uId IS NOT NULL THEN
-      PERFORM EditCalendarDate(uId, pCalendar, dtCurDate, flag, r.work_start, r.work_count, r.rest_start, r.rest_count, pUserId);
+      PERFORM EditCalendarDate(uId, pCalendar, dtCurDate, flag, r.work_start, r.work_count, r.rest_start, r.rest_count, aSchedule, pUserId);
     ELSE
-      uId := AddCalendarDate(pCalendar, dtCurDate, flag, r.work_start, r.work_count, r.rest_start, r.rest_count, pUserId);
+      uId := AddCalendarDate(pCalendar, dtCurDate, flag, r.work_start, r.work_count, r.rest_start, r.rest_count, aSchedule, pUserId);
     END IF;
 
     dtCurDate := dtCurDate + 1;
   END LOOP;
+END;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- GetCalendarPeriod -----------------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION GetCalendarPeriod (
+  pCalendar        uuid,
+  pDateFrom        timestamptz DEFAULT localtimestamp,
+  pDateTo        timestamptz DEFAULT localtimestamp,
+  pUserId        uuid DEFAULT current_userid()
+) RETURNS        interval
+AS $$
+DECLARE
+  r                record;
+
+  dtDateFrom    date;
+  dtDateTo        date;
+
+  wPeriod        interval;
+BEGIN
+  dtDateFrom := date_trunc('DAY', pDateFrom);
+  dtDateTo := date_trunc('DAY', pDateTo);
+
+  wPeriod := interval '0 month 0 day 0 hour 0 minute';
+
+  FOR r IN SELECT date, workstart, workcount, reststart, restcount FROM calendar_date(pCalendar, dtDateFrom, dtDateTo, pUserId) ORDER BY date
+  LOOP
+    IF r.workcount IS NOT NULL THEN
+      IF r.date = dtDateTo THEN
+        IF pDateTo > r.date + coalesce(r.workstart, interval '0') THEN
+          wPeriod := wPeriod + LEAST(r.workcount, pDateTo - (r.date + coalesce(r.workstart, interval '0')));
+          IF pDateTo > r.date + coalesce(r.reststart, interval '13 hour') THEN
+            wPeriod := wPeriod - coalesce(r.restcount, interval '1 hour');
+          END IF;
+        END IF;
+      ELSE
+        wPeriod := wPeriod + r.workcount;
+      END IF;
+    END IF;
+  END LOOP;
+
+  RETURN coalesce(wPeriod, interval '1 day');
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER

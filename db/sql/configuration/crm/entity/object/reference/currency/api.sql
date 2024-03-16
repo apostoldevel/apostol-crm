@@ -18,7 +18,7 @@ GRANT SELECT ON api.currency TO administrator;
 /**
  * Добавляет валюту.
  * @param {uuid} pParent - Ссылка на родительский объект: api.document | null
- * @param {uuid} pType - Тип
+ * @param {uuid} pType - Идентификатор типа
  * @param {text} pCode - Код
  * @param {text} pName - Наименование
  * @param {text} pDescription - Описание
@@ -31,13 +31,13 @@ CREATE OR REPLACE FUNCTION api.add_currency (
   pType         uuid,
   pCode         text,
   pName         text,
-  pDescription	text default null,
-  pDigital		integer default null,
-  pDecimal		integer default null
+  pDescription    text default null,
+  pDigital        integer default null,
+  pDecimal        integer default null
 ) RETURNS       uuid
 AS $$
 BEGIN
-  RETURN CreateCurrency(pParent, coalesce(pType, GetType('crypto.currency')), pCode, pName, pDescription, pDigital, pDecimal);
+  RETURN CreateCurrency(pParent, coalesce(pType, GetType('iso.currency')), pCode, pName, pDescription, pDigital, pDecimal);
 END;
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
@@ -49,7 +49,7 @@ $$ LANGUAGE plpgsql
 /**
  * Редактирует валюту.
  * @param {uuid} pParent - Ссылка на родительский объект: Object.Parent | null
- * @param {uuid} pType - Тип
+ * @param {uuid} pType - Идентификатор типа
  * @param {text} pCode - Код
  * @param {text} pName - Наименование
  * @param {text} pDescription - Описание
@@ -58,14 +58,14 @@ $$ LANGUAGE plpgsql
  * @return {void}
  */
 CREATE OR REPLACE FUNCTION api.update_currency (
-  pId		    uuid,
+  pId            uuid,
   pParent       uuid default null,
   pType         uuid default null,
   pCode         text default null,
   pName         text default null,
-  pDescription	text default null,
-  pDigital		integer default null,
-  pDecimal		integer default null
+  pDescription    text default null,
+  pDigital        integer default null,
+  pDecimal        integer default null
 ) RETURNS       void
 AS $$
 DECLARE
@@ -93,9 +93,9 @@ CREATE OR REPLACE FUNCTION api.set_currency (
   pType         uuid default null,
   pCode         text default null,
   pName         text default null,
-  pDescription	text default null,
-  pDigital		integer default null,
-  pDecimal		integer default null
+  pDescription    text default null,
+  pDigital        integer default null,
+  pDecimal        integer default null
 ) RETURNS       SETOF api.currency
 AS $$
 BEGIN
@@ -120,8 +120,8 @@ $$ LANGUAGE plpgsql
  * @return {api.currency}
  */
 CREATE OR REPLACE FUNCTION api.get_currency (
-  pId		uuid
-) RETURNS	api.currency
+  pId        uuid
+) RETURNS    api.currency
 AS $$
   SELECT * FROM api.currency WHERE id = pId
 $$ LANGUAGE SQL
@@ -141,12 +141,12 @@ $$ LANGUAGE SQL
  * @return {SETOF api.currency}
  */
 CREATE OR REPLACE FUNCTION api.list_currency (
-  pSearch	jsonb default null,
-  pFilter	jsonb default null,
-  pLimit	integer default null,
-  pOffSet	integer default null,
-  pOrderBy	jsonb default null
-) RETURNS	SETOF api.currency
+  pSearch    jsonb default null,
+  pFilter    jsonb default null,
+  pLimit    integer default null,
+  pOffSet    integer default null,
+  pOrderBy    jsonb default null
+) RETURNS    SETOF api.currency
 AS $$
 BEGIN
   RETURN QUERY EXECUTE api.sql('api', 'currency', pSearch, pFilter, pLimit, pOffSet, pOrderBy);
@@ -164,8 +164,8 @@ $$ LANGUAGE plpgsql
  * @return {uuid}
  */
 CREATE OR REPLACE FUNCTION api.get_currency_id (
-  pCode		text
-) RETURNS	uuid
+  pCode        text
+) RETURNS    uuid
 AS $$
 BEGIN
   RETURN GetCurrency(pCode);

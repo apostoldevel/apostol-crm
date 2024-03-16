@@ -48,6 +48,7 @@ namespace Apostol {
             void ShowVersionInfo() override;
 
             void StartProcess() override;
+            void CreateCustomProcesses() override;
 
         public:
 

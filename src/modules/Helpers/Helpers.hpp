@@ -2,15 +2,11 @@
 
 Program name:
 
-  apostol
+  Apostol CRM
 
 Module Name:
 
   Helpers.hpp
-
-Notices:
-
-  Apostol Web Service
 
 Author:
 
@@ -25,8 +21,12 @@ Author:
 #define APOSTOL_HELPERS_HPP
 //----------------------------------------------------------------------------------------------------------------------
 
-static inline void CreateHelpers(CModuleProcess *AProcess) {
+#include "PGFetch/PGFetch.hpp"
+#include "PGFile/PGFile.hpp"
 
+static inline void CreateHelpers(CModuleProcess *AProcess) {
+    CPGFetch::CreateModule(AProcess);
+    CPGFile::CreateModule(AProcess);
 }
 
 #endif //APOSTOL_HELPERS_HPP

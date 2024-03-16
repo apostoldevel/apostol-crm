@@ -203,69 +203,69 @@ BEGIN
   FOR r IN SELECT * FROM Action
   LOOP
 
-	IF r.code = 'create' THEN
-	  PERFORM AddEvent(pClass, uParent, r.id, 'События класса родителя');
-	  PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство создано', 'EventDeviceCreate();');
-	END IF;
+    IF r.code = 'create' THEN
+      PERFORM AddEvent(pClass, uParent, r.id, 'События класса родителя');
+      PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство создано', 'EventDeviceCreate();');
+    END IF;
 
-	IF r.code = 'open' THEN
-	  PERFORM AddEvent(pClass, uParent, r.id, 'События класса родителя');
-	  PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство открыто', 'EventDeviceOpen();');
-	END IF;
+    IF r.code = 'open' THEN
+      PERFORM AddEvent(pClass, uParent, r.id, 'События класса родителя');
+      PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство открыто', 'EventDeviceOpen();');
+    END IF;
 
-	IF r.code = 'edit' THEN
-	  PERFORM AddEvent(pClass, uParent, r.id, 'События класса родителя');
-	  PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство измено', 'EventDeviceEdit();');
-	END IF;
+    IF r.code = 'edit' THEN
+      PERFORM AddEvent(pClass, uParent, r.id, 'События класса родителя');
+      PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство измено', 'EventDeviceEdit();');
+    END IF;
 
-	IF r.code = 'save' THEN
-	  PERFORM AddEvent(pClass, uParent, r.id, 'События класса родителя');
-	  PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство сохрано', 'EventDeviceSave();');
-	END IF;
+    IF r.code = 'save' THEN
+      PERFORM AddEvent(pClass, uParent, r.id, 'События класса родителя');
+      PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство сохрано', 'EventDeviceSave();');
+    END IF;
 
-	IF r.code = 'enable' THEN
-	  PERFORM AddEvent(pClass, uParent, r.id, 'События класса родителя');
-	  PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство включено', 'EventDeviceEnable();');
-	END IF;
+    IF r.code = 'enable' THEN
+      PERFORM AddEvent(pClass, uParent, r.id, 'События класса родителя');
+      PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство включено', 'EventDeviceEnable();');
+    END IF;
 
-	IF r.code = 'heartbeat' THEN
-	  PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство на связи', 'EventDeviceHeartbeat();');
-	END IF;
+    IF r.code = 'heartbeat' THEN
+      PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство на связи', 'EventDeviceHeartbeat();');
+    END IF;
 
-	IF r.code = 'available' THEN
-	  PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство доступно', 'EventDeviceAvailable();');
-	  PERFORM AddEvent(pClass, uEvent, r.id, 'Смена состояния', 'ChangeObjectState();');
-	END IF;
+    IF r.code = 'available' THEN
+      PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство доступно', 'EventDeviceAvailable();');
+      PERFORM AddEvent(pClass, uEvent, r.id, 'Смена состояния', 'ChangeObjectState();');
+    END IF;
 
-	IF r.code = 'unavailable' THEN
-	  PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство недоступно', 'EventDeviceUnavailable();');
-	  PERFORM AddEvent(pClass, uEvent, r.id, 'Смена состояния', 'ChangeObjectState();');
-	END IF;
+    IF r.code = 'unavailable' THEN
+      PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство недоступно', 'EventDeviceUnavailable();');
+      PERFORM AddEvent(pClass, uEvent, r.id, 'Смена состояния', 'ChangeObjectState();');
+    END IF;
 
-	IF r.code = 'faulted' THEN
-	  PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство неисправно', 'EventDeviceFaulted();');
-	  PERFORM AddEvent(pClass, uEvent, r.id, 'Смена состояния', 'ChangeObjectState();');
-	END IF;
+    IF r.code = 'faulted' THEN
+      PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство неисправно', 'EventDeviceFaulted();');
+      PERFORM AddEvent(pClass, uEvent, r.id, 'Смена состояния', 'ChangeObjectState();');
+    END IF;
 
-	IF r.code = 'disable' THEN
-	  PERFORM AddEvent(pClass, uParent, r.id, 'События класса родителя');
-	  PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство отключено', 'EventDeviceDisable();');
-	END IF;
+    IF r.code = 'disable' THEN
+      PERFORM AddEvent(pClass, uParent, r.id, 'События класса родителя');
+      PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство отключено', 'EventDeviceDisable();');
+    END IF;
 
-	IF r.code = 'delete' THEN
-	  PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство будет удалено', 'EventDeviceDelete();');
-	  PERFORM AddEvent(pClass, uParent, r.id, 'События класса родителя');
-	END IF;
+    IF r.code = 'delete' THEN
+      PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство будет удалено', 'EventDeviceDelete();');
+      PERFORM AddEvent(pClass, uParent, r.id, 'События класса родителя');
+    END IF;
 
-	IF r.code = 'restore' THEN
-	  PERFORM AddEvent(pClass, uParent, r.id, 'События класса родителя');
-	  PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство восстановлено', 'EventDeviceRestore();');
-	END IF;
+    IF r.code = 'restore' THEN
+      PERFORM AddEvent(pClass, uParent, r.id, 'События класса родителя');
+      PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство восстановлено', 'EventDeviceRestore();');
+    END IF;
 
-	IF r.code = 'drop' THEN
-	  PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство будет уничтожено', 'EventDeviceDrop();');
-	  PERFORM AddEvent(pClass, uParent, r.id, 'События класса родителя');
-	END IF;
+    IF r.code = 'drop' THEN
+      PERFORM AddEvent(pClass, uEvent, r.id, 'Устройство будет уничтожено', 'EventDeviceDrop();');
+      PERFORM AddEvent(pClass, uParent, r.id, 'События класса родителя');
+    END IF;
 
   END LOOP;
 END
@@ -318,14 +318,14 @@ AS $$
 DECLARE
   uEntity       uuid;
 BEGIN
-  PERFORM SetAction('heartbeat', 'Сердцебиение');
+  PERFORM SetAction(null, 'heartbeat', 'Сердцебиение');
 
-  PERFORM SetAction('available', 'Доступен');
-  PERFORM SetAction('preparing', 'Подготовка');
-  PERFORM SetAction('finishing', 'Завершение');
-  PERFORM SetAction('reserved', 'Зарезервирован');
-  PERFORM SetAction('unavailable', 'Недоступен');
-  PERFORM SetAction('faulted', 'Ошибка');
+  PERFORM SetAction(null, 'available', 'Доступен');
+  PERFORM SetAction(null, 'preparing', 'Подготовка');
+  PERFORM SetAction(null, 'finishing', 'Завершение');
+  PERFORM SetAction(null, 'reserved', 'Зарезервирован');
+  PERFORM SetAction(null, 'unavailable', 'Недоступен');
+  PERFORM SetAction(null, 'faulted', 'Ошибка');
 
   -- Сущность
   uEntity := AddEntity('device', 'Устройство');

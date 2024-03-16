@@ -91,7 +91,10 @@ BEGIN
   uClass := AddClass(pParent, pEntity, 'category', 'Категория', false);
 
   -- Тип
+  PERFORM AddType(uClass, 'position.category', 'Должность', 'Категория должности сотрудника.');
+  PERFORM AddType(uClass, 'item.category', 'Элемент', 'Категория элементов.');
   PERFORM AddType(uClass, 'service.category', 'Услуга', 'Категория предоставления услуг.');
+  PERFORM AddType(uClass, 'account.category', 'Лицевой счёт', 'Категория лицевых счетов.');
 
   -- Событие
   PERFORM AddCategoryEvents(uClass);

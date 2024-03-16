@@ -18,7 +18,7 @@ GRANT SELECT ON api.category TO administrator;
 /**
  * Добавляет категорию.
  * @param {uuid} pParent - Ссылка на родительский объект: api.document | null
- * @param {uuid} pType - Тип
+ * @param {uuid} pType - Идентификатор типа
  * @param {text} pCode - Код
  * @param {text} pName - Наименование
  * @param {text} pDescription - Описание
@@ -29,7 +29,7 @@ CREATE OR REPLACE FUNCTION api.add_category (
   pType         uuid,
   pCode         text,
   pName         text,
-  pDescription	text default null
+  pDescription    text default null
 ) RETURNS       uuid
 AS $$
 BEGIN
@@ -45,23 +45,23 @@ $$ LANGUAGE plpgsql
 /**
  * Редактирует категорию.
  * @param {uuid} pParent - Ссылка на родительский объект: Object.Parent | null
- * @param {uuid} pType - Тип
+ * @param {uuid} pType - Идентификатор типа
  * @param {text} pCode - Код
  * @param {text} pName - Наименование
  * @param {text} pDescription - Описание
  * @return {void}
  */
 CREATE OR REPLACE FUNCTION api.update_category (
-  pId		    uuid,
+  pId            uuid,
   pParent       uuid default null,
   pType         uuid default null,
   pCode         text default null,
   pName         text default null,
-  pDescription	text default null
+  pDescription    text default null
 ) RETURNS       void
 AS $$
 DECLARE
-  uCategory		uuid;
+  uCategory        uuid;
 BEGIN
   SELECT t.id INTO uCategory FROM db.category t WHERE t.id = pId;
 
@@ -85,7 +85,7 @@ CREATE OR REPLACE FUNCTION api.set_category (
   pType         uuid default null,
   pCode         text default null,
   pName         text default null,
-  pDescription	text default null
+  pDescription    text default null
 ) RETURNS       SETOF api.category
 AS $$
 BEGIN
@@ -110,8 +110,8 @@ $$ LANGUAGE plpgsql
  * @return {api.category}
  */
 CREATE OR REPLACE FUNCTION api.get_category (
-  pId		uuid
-) RETURNS	api.category
+  pId        uuid
+) RETURNS    api.category
 AS $$
   SELECT * FROM api.category WHERE id = pId
 $$ LANGUAGE SQL
@@ -131,12 +131,12 @@ $$ LANGUAGE SQL
  * @return {SETOF api.category}
  */
 CREATE OR REPLACE FUNCTION api.list_category (
-  pSearch	jsonb default null,
-  pFilter	jsonb default null,
-  pLimit	integer default null,
-  pOffSet	integer default null,
-  pOrderBy	jsonb default null
-) RETURNS	SETOF api.category
+  pSearch    jsonb default null,
+  pFilter    jsonb default null,
+  pLimit    integer default null,
+  pOffSet    integer default null,
+  pOrderBy    jsonb default null
+) RETURNS    SETOF api.category
 AS $$
 BEGIN
   RETURN QUERY EXECUTE api.sql('api', 'category', pSearch, pFilter, pLimit, pOffSet, pOrderBy);
@@ -154,8 +154,8 @@ $$ LANGUAGE plpgsql
  * @return {uuid}
  */
 CREATE OR REPLACE FUNCTION api.get_category_id (
-  pCode		text
-) RETURNS	uuid
+  pCode        text
+) RETURNS    uuid
 AS $$
 BEGIN
   RETURN GetCategory(pCode);

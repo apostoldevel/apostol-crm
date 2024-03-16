@@ -6,60 +6,59 @@ CREATE OR REPLACE FUNCTION InitConfigurationEntity()
 RETURNS     void
 AS $$
 DECLARE
-  uDocument		uuid;
-  uReference	uuid;
+  uParent   uuid;
 BEGIN
   -- Документ
 
-  uDocument := GetClass('document');
+  uParent := GetClass('document');
 
-	-- Счёт
+    -- Счёт
 
-	PERFORM CreateEntityAccount(uDocument);
+    PERFORM CreateEntityAccount(uParent);
 
-	-- Адрес
+    -- Клиент
 
-	PERFORM CreateEntityAddress(uDocument);
+    PERFORM CreateEntityClient(uParent);
 
-	-- Клиент
+    -- Устройство
 
-	PERFORM CreateEntityClient(uDocument);
-
-	-- Устройство
-
-	PERFORM CreateEntityDevice(uDocument);
+    PERFORM CreateEntityDevice(uParent);
 
   -- Справочник
 
-  uReference := GetClass('reference');
+  uParent := GetClass('reference');
 
-	-- Календарь
+    -- Адрес
 
-	PERFORM CreateEntityCalendar(uReference);
+    PERFORM CreateEntityAddress(uParent);
 
-	-- Категория
+    -- Календарь
 
-	PERFORM CreateEntityCategory(uReference);
+    PERFORM CreateEntityCalendar(uParent);
 
-	-- Валюта
+    -- Категория
 
-	PERFORM CreateEntityCurrency(uReference);
+    PERFORM CreateEntityCategory(uParent);
 
-	-- Мера
+    -- Страна
 
-	PERFORM CreateEntityMeasure(uReference);
+    PERFORM CreateEntityCountry(uParent);
 
-    -- Режим
+    -- Валюта
 
-    PERFORM CreateEntityMode(uReference);
+    PERFORM CreateEntityCurrency(uParent);
 
-	-- Модель
+    -- Мера
 
-	PERFORM CreateEntityModel(uReference);
+    PERFORM CreateEntityMeasure(uParent);
 
-	-- Свойство
+    -- Модель
 
-	PERFORM CreateEntityProperty(uReference);
+    PERFORM CreateEntityModel(uParent);
+
+    -- Свойство
+
+    PERFORM CreateEntityProperty(uParent);
 
 END;
 $$ LANGUAGE plpgsql

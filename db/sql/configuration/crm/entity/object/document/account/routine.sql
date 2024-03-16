@@ -6,8 +6,8 @@
  * @param {uuid} pParent - Ссылка на родительский объект: Object.Parent | null
  * @param {uuid} pType - Тип
  * @param {uuid} pCurrency - Валюта
- * @param {uuid} pCategory - Категория
  * @param {uuid} pClient - Клиент
+ * @param {uuid} pCategory - Категория
  * @param {text} pCode - Код
  * @param {text} pLabel - Метка
  * @param {text} pDescription - Описание
@@ -16,17 +16,16 @@
 CREATE OR REPLACE FUNCTION CreateAccount (
   pParent       uuid,
   pType         uuid,
-  pCurrency		uuid,
-  pCategory		uuid,
+  pCurrency     uuid,
   pClient       uuid,
+  pCategory     uuid,
   pCode         text,
   pLabel        text default null,
   pDescription  text default null
 ) RETURNS       uuid
 AS $$
 DECLARE
-  uId           uuid;
-  uAccount		uuid;
+  uAccount      uuid;
   uDocument     uuid;
 
   uClass        uuid;
@@ -38,16 +37,36 @@ BEGIN
     PERFORM IncorrectClassType();
   END IF;
 
-  SELECT id INTO uId FROM db.account WHERE currency = pCurrency AND code = pCode;
+  pCurrency := coalesce(pCurrency, DefaultCurrency());
 
+  PERFORM FROM db.currency WHERE id = pCurrency;
+  IF NOT FOUND THEN
+    PERFORM ObjectNotFound('currency', 'id', pCurrency);
+  END IF;
+
+  pCode := coalesce(pCode, GenAccountCode(pClient, pType, pCurrency));
+
+  PERFORM FROM db.account WHERE currency = pCurrency AND code = pCode;
   IF FOUND THEN
     PERFORM AccountCodeExists(pCode);
   END IF;
 
+  PERFORM FROM db.client WHERE id = pClient;
+  IF NOT FOUND THEN
+    PERFORM ObjectNotFound('client', 'id', pClient);
+  END IF;
+
+  IF pCategory IS NOT NULL THEN
+    PERFORM FROM db.category WHERE id = pCategory;
+    IF NOT FOUND THEN
+      PERFORM ObjectNotFound('category', 'id', pCategory);
+    END IF;
+  END IF;
+
   uDocument := CreateDocument(pParent, pType, pLabel, pDescription);
 
-  INSERT INTO db.account (id, document, currency, category, client, code)
-  VALUES (uDocument, uDocument, pCurrency, pCategory, pClient, pCode)
+  INSERT INTO db.account (id, document, currency, client, category, code)
+  VALUES (uDocument, uDocument, pCurrency, pClient, pCategory, pCode)
   RETURNING id INTO uAccount;
 
   uMethod := GetMethod(uClass, GetAction('create'));
@@ -68,8 +87,8 @@ $$ LANGUAGE plpgsql
  * @param {uuid} pParent - Ссылка на родительский объект: Object.Parent | null
  * @param {uuid} pType - Тип
  * @param {uuid} pCurrency - Валюта
- * @param {uuid} pCategory - Категория
  * @param {uuid} pClient - Клиент
+ * @param {uuid} pCategory - Категория
  * @param {text} pCode - Код
  * @param {text} pLabel - Метка
  * @param {text} pDescription - Описание
@@ -79,32 +98,50 @@ CREATE OR REPLACE FUNCTION EditAccount (
   pId           uuid,
   pParent       uuid default null,
   pType         uuid default null,
-  pCurrency		uuid default null,
-  pCategory		uuid default null,
+  pCurrency     uuid default null,
   pClient       uuid default null,
+  pCategory     uuid default null,
   pCode         text default null,
   pLabel        text default null,
   pDescription  text default null
 ) RETURNS       void
 AS $$
 DECLARE
-  uId           uuid;
   uClass        uuid;
   uMethod       uuid;
 
   -- current
-  cCurrency		uuid;
+  cCurrency     uuid;
+  cClient       uuid;
   cCode         text;
 BEGIN
-  SELECT currency, code INTO cCurrency, cCode FROM db.account WHERE id = pId;
+  SELECT currency, client, code INTO cCurrency, cClient, cCode FROM db.account WHERE id = pId;
 
   pCurrency := coalesce(pCurrency, cCurrency);
+  pClient := coalesce(pClient, cClient);
   pCode := coalesce(pCode, cCode);
 
   IF pCode <> cCode THEN
-    SELECT id INTO uId FROM db.account WHERE currency = pCurrency AND code = pCode;
+    PERFORM FROM db.account WHERE currency = pCurrency AND code = pCode;
     IF FOUND THEN
       PERFORM AccountCodeExists(pCode);
+    END IF;
+  END IF;
+
+  PERFORM FROM db.currency WHERE id = pCurrency;
+  IF NOT FOUND THEN
+    PERFORM ObjectNotFound('currency', 'id', pCurrency);
+  END IF;
+
+  PERFORM FROM db.client WHERE id = pClient;
+  IF NOT FOUND THEN
+    PERFORM ObjectNotFound('client', 'id', pClient);
+  END IF;
+
+  IF pCategory IS NOT NULL THEN
+    PERFORM FROM db.category WHERE id = pCategory;
+    IF NOT FOUND THEN
+      PERFORM ObjectNotFound('category', 'id', pCategory);
     END IF;
   END IF;
 
@@ -112,8 +149,8 @@ BEGIN
 
   UPDATE db.account
      SET currency = coalesce(pCurrency, currency),
-         category = coalesce(pCategory, category),
          client = coalesce(pClient, client),
+         category = coalesce(pCategory, category),
          code = pCode
    WHERE id = pId;
 
@@ -131,9 +168,9 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION GetAccount (
-  pCode		text,
-  pCurrency	uuid
-) RETURNS	uuid
+  pCode     text,
+  pCurrency uuid
+) RETURNS   uuid
 AS $$
   SELECT id FROM db.account WHERE currency = pCurrency AND code = pCode;
 $$ LANGUAGE sql
@@ -145,11 +182,51 @@ $$ LANGUAGE sql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION GetAccountCode (
-  pAccount	uuid
-) RETURNS	text
+  pAccount  uuid
+) RETURNS   text
 AS $$
   SELECT code FROM db.account WHERE id = pAccount;
 $$ LANGUAGE sql
+   SECURITY DEFINER
+   SET search_path = kernel, pg_temp;
+
+--------------------------------------------------------------------------------
+-- GenAccountCode --------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION GenAccountCode (
+  pClient   uuid,
+  pType     uuid DEFAULT null,
+  pCurrency uuid DEFAULT null,
+  pPrefix   text DEFAULT null
+) RETURNS   text
+AS $$
+BEGIN
+  pCurrency := coalesce(pCurrency, DefaultCurrency());
+  pType := coalesce(pType, GetType('passive.account'));
+  pPrefix := coalesce(pPrefix, lower(GetCurrencyCode(pCurrency)));
+
+  RETURN pPrefix || ':' || encode(digest(format('%s:%s:%s:%s', pPrefix, pClient, pType, pCurrency), 'sha1'), 'hex');
+END
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = kernel, public, pg_temp;
+
+--------------------------------------------------------------------------------
+-- GetClientAccount ------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION GetClientAccount (
+  pClient   uuid,
+  pType     uuid DEFAULT null,
+  pCurrency uuid DEFAULT null,
+  pPrefix   text DEFAULT null
+) RETURNS   uuid
+AS $$
+BEGIN
+  RETURN GetAccount(GenAccountCode(pClient, pType, pCurrency, pPrefix), pCurrency);
+END
+$$ LANGUAGE plpgsql
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;
 
@@ -158,167 +235,72 @@ $$ LANGUAGE sql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION GetAccountClient (
-  pAccount	uuid
-) RETURNS	uuid
+  pId       uuid
+) RETURNS   uuid
 AS $$
-  SELECT client FROM db.account WHERE id = pAccount;
+  SELECT client FROM db.account WHERE id = pId;
 $$ LANGUAGE sql
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
--- ChangeBalance ---------------------------------------------------------------
+-- GetAccountJson --------------------------------------------------------------
 --------------------------------------------------------------------------------
-/**
- * Меняет баланс счёта.
- * @param {uuid} pAccount - Счёт
- * @param {numeric} pAmount - Сумма
- * @param {integer} pType - Тип
- * @param {timestamptz} pDateFrom - Дата
- * @return {void}
- */
-CREATE OR REPLACE FUNCTION ChangeBalance (
-  pAccount		uuid,
-  pAmount       numeric,
-  pType         integer DEFAULT 1,
-  pDateFrom     timestamptz DEFAULT Now()
-) RETURNS       void
+
+CREATE OR REPLACE FUNCTION GetAccountJson (
+  pClient       uuid
+) RETURNS       json
 AS $$
 DECLARE
-  dtDateFrom    timestamptz;
-  dtDateTo 	    timestamptz;
+  arResult      json[];
+  rec           record;
 BEGIN
-  -- получим дату значения в текущем диапозоне дат
-  SELECT validFromDate, validToDate INTO dtDateFrom, dtDateTo
-    FROM db.balance
-   WHERE type = pType
-     AND account = pAccount
-     AND validFromDate <= pDateFrom
-     AND validToDate > pDateFrom;
+  FOR rec IN
+    SELECT * FROM Account WHERE client = pClient
+  LOOP
+    arResult := array_append(arResult, row_to_json(rec));
+  END LOOP;
 
-  IF coalesce(dtDateFrom, MINDATE()) = pDateFrom THEN
-    -- обновим значение в текущем диапозоне дат
-    UPDATE db.balance SET amount = pAmount
-     WHERE type = pType
-       AND account = pAccount
-       AND validFromDate <= pDateFrom
-       AND validToDate > pDateFrom;
-  ELSE
-    -- обновим дату значения в текущем диапозоне дат
-    UPDATE db.balance SET validToDate = pDateFrom
-     WHERE type = pType
-       AND account = pAccount
-       AND validFromDate <= pDateFrom
-       AND validToDate > pDateFrom;
-
-    INSERT INTO db.balance (type, account, amount, validfromdate, validToDate)
-    VALUES (pType, pAccount, pAmount, pDateFrom, coalesce(dtDateTo, MAXDATE()));
-  END IF;
-END;
+  RETURN array_to_json(arResult);
+END
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;
 
 --------------------------------------------------------------------------------
--- NewTurnOver -----------------------------------------------------------------
+-- GetBalanceJson --------------------------------------------------------------
 --------------------------------------------------------------------------------
-/**
- * Новое движение по счёту.
- * @param {uuid} pAccount - Счёт
- * @param {numeric} pDebit - Сумма обота по дебету
- * @param {numeric} pCredit - Сумма обота по кредиту
- * @param {integer} pType - Тип
- * @param {timestamptz} pTimestamp - Дата
- * @return {numeric}
- */
-CREATE OR REPLACE FUNCTION NewTurnOver (
-  pAccount		uuid,
-  pDebit        numeric,
-  pCredit       numeric,
-  pType         integer DEFAULT 1,
-  pTimestamp	timestamptz DEFAULT Now()
-) RETURNS       uuid
+
+CREATE OR REPLACE FUNCTION GetBalanceJsonb (
+  pClient       uuid
+) RETURNS       jsonb
 AS $$
 DECLARE
-  uId           uuid;
+  arResult      jsonb;
+  rec           record;
 BEGIN
-  INSERT INTO db.turnover (type, account, debit, credit, timestamp)
-  VALUES (pType, pAccount, pDebit, pCredit, pTimestamp)
-  RETURNING id INTO uId;
+  arResult := jsonb_build_object();
 
-  RETURN uId;
-END;
+  FOR rec IN
+    SELECT CASE
+             WHEN SubStr(t.code, 1, 3) = 'gpt' THEN 'token'
+             WHEN SubStr(t.code, 1, 3) = 'wrd' THEN 'word'
+             WHEN SubStr(t.code, 1, 3) = 'txt' THEN 'text'
+             WHEN SubStr(t.code, 1, 3) = 'img' THEN 'image'
+             ELSE lower(cr.code)
+           END AS type, coalesce(b.amount, 0) AS amount
+      FROM db.account t INNER JOIN db.object           o ON o.id = t.document AND o.state_type = '00000000-0000-4000-b001-000000000002'::uuid
+                        INNER JOIN db.type             e ON e.id = o.type AND e.code = 'passive.account'
+                        INNER JOIN db.currency         c ON c.id = t.currency
+                        INNER JOIN db.reference       cr ON cr.id = c.reference
+                         LEFT JOIN db.balance          b ON b.account = t.id AND b.type = 1 AND validFromDate <= Now() AND validToDate > Now()
+     WHERE t.client = pClient
+  LOOP
+    arResult := arResult || jsonb_build_object(rec.type, rec.amount);
+  END LOOP;
+
+  RETURN arResult;
+END
 $$ LANGUAGE plpgsql
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
-
---------------------------------------------------------------------------------
--- UpdateBalance ---------------------------------------------------------------
---------------------------------------------------------------------------------
-/**
- * Обновляет баланс счёта.
- * @param {uuid} pAccount - Счёт
- * @param {numeric} pAmount - Сумма изменения остатка. Если сумма положительная, то счёт кредитуется, если сумма отрицательная - счёт дебетуется.
- * @param {integer} pType - Тип
- * @param {timestamptz} pDateFrom - Дата
- * @return {numeric} - Баланс (остаток на счёте)
- */
-CREATE OR REPLACE FUNCTION UpdateBalance (
-  pAccount		uuid,
-  pAmount       numeric,
-  pType         integer DEFAULT 1,
-  pDateFrom     timestamptz DEFAULT Now()
-) RETURNS       numeric
-AS $$
-DECLARE
-  uId           uuid;
-  nBalance      numeric;
-BEGIN
-  IF pAmount > 0 THEN
-    uId := NewTurnOver(pAccount, 0, pAmount, pType, pDateFrom);
-  END IF;
-
-  IF pAmount < 0 THEN
-    uId := NewTurnOver(pAccount, pAmount, 0, pType, pDateFrom);
-  END IF;
-
-  if uId IS NOT NULL THEN
-    SELECT Sum(credit) + Sum(debit) INTO nBalance
-      FROM db.turnover
-     WHERE type = pType
-       AND account = pAccount;
-
-    PERFORM ChangeBalance(pAccount, nBalance, pType, pDateFrom);
-  END IF;
-
-  RETURN nBalance;
-END;
-$$ LANGUAGE plpgsql
-   SECURITY DEFINER
-   SET search_path = kernel, pg_temp;
-
---------------------------------------------------------------------------------
--- GetBalance ------------------------------------------------------------------
---------------------------------------------------------------------------------
-/**
- * Возвращает баланс счёта.
- * @param {numeric} pAccount - Счёт
- * @param {integer} pType - Тип
- * @param {timestamptz} pDateFrom - Дата
- * @return {numeric} - Баланс (остаток на счёте)
- */
-CREATE OR REPLACE FUNCTION GetBalance (
-  pAccount		uuid,
-  pType         integer DEFAULT 1,
-  pDateFrom     timestamptz DEFAULT oper_date()
-) RETURNS       numeric
-AS $$
-  SELECT amount
-    FROM db.balance
-   WHERE type = pType
-     AND account = pAccount
-     AND validFromDate <= pDateFrom
-     AND validToDate > pDateFrom;
-$$ LANGUAGE sql
    SECURITY DEFINER
    SET search_path = kernel, pg_temp;

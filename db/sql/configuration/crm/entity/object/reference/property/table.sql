@@ -7,8 +7,8 @@
 --------------------------------------------------------------------------------
 
 CREATE TABLE db.property (
-    id			    uuid PRIMARY KEY,
-    reference		uuid NOT NULL REFERENCES db.reference(id) ON DELETE CASCADE
+    id              uuid PRIMARY KEY,
+    reference       uuid NOT NULL REFERENCES db.reference(id) ON DELETE CASCADE
 );
 
 COMMENT ON TABLE db.property IS 'Свойство.';
@@ -20,7 +20,7 @@ CREATE INDEX ON db.property (reference);
 
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION ft_property_insert()
+CREATE OR REPLACE FUNCTION db.ft_property_insert()
 RETURNS trigger AS $$
 BEGIN
   IF NEW.id IS NULL THEN
@@ -38,4 +38,4 @@ $$ LANGUAGE plpgsql
 CREATE TRIGGER t_property_insert
   BEFORE INSERT ON db.property
   FOR EACH ROW
-  EXECUTE PROCEDURE ft_property_insert();
+  EXECUTE PROCEDURE db.ft_property_insert();

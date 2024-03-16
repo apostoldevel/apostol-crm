@@ -140,6 +140,19 @@ namespace Apostol {
 
                             throw Delphi::Exception::Exception(_T("option \"-g\" requires parameter"));
 
+                        case 'w':
+                            if (*P) {
+                                Config()->Workers(StrToIntDef(P, 0));
+                                goto next;
+                            }
+
+                            if (++i < argc() && !argv()[i].empty()) {
+                                Config()->Workers(StrToIntDef(argv()[i].c_str(), 0));
+                                goto next;
+                            }
+
+                            throw Delphi::Exception::Exception(_T("option \"-w\" requires parameter"));
+
                         case 's':
                             if (*P) {
                                 Config()->Signal(P);
@@ -185,8 +198,25 @@ namespace Apostol {
         }
         //--------------------------------------------------------------------------------------------------------------
 
-        void CApostolCRM::StartProcess() {
+        void CApostolCRM::CreateCustomProcesses() {
+            if (Config()->IniFile().ReadBool("process/MessageServer", "enable", false)) {
+                AddProcess<CMessageServer>();
+                m_ProcessType = ptCustom;
+            }
 
+            if (Config()->IniFile().ReadBool("process/ReportServer", "enable", false)) {
+                AddProcess<CReportProcess>();
+                m_ProcessType = ptCustom;
+            }
+
+            if (Config()->IniFile().ReadBool("process/TaskScheduler", "enable", false)) {
+                AddProcess<CTaskScheduler>();
+                m_ProcessType = ptCustom;
+            }
+        }
+        //--------------------------------------------------------------------------------------------------------------
+
+        void CApostolCRM::StartProcess() {
             if (Config()->Helper()) {
                 m_ProcessType = ptHelper;
             }
@@ -208,7 +238,7 @@ int main(int argc, char *argv[]) {
 
     int exitcode;
 
-    DefaultLocale.SetLocale("");
+    DefaultLocale.SetLocale("en_US");
 
     CApostolCRM crm(argc, argv);
     
@@ -232,6 +262,6 @@ int main(int argc, char *argv[]) {
         exit_failure("Unknown error...");
     }
 
-    exit(exitcode);
+    return exitcode;
 }
 //----------------------------------------------------------------------------------------------------------------------

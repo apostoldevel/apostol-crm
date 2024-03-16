@@ -12,6 +12,7 @@ CREATE TABLE db.calendar (
     work_count    interval DEFAULT '8 hour',
     rest_start    interval DEFAULT '13 hour',
     rest_count    interval DEFAULT '1 hour',
+    schedule      text[][] DEFAULT null,
     CHECK (week BETWEEN 1 AND 7),
     CHECK (min_array(dayoff) >= 1 AND max_array(dayoff) <= 7)
 );
@@ -22,17 +23,18 @@ COMMENT ON COLUMN db.calendar.id IS 'Идентификатор.';
 COMMENT ON COLUMN db.calendar.reference IS 'Справочник.';
 COMMENT ON COLUMN db.calendar.week IS 'Количество используемых (рабочих) дней в неделе.';
 COMMENT ON COLUMN db.calendar.dayoff IS 'Массив выходных дней в неделе. Допустимые значения [1..7, ...].';
-COMMENT ON COLUMN db.calendar.holiday IS 'Массив праздничных дней в году. Допустимые значения [[1..12,1..31], ...].';
+COMMENT ON COLUMN db.calendar.holiday IS 'Массив праздничных дней в году. Допустимые значения [[1..12, 1..31], ...].';
 COMMENT ON COLUMN db.calendar.work_start IS 'Начало рабочего дня.';
 COMMENT ON COLUMN db.calendar.work_count IS 'Количество рабочих часов.';
 COMMENT ON COLUMN db.calendar.rest_start IS 'Начало перерыва.';
 COMMENT ON COLUMN db.calendar.rest_count IS 'Количество часов перерыва.';
+COMMENT ON COLUMN db.calendar.schedule IS 'Расписание на неделю. Формат: [[day_of_week, start_time, stop_time], ...].';
 
 CREATE INDEX ON db.calendar (reference);
 
 --------------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION ft_calendar_insert()
+CREATE OR REPLACE FUNCTION db.ft_calendar_insert()
 RETURNS trigger AS $$
 DECLARE
 BEGIN
@@ -51,7 +53,7 @@ $$ LANGUAGE plpgsql
 CREATE TRIGGER t_calendar_insert
   BEFORE INSERT ON db.calendar
   FOR EACH ROW
-  EXECUTE PROCEDURE ft_calendar_insert();
+  EXECUTE PROCEDURE db.ft_calendar_insert();
 
 --------------------------------------------------------------------------------
 -- db.cdate --------------------------------------------------------------------
@@ -66,6 +68,7 @@ CREATE TABLE db.cdate (
     work_count      interval,
     rest_start      interval,
     rest_count      interval,
+    schedule        interval[][] DEFAULT null,
     userid          uuid REFERENCES db.user(id)
 );
 
@@ -79,6 +82,7 @@ COMMENT ON COLUMN db.cdate.work_start IS 'Начало рабочего дня.'
 COMMENT ON COLUMN db.cdate.work_count IS 'Количество рабочих часов.';
 COMMENT ON COLUMN db.cdate.rest_start IS 'Начало перерыва.';
 COMMENT ON COLUMN db.cdate.rest_count IS 'Количество часов перерыва.';
+COMMENT ON COLUMN db.cdate.schedule IS 'Расписание. Формат: [[start_time, stop_time], ...].';
 
 --------------------------------------------------------------------------------
 

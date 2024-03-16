@@ -17,13 +17,14 @@ DECLARE
   e           record;
 
   arKeys      text[];
+  arJson      json[];
 BEGIN
   IF pPath IS NULL THEN
     PERFORM RouteIsEmpty();
   END IF;
 
   IF current_session() IS NULL THEN
-	PERFORM LoginFailed();
+    PERFORM LoginFailed();
   END IF;
 
   CASE pPath
@@ -50,17 +51,20 @@ BEGIN
 
       FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id uuid)
       LOOP
-        FOR e IN SELECT r.id, api.get_methods(GetObjectClass(r.id), GetObjectState(r.id)) as method FROM api.get_device(r.id) ORDER BY id
+        arJson := null;
+        FOR e IN SELECT * FROM api.get_object_methods(r.id) ORDER BY sequence
         LOOP
-          RETURN NEXT row_to_json(e);
+          arJson := array_append(arJson, row_to_json(e));
         END LOOP;
+
+        RETURN NEXT jsonb_build_object('id', r.id, 'methods', array_to_json(arJson));
       END LOOP;
 
     ELSE
 
       FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id uuid)
       LOOP
-        FOR e IN SELECT r.id, api.get_methods(GetObjectClass(r.id), GetObjectState(r.id)) as method FROM api.get_device(r.id) ORDER BY id
+        FOR e IN SELECT * FROM api.get_object_methods(r.id) ORDER BY sequence
         LOOP
           RETURN NEXT row_to_json(e);
         END LOOP;

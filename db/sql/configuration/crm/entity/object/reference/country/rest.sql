@@ -1,13 +1,13 @@
 --------------------------------------------------------------------------------
--- REST MODE -------------------------------------------------------------------
+-- REST COUNTRY ----------------------------------------------------------------
 --------------------------------------------------------------------------------
 /**
- * Запрос данных в формате REST JSON API (Режим).
+ * Запрос данных в формате REST JSON API (Страна).
  * @param {text} pPath - Путь
  * @param {jsonb} pPayload - JSON
  * @return {SETOF json} - Записи в JSON
  */
-CREATE OR REPLACE FUNCTION rest.mode (
+CREATE OR REPLACE FUNCTION rest.country (
   pPath       text,
   pPayload    jsonb default null
 ) RETURNS     SETOF json
@@ -17,27 +17,28 @@ DECLARE
   e           record;
 
   arKeys      text[];
+  arJson      json[];
 BEGIN
   IF pPath IS NULL THEN
     PERFORM RouteIsEmpty();
   END IF;
 
   IF current_session() IS NULL THEN
-	PERFORM LoginFailed();
+    PERFORM LoginFailed();
   END IF;
 
   CASE pPath
-  WHEN '/mode/type' THEN
+  WHEN '/country/type' THEN
 
     FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(fields jsonb)
     LOOP
-      FOR e IN EXECUTE format('SELECT %s FROM api.type($1)', JsonbToFields(r.fields, GetColumns('type', 'api'))) USING GetEntity('mode')
+      FOR e IN EXECUTE format('SELECT %s FROM api.type($1)', JsonbToFields(r.fields, GetColumns('type', 'api'))) USING GetEntity('country')
       LOOP
         RETURN NEXT row_to_json(e);
       END LOOP;
     END LOOP;
 
-  WHEN '/mode/method' THEN
+  WHEN '/country/method' THEN
 
     IF pPayload IS NULL THEN
       PERFORM JsonIsEmpty();
@@ -50,17 +51,20 @@ BEGIN
 
       FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id uuid)
       LOOP
-        FOR e IN SELECT r.id, api.get_methods(GetObjectClass(r.id), GetObjectState(r.id)) as method FROM api.get_mode(r.id) ORDER BY id
+        arJson := null;
+        FOR e IN SELECT * FROM api.get_object_methods(r.id) ORDER BY sequence
         LOOP
-          RETURN NEXT row_to_json(e);
+          arJson := array_append(arJson, row_to_json(e));
         END LOOP;
+
+        RETURN NEXT jsonb_build_object('id', r.id, 'methods', array_to_json(arJson));
       END LOOP;
 
     ELSE
 
       FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id uuid)
       LOOP
-        FOR e IN SELECT r.id, api.get_methods(GetObjectClass(r.id), GetObjectState(r.id)) as method FROM api.get_mode(r.id) ORDER BY id
+        FOR e IN SELECT * FROM api.get_object_methods(r.id) ORDER BY sequence
         LOOP
           RETURN NEXT row_to_json(e);
         END LOOP;
@@ -68,7 +72,7 @@ BEGIN
 
     END IF;
 
-  WHEN '/mode/count' THEN
+  WHEN '/country/count' THEN
 
     IF pPayload IS NOT NULL THEN
       arKeys := array_cat(arKeys, ARRAY['search', 'filter', 'reclimit', 'recoffset', 'orderby']);
@@ -81,7 +85,7 @@ BEGIN
 
       FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(search jsonb, filter jsonb, reclimit integer, recoffset integer, orderby jsonb)
       LOOP
-        FOR e IN SELECT count(*) FROM api.list_mode(r.search, r.filter, r.reclimit, r.recoffset, r.orderby)
+        FOR e IN SELECT count(*) FROM api.list_country(r.search, r.filter, r.reclimit, r.recoffset, r.orderby)
         LOOP
           RETURN NEXT row_to_json(e);
         END LOOP;
@@ -91,7 +95,7 @@ BEGIN
 
       FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(search jsonb, filter jsonb, reclimit integer, recoffset integer, orderby jsonb)
       LOOP
-        FOR e IN SELECT count(*) FROM api.list_mode(r.search, r.filter, r.reclimit, r.recoffset, r.orderby)
+        FOR e IN SELECT count(*) FROM api.list_country(r.search, r.filter, r.reclimit, r.recoffset, r.orderby)
         LOOP
           RETURN NEXT row_to_json(e);
         END LOOP;
@@ -99,32 +103,32 @@ BEGIN
 
     END IF;
 
-  WHEN '/mode/set' THEN
+  WHEN '/country/set' THEN
 
     IF pPayload IS NULL THEN
       PERFORM JsonIsEmpty();
     END IF;
 
-    arKeys := array_cat(arKeys, GetRoutines('set_mode', 'api', false));
+    arKeys := array_cat(arKeys, GetRoutines('set_country', 'api', false));
     PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
 
     IF jsonb_typeof(pPayload) = 'array' THEN
 
-      FOR r IN EXECUTE format('SELECT row_to_json(api.set_mode(%s)) FROM jsonb_to_recordset($1) AS x(%s)', array_to_string(GetRoutines('set_mode', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_mode', 'api', true), ', ')) USING pPayload
+      FOR r IN EXECUTE format('SELECT row_to_json(api.set_country(%s)) FROM jsonb_to_recordset($1) AS x(%s)', array_to_string(GetRoutines('set_country', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_country', 'api', true), ', ')) USING pPayload
       LOOP
         RETURN NEXT r;
       END LOOP;
 
     ELSE
 
-      FOR r IN EXECUTE format('SELECT row_to_json(api.set_mode(%s)) FROM jsonb_to_record($1) AS x(%s)', array_to_string(GetRoutines('set_mode', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_mode', 'api', true), ', ')) USING pPayload
+      FOR r IN EXECUTE format('SELECT row_to_json(api.set_country(%s)) FROM jsonb_to_record($1) AS x(%s)', array_to_string(GetRoutines('set_country', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_country', 'api', true), ', ')) USING pPayload
       LOOP
         RETURN NEXT r;
       END LOOP;
 
     END IF;
 
-  WHEN '/mode/get' THEN
+  WHEN '/country/get' THEN
 
     IF pPayload IS NULL THEN
       PERFORM JsonIsEmpty();
@@ -137,7 +141,7 @@ BEGIN
 
       FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id uuid, fields jsonb)
       LOOP
-        FOR e IN EXECUTE format('SELECT %s FROM api.get_mode($1)', JsonbToFields(r.fields, GetColumns('mode', 'api'))) USING r.id
+        FOR e IN EXECUTE format('SELECT %s FROM api.get_country($1)', JsonbToFields(r.fields, GetColumns('country', 'api'))) USING r.id
         LOOP
           RETURN NEXT row_to_json(e);
         END LOOP;
@@ -147,7 +151,7 @@ BEGIN
 
       FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id uuid, fields jsonb)
       LOOP
-        FOR e IN EXECUTE format('SELECT %s FROM api.get_mode($1)', JsonbToFields(r.fields, GetColumns('mode', 'api'))) USING r.id
+        FOR e IN EXECUTE format('SELECT %s FROM api.get_country($1)', JsonbToFields(r.fields, GetColumns('country', 'api'))) USING r.id
         LOOP
           RETURN NEXT row_to_json(e);
         END LOOP;
@@ -155,7 +159,7 @@ BEGIN
 
     END IF;
 
-  WHEN '/mode/list' THEN
+  WHEN '/country/list' THEN
 
     IF pPayload IS NOT NULL THEN
       arKeys := array_cat(arKeys, ARRAY['fields', 'search', 'filter', 'reclimit', 'recoffset', 'orderby']);
@@ -166,7 +170,7 @@ BEGIN
 
     FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(fields jsonb, search jsonb, filter jsonb, reclimit integer, recoffset integer, orderby jsonb)
     LOOP
-      FOR e IN EXECUTE format('SELECT %s FROM api.list_mode($1, $2, $3, $4, $5)', JsonbToFields(r.fields, GetColumns('mode', 'api'))) USING r.search, r.filter, r.reclimit, r.recoffset, r.orderby
+      FOR e IN EXECUTE format('SELECT %s FROM api.list_country($1, $2, $3, $4, $5)', JsonbToFields(r.fields, GetColumns('country', 'api'))) USING r.search, r.filter, r.reclimit, r.recoffset, r.orderby
       LOOP
         RETURN NEXT row_to_json(e);
       END LOOP;

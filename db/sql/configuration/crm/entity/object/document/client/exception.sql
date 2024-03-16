@@ -3,8 +3,8 @@
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION ClientCodeExists (
-  pCode		text
-) RETURNS	void
+  pCode        text
+) RETURNS    void
 AS $$
 BEGIN
   RAISE EXCEPTION 'ERR-40000: Клиент с кодом "%" уже существует.', pCode;
@@ -16,7 +16,7 @@ $$ LANGUAGE plpgsql STRICT IMMUTABLE;
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION AccountNotClient (
-) RETURNS	void
+) RETURNS    void
 AS $$
 BEGIN
   RAISE EXCEPTION 'ERR-40000: Учётная запись не принадлежит клиенту.';
@@ -28,7 +28,7 @@ $$ LANGUAGE plpgsql STRICT IMMUTABLE;
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION EmailAddressNotSet (
-) RETURNS	void
+) RETURNS    void
 AS $$
 BEGIN
   RAISE EXCEPTION 'ERR-40000: Не задан адрес электронной почты.';
@@ -41,7 +41,7 @@ $$ LANGUAGE plpgsql STRICT IMMUTABLE;
 
 CREATE OR REPLACE FUNCTION EmailAddressNotVerified (
   pEmail    text
-) RETURNS	void
+) RETURNS    void
 AS $$
 BEGIN
   RAISE EXCEPTION 'ERR-40000: Адрес электронной почты "%" не подтверждён.', pEmail;
@@ -53,7 +53,7 @@ $$ LANGUAGE plpgsql STRICT IMMUTABLE;
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION PhoneNumberNotSet (
-) RETURNS	void
+) RETURNS    void
 AS $$
 BEGIN
   RAISE EXCEPTION 'ERR-40000: Не задан номер телефона.';
@@ -66,7 +66,7 @@ $$ LANGUAGE plpgsql STRICT IMMUTABLE;
 
 CREATE OR REPLACE FUNCTION PhoneNumberNotVerified (
   pPhone    text
-) RETURNS	void
+) RETURNS    void
 AS $$
 BEGIN
   RAISE EXCEPTION 'ERR-40000: Телефон "%" не подтверждён.', pPhone;
@@ -78,8 +78,8 @@ $$ LANGUAGE plpgsql STRICT IMMUTABLE;
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION InvalidClientId (
-  pObject	uuid
-) RETURNS	void
+  pObject    uuid
+) RETURNS    void
 AS $$
 BEGIN
   RAISE EXCEPTION 'ERR-40000: Неверно указан идентификатор клиента, ожидается: %.', pObject;

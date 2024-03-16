@@ -16,20 +16,20 @@ CREATE OR REPLACE FUNCTION CreateModel (
   pParent       uuid,
   pType         uuid,
   pVendor       uuid,
-  pCategory		uuid,
+  pCategory        uuid,
   pCode         text,
   pName         text,
-  pDescription	text default null
+  pDescription    text default null
 ) RETURNS       uuid
 AS $$
 DECLARE
-  uReference	uuid;
+  uReference    uuid;
   uClass        uuid;
   uMethod       uuid;
 BEGIN
   SELECT class INTO uClass FROM db.type WHERE id = pType;
 
-  IF GetEntityCode(uClass) <> 'model' THEN
+  IF GetClassCode(uClass) <> 'model' THEN
     PERFORM IncorrectClassType();
   END IF;
 
@@ -67,10 +67,10 @@ CREATE OR REPLACE FUNCTION EditModel (
   pParent       uuid default null,
   pType         uuid default null,
   pVendor       uuid default null,
-  pCategory		uuid default null,
+  pCategory        uuid default null,
   pCode         text default null,
   pName         text default null,
-  pDescription	text default null
+  pDescription    text default null
 ) RETURNS       void
 AS $$
 DECLARE
@@ -98,8 +98,8 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION GetModel (
-  pCode		text
-) RETURNS 	uuid
+  pCode        text
+) RETURNS     uuid
 AS $$
 BEGIN
   RETURN GetReference(pCode, 'model');
@@ -114,7 +114,7 @@ $$ LANGUAGE plpgsql
 
 CREATE OR REPLACE FUNCTION GetModelVendor (
   pId       uuid
-) RETURNS 	uuid
+) RETURNS     uuid
 AS $$
   SELECT vendor FROM db.model WHERE id = pId;
 $$ LANGUAGE SQL
@@ -127,7 +127,7 @@ $$ LANGUAGE SQL
 
 CREATE OR REPLACE FUNCTION GetModelCategory (
   pId       uuid
-) RETURNS 	uuid
+) RETURNS     uuid
 AS $$
   SELECT category FROM db.model WHERE id = pId;
 $$ LANGUAGE SQL
@@ -139,19 +139,19 @@ $$ LANGUAGE SQL
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION SetModelProperty (
-  pModel		uuid,
-  pProperty		uuid,
-  pMeasure		uuid,
-  pValue		variant,
-  pFormat		text,
-  pSequence		integer DEFAULT null
-) RETURNS		void
+  pModel        uuid,
+  pProperty        uuid,
+  pMeasure        uuid,
+  pValue        variant,
+  pFormat        text,
+  pSequence        integer DEFAULT null
+) RETURNS        void
 AS $$
 DECLARE
-  r				record;
+  r                record;
 BEGIN
   IF pSequence IS NULL THEN
-  	SELECT max(sequence) + 1 INTO pSequence FROM db.model_property WHERE model = pModel;
+      SELECT max(sequence) + 1 INTO pSequence FROM db.model_property WHERE model = pModel;
   END IF;
 
   SELECT * INTO r FROM db.model_property WHERE model = pModel AND property = pProperty;
@@ -171,9 +171,9 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION DeleteModelProperty (
-  pModel		uuid,
-  pProperty		uuid DEFAULT null
-) RETURNS		boolean
+  pModel        uuid,
+  pProperty        uuid DEFAULT null
+) RETURNS        boolean
 AS $$
 BEGIN
   IF pProperty IS NOT NULL THEN
@@ -193,12 +193,12 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION GetModelPropertyJson (
-  pModel	uuid
-) RETURNS	json
+  pModel    uuid
+) RETURNS    json
 AS $$
 DECLARE
-  r			record;
-  arResult	json[];
+  r            record;
+  arResult    json[];
 BEGIN
   FOR r IN
     SELECT *
@@ -220,8 +220,8 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION GetModelPropertyJsonb (
-  pObject	uuid
-) RETURNS	jsonb
+  pObject    uuid
+) RETURNS    jsonb
 AS $$
 BEGIN
   RETURN GetModelPropertyJson(pObject);

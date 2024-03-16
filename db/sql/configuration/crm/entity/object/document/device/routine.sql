@@ -3,24 +3,24 @@
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION CreateDevice (
-  pParent			uuid,
-  pType				uuid,
-  pModel			uuid,
-  pClient			uuid,
-  pIdentity			text,
-  pVersion			text,
-  pSerial			text default null,
-  pAddress			text default null,
-  piccid			text default null,
-  pimsi				text default null,
-  pLabel			text default null,
-  pDescription		text default null
-) RETURNS			uuid
+  pParent            uuid,
+  pType                uuid,
+  pModel            uuid,
+  pClient            uuid,
+  pIdentity            text,
+  pVersion            text,
+  pSerial            text default null,
+  pAddress            text default null,
+  piccid            text default null,
+  pimsi                text default null,
+  pLabel            text default null,
+  pDescription        text default null
+) RETURNS            uuid
 AS $$
 DECLARE
-  uDocument			uuid;
-  uClass			uuid;
-  uMethod			uuid;
+  uDocument            uuid;
+  uClass            uuid;
+  uMethod            uuid;
 BEGIN
   SELECT class INTO uClass FROM db.type WHERE id = pType;
 
@@ -53,27 +53,27 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION EditDevice (
-  pId				uuid,
-  pParent			uuid default null,
-  pType				uuid default null,
-  pModel			uuid default null,
-  pClient			uuid default null,
-  pIdentity			text default null,
-  pVersion			text default null,
-  pSerial			text default null,
-  pAddress			text default null,
-  piccid			text default null,
-  pimsi				text default null,
-  pLabel			text default null,
-  pDescription		text default null
-) RETURNS			void
+  pId                uuid,
+  pParent            uuid default null,
+  pType                uuid default null,
+  pModel            uuid default null,
+  pClient            uuid default null,
+  pIdentity            text default null,
+  pVersion            text default null,
+  pSerial            text default null,
+  pAddress            text default null,
+  piccid            text default null,
+  pimsi                text default null,
+  pLabel            text default null,
+  pDescription        text default null
+) RETURNS            void
 AS $$
 DECLARE
-  uDocument			uuid;
-  vIdentity			text;
+  uDocument            uuid;
+  vIdentity            text;
 
-  uClass			uuid;
-  uMethod			uuid;
+  uClass            uuid;
+  uMethod            uuid;
 BEGIN
   SELECT identity INTO vIdentity FROM db.device WHERE id = pId;
   IF vIdentity <> coalesce(pIdentity, vIdentity) THEN
@@ -89,11 +89,11 @@ BEGIN
      SET model = coalesce(pModel, model),
          client = CheckNull(coalesce(pClient, client, null_uuid())),
          identity = coalesce(pIdentity, identity),
-         version = CheckNull(coalesce(pVersion, version, '<null>')),
-         serial = CheckNull(coalesce(pSerial, serial, '<null>')),
-         address = CheckNull(coalesce(pAddress, address, '<null>')),
-         iccid = CheckNull(coalesce(piccid, iccid, '<null>')),
-         imsi = CheckNull(coalesce(pimsi, imsi, '<null>'))
+         version = CheckNull(coalesce(pVersion, version, '')),
+         serial = CheckNull(coalesce(pSerial, serial, '')),
+         address = CheckNull(coalesce(pAddress, address, '')),
+         iccid = CheckNull(coalesce(piccid, iccid, '')),
+         imsi = CheckNull(coalesce(pimsi, imsi, ''))
    WHERE id = pId;
 
   SELECT class INTO uClass FROM db.object WHERE id = pId;
@@ -111,10 +111,10 @@ $$ LANGUAGE plpgsql
 
 CREATE OR REPLACE FUNCTION GetDevice (
   pIdentity text
-) RETURNS	uuid
+) RETURNS    uuid
 AS $$
 DECLARE
-  nId		uuid;
+  nId        uuid;
 BEGIN
   SELECT id INTO nId FROM db.device WHERE identity = pIdentity;
   RETURN nId;
@@ -128,12 +128,12 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION SwitchDevice (
-  pDevice	uuid,
-  pClient	uuid
-) RETURNS	void
+  pDevice    uuid,
+  pClient    uuid
+) RETURNS    void
 AS $$
 DECLARE
-  uUserId	uuid;
+  uUserId    uuid;
 BEGIN
   uUserId := GetClientUserId(pClient);
   IF uUserId IS NOT NULL THEN
@@ -151,19 +151,19 @@ $$ LANGUAGE plpgsql
 
 CREATE OR REPLACE FUNCTION AddDeviceNotification (
   pDevice           uuid,
-  pInterfaceId		integer,
-  pStatus		    text,
-  pErrorCode		text,
-  pInfo			    text,
-  pVendorErrorCode	text,
-  pTimeStamp		timestamp
-) RETURNS 		    uuid
+  pInterfaceId        integer,
+  pStatus            text,
+  pErrorCode        text,
+  pInfo                text,
+  pVendorErrorCode    text,
+  pTimeStamp        timestamp
+) RETURNS             uuid
 AS $$
 DECLARE
-  nId			    uuid;
+  nId                uuid;
 
-  dtDateFrom 		timestamp;
-  dtDateTo 		    timestamp;
+  dtDateFrom         timestamp;
+  dtDateTo             timestamp;
 BEGIN
   -- получим дату значения в текущем диапозоне дат
   SELECT validFromDate, validToDate INTO dtDateFrom, dtDateTo
@@ -208,14 +208,14 @@ $$ LANGUAGE plpgsql
 --------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION GetJsonDeviceNotification (
-  pDevice		uuid,
+  pDevice        uuid,
   pInterfaceId  integer default null,
   pDate         timestamp default current_timestamp at time zone 'utc'
-) RETURNS	    json
+) RETURNS        json
 AS $$
 DECLARE
-  arResult	    json[];
-  r		        record;
+  arResult        json[];
+  r                record;
 BEGIN
   FOR r IN
     SELECT *
@@ -240,16 +240,16 @@ $$ LANGUAGE plpgsql
 
 CREATE OR REPLACE FUNCTION AddDeviceValue (
   pDevice           uuid,
-  pType				integer,
-  pValue			jsonb,
-  pTimeStamp		timestamp default now()
-) RETURNS 		    uuid
+  pType                integer,
+  pValue            jsonb,
+  pTimeStamp        timestamp default now()
+) RETURNS             uuid
 AS $$
 DECLARE
-  nId			    uuid;
+  nId                uuid;
 
-  dtDateFrom 		timestamp;
-  dtDateTo 		    timestamp;
+  dtDateFrom         timestamp;
+  dtDateTo             timestamp;
 BEGIN
   -- получим дату значения в текущем диапозоне дат
   SELECT validFromDate, validToDate INTO dtDateFrom, dtDateTo

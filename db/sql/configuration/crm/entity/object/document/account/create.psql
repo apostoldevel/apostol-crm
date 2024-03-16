@@ -1,6 +1,8 @@
 \echo [M] call table.sql
 \ir table.sql
 
+\ir './balance/create.psql'
+
 \echo [M] call view.sql
 \ir view.sql
 

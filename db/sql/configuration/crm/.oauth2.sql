@@ -10,7 +10,6 @@ SELECT AddProvider('I', 'system', 'OAuth 2.0 system provider');
 SELECT AddProvider('I', 'default', 'OAuth 2.0 default provider');
 
 SELECT AddProvider('E', 'google', 'Google');
-SELECT AddProvider('E', 'firebase', 'Google Firebase');
 
 SELECT AddApplication('S', 'system', 'Current system');
 SELECT AddApplication('S', 'service', 'Service application');
@@ -32,4 +31,4 @@ SELECT CreateAudience(GetProvider('default'), GetApplication('ios'), GetAlgorith
 
 --SELECT CreateAudience(GetProvider('google'), GetApplication('web'), GetAlgorithm('HS256'), '.apps.googleusercontent.com', '', 'Google Client Id for apostol-crm.ru');
 
-SELECT AddMemberToGroup(CreateUser(code, secret, 'OAuth 2.0 Client Id', null,null, name, false, true, GetArea('system')), GetGroup('system')) FROM oauth2.audience;
+SELECT AddMemberToGroup(CreateUser(code, secret, 'OAuth 2.0 Client Id', null, null, name, false, true), GetGroup('system')) FROM oauth2.audience;

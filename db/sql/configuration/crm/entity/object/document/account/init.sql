@@ -89,7 +89,7 @@ DECLARE
   uType         uuid;
 BEGIN
   -- Класс
-  uClass := AddClass(pParent, pEntity, 'account', 'Счёт', false);
+  uClass := AddClass(pParent, pEntity, 'account', 'Лицевой счёт', false);
 
   -- Тип
   uType := AddType(uClass, 'active.account', 'Активный', 'Активный счёт.');
@@ -105,7 +105,7 @@ BEGIN
   PERFORM AddAccountEvents(uClass);
 
   -- Метод
-  PERFORM AddDefaultMethods(uClass, ARRAY['Создан', 'Открыт', 'Закрыт', 'Удалён', 'Открыть', 'Закрыть', 'Удалить']);
+  PERFORM AddDefaultMethods(uClass, ARRAY['Создан', 'Открыт', 'Закрыт', 'Удалён', 'Открыть', 'Закрыть', 'Удалить'], ARRAY['Created', 'Opened', 'Closed', 'Deleted', 'Open', 'Close', 'Delete']);
 
   RETURN uClass;
 END
