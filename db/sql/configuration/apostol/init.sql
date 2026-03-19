@@ -47,7 +47,7 @@ $$ LANGUAGE plpgsql
 -- FillDataBase ----------------------------------------------------------------
 --------------------------------------------------------------------------------
 /*
- * Заполнить базу данных тестовыми данными.
+ * Fill the database with seed data.
  * @return {void}
 */
 CREATE OR REPLACE FUNCTION FillDataBase (
@@ -75,31 +75,31 @@ BEGIN
 
   PERFORM SetDefaultArea('00000000-0000-4003-a001-000000000000'::uuid, GetUser('apibot'));
 
-  PERFORM CreateGroup('su', 'Суперпользователи', 'Группа для суперпользователей.', '00000000-0000-4000-a000-000000000007');
+  PERFORM CreateGroup('su', 'Superusers', 'Superusers group.', '00000000-0000-4000-a000-000000000007');
   PERFORM AddMemberToGroup(GetUser('admin'), '00000000-0000-4000-a000-000000000007');
 
-  uInterface := CreateInterface('employee', 'Сотрудники', 'Интерфейс для сотрудников', '00000000-0000-4004-a000-100000000001');
-  PERFORM AddMemberToInterface(CreateGroup('employee', 'Сотрудники', 'Группа для сотрудников системы.', '00000000-0000-4000-a001-100000000001'), uInterface);
+  uInterface := CreateInterface('employee', 'Employees', 'Employee interface', '00000000-0000-4004-a000-100000000001');
+  PERFORM AddMemberToInterface(CreateGroup('employee', 'Employees', 'System employees group.', '00000000-0000-4000-a001-100000000001'), uInterface);
 
-  uInterface := CreateInterface('customer', 'Клиенты', 'Интерфейс для клиентов', '00000000-0000-4004-a000-100000000002');
-  PERFORM AddMemberToInterface(CreateGroup('customer', 'Клиенты', 'Группа для клиентов.', '00000000-0000-4000-a001-100000000002'), uInterface);
+  uInterface := CreateInterface('customer', 'Customers', 'Customer interface', '00000000-0000-4004-a000-100000000002');
+  PERFORM AddMemberToInterface(CreateGroup('customer', 'Customers', 'Customers group.', '00000000-0000-4000-a001-100000000002'), uInterface);
 
-  uInterface := CreateInterface('accountant', 'Бухгалтер', 'Интерфейс для сотрудников бухгалтерии', '00000000-0000-4004-a000-100000000004');
-  PERFORM AddMemberToInterface(CreateGroup('accountant', 'Бухгалтеры', 'Группа для сотрудников бухгалтерии.', '00000000-0000-4000-a001-100000000004'), uInterface);
+  uInterface := CreateInterface('accountant', 'Accountant', 'Accounting staff interface', '00000000-0000-4004-a000-100000000004');
+  PERFORM AddMemberToInterface(CreateGroup('accountant', 'Accountants', 'Accounting staff group.', '00000000-0000-4000-a001-100000000004'), uInterface);
 
   uCountry := GetCountry('RU');
 
-  PERFORM CreateCategory(null, GetType('account.category'), 'company.category', 'Компания', 'Компания.');
-  PERFORM CreateCategory(null, GetType('account.category'), 'customer.category', 'Пользователь', 'Пользователь.');
+  PERFORM CreateCategory(null, GetType('account.category'), 'company.category', 'Company', 'Company.');
+  PERFORM CreateCategory(null, GetType('account.category'), 'customer.category', 'Customer', 'Customer.');
 
-  PERFORM CreateCategory(null, GetType('service.category'), 'service.category', 'Услуги', 'Услуги.');
+  PERFORM CreateCategory(null, GetType('service.category'), 'service.category', 'Services', 'Services.');
 
   PERFORM DoEnable(id) FROM api.region WHERE code IN ('77', '50');
 
   PERFORM SetSessionArea('00000000-0000-4003-a001-000000000000'::uuid);
 
   PERFORM SetVar('object', 'id', current_area());
-  PERFORM DoEnable(CreateCompany(null, GetType('all.company'), null, null, 'all', 'Все', 'Все компании.'));
+  PERFORM DoEnable(CreateCompany(null, GetType('all.company'), null, null, 'all', 'All', 'All companies.'));
   PERFORM SetVar('object', 'id', null);
 
   vCompanyCode := current_setting('company.code');
@@ -118,7 +118,7 @@ BEGIN
   vCurrency := IntToStr(GetCurrencyDigital(DefaultCurrency()));
 
   vCode := '000.' || vCurrency || '.' || vCompanyCode ||'.0001';
-  PERFORM DoEnable(CreateAccount(uClient, GetType('active-passive.account'), DefaultCurrency(), uClient, GetCategory('company.category'), vCode, vCode, 'Технический счёт.'));
+  PERFORM DoEnable(CreateAccount(uClient, GetType('active-passive.account'), DefaultCurrency(), uClient, GetCategory('company.category'), vCode, vCode, 'Technical account.'));
 
   PERFORM CreateIdentity(uClient, GetType('kpp.identity'), uCountry, uClient, null, current_setting('company.kpp'));
   PERFORM CreateIdentity(uClient, GetType('ogrn.identity'), uCountry, uClient, null, current_setting('company.ogrn'));
@@ -126,31 +126,31 @@ BEGIN
   PERFORM CreateIdentity(uClient, GetType('cor-account.identity'), uCountry, uClient, null, current_setting('company.cor_account'));
   PERFORM CreateIdentity(uClient, GetType('bic.identity'), uCountry, uClient, null, current_setting('company.bic'));
 
-  PERFORM FillCalendar(CreateCalendar(null, GetType('workday.calendar'), 'default.calendar', 'Календарь рабочих дней', 5, ARRAY[6,7], ARRAY[[1,1], [1,7], [2,23], [3,8], [5,1], [5,9], [6,12], [11,4]], '9 hour', '8 hour', '13 hour', '1 hour', null, 'Календарь рабочих дней.'), date(date_trunc('year', Now())), date((date_trunc('year', Now()) + interval '1 year') - interval '1 day'));
+  PERFORM FillCalendar(CreateCalendar(null, GetType('workday.calendar'), 'default.calendar', 'Work days calendar', 5, ARRAY[6,7], ARRAY[[1,1], [1,7], [2,23], [3,8], [5,1], [5,9], [6,12], [11,4]], '9 hour', '8 hour', '13 hour', '1 hour', null, 'Work days calendar.'), date(date_trunc('year', Now())), date((date_trunc('year', Now()) + interval '1 year') - interval '1 day'));
 
-  PERFORM CreateProgram(null, GetType('plpgsql.program'), 'CHECK_INVOICE', 'Проверяет счета', 'SELECT api.check_invoice();', 'Проверяет счета.');
-  PERFORM CreateJob(null, GetType('periodic.job'), GetScheduler('EACH_01_MINUTES'), GetProgram('CHECK_INVOICE'), Now(), 'CHECK_INVOICE_EACH_01_MINUTES', 'Проверяет счета каждую минуту', 'Проверяет счета каждую минуту.');
+  PERFORM CreateProgram(null, GetType('plpgsql.program'), 'CHECK_INVOICE', 'Check invoices', 'SELECT api.check_invoice();', 'Check invoices.');
+  PERFORM CreateJob(null, GetType('periodic.job'), GetScheduler('EACH_01_MINUTES'), GetProgram('CHECK_INVOICE'), Now(), 'CHECK_INVOICE_EACH_01_MINUTES', 'Check invoices every minute', 'Check invoices every minute.');
 
-  PERFORM CreateProgram(null, GetType('plpgsql.program'), 'GARBAGE_COLLECTOR', 'Сборщик мусора', 'SELECT api.garbage_collector();', 'Сборщик мусора.');
-  PERFORM CreateJob(null, GetType('periodic.job'), GetScheduler('EACH_01_MINUTES'), GetProgram('GARBAGE_COLLECTOR'), Now(), 'GARBAGE_COLLECTOR_EACH_01_MINUTES', 'Сборщик мусора', 'Сборщик мусора.');
+  PERFORM CreateProgram(null, GetType('plpgsql.program'), 'GARBAGE_COLLECTOR', 'Garbage collector', 'SELECT api.garbage_collector();', 'Garbage collector.');
+  PERFORM CreateJob(null, GetType('periodic.job'), GetScheduler('EACH_01_MINUTES'), GetProgram('GARBAGE_COLLECTOR'), Now(), 'GARBAGE_COLLECTOR_EACH_01_MINUTES', 'Garbage collector', 'Garbage collector.');
 
-  PERFORM CreateVendor(null, GetType('device.vendor'), 'unknown.vendor', 'Неизвестный', 'Неизвестный производитель устройств.');
+  PERFORM CreateVendor(null, GetType('device.vendor'), 'unknown.vendor', 'Unknown', 'Unknown device vendor.');
 
-  PERFORM CreateModel(null, GetType('device.model'), GetVendor('unknown.vendor'), null, 'unknown.model', 'Unknown', 'Неизвестная модель устройства.');
-  PERFORM CreateModel(null, GetType('device.model'), GetVendor('unknown.vendor'), null, 'android.model', 'Android', 'Неизвестная модель устройства на ОС Android.');
-  PERFORM CreateModel(null, GetType('device.model'), GetVendor('unknown.vendor'), null, 'ios.model', 'iOS', 'Неизвестная модель устройства на ОС iOS.');
+  PERFORM CreateModel(null, GetType('device.model'), GetVendor('unknown.vendor'), null, 'unknown.model', 'Unknown', 'Unknown device model.');
+  PERFORM CreateModel(null, GetType('device.model'), GetVendor('unknown.vendor'), null, 'android.model', 'Android', 'Unknown Android device model.');
+  PERFORM CreateModel(null, GetType('device.model'), GetVendor('unknown.vendor'), null, 'ios.model', 'iOS', 'Unknown iOS device model.');
 
   PERFORM CreateFormat(null, GetType('data.format'), 'raw.format', 'RAW', 'RAW data format.');
 
-  PERFORM CreateService(null, GetType('rent.service'), GetCategory('service.category'), GetMeasure('355'), 'time.service', 'Время', 60, 'Услуга по времени (минута).');
-  PERFORM CreateService(null, GetType('rent.service'), GetCategory('service.category'), GetMeasure('256'), 'volume.service', 'Объём', 1024, 'Услуга по объёму данных (килобайт).');
+  PERFORM CreateService(null, GetType('rent.service'), GetCategory('service.category'), GetMeasure('355'), 'time.service', 'Time', 60, 'Time-based service (minute).');
+  PERFORM CreateService(null, GetType('rent.service'), GetCategory('service.category'), GetMeasure('256'), 'volume.service', 'Volume', 1024, 'Volume-based service (kilobyte).');
 
-  PERFORM EditDocumentText(CreateProduct(null, GetType('service.product'), 'default.product', 'Default', pLabel => 'По умолчанию', pDescription => 'Продукт по умолчанию для аренды базовой станции.'), 'The default product for base station rentals.', GetLocale('en'));
+  PERFORM EditDocumentText(CreateProduct(null, GetType('service.product'), 'default.product', 'Default', pLabel => 'Default', pDescription => 'Default product for base station rentals.'), 'The default product for base station rentals.', GetLocale('en'));
   PERFORM EditObjectText(GetProduct('default.product'), 'Default', 'Default', GetLocale('en'));
 
   FOR i IN 1..array_length(exAmounts, 1)
   LOOP
-    uPrice := CreatePrice(null, GetType('one_off.price'), DefaultCurrency(), GetProduct('default.product'), null, exAmounts[i], pDescription => 'Пополнение лицевого счёта в рублях РФ.');
+    uPrice := CreatePrice(null, GetType('one_off.price'), DefaultCurrency(), GetProduct('default.product'), null, exAmounts[i], pDescription => 'Personal account top-up in Russian rubles.');
     PERFORM EditDocumentText(uPrice, 'Replenishment of personal account in Russian rubles.', GetLocale('en'));
     PERFORM DoEnable(uPrice);
   END LOOP;
@@ -172,7 +172,7 @@ BEGIN
   PERFORM chmodc(GetClass('payment'), B'0000011110', GetGroup('accountant'), true, true);
   PERFORM chmodc(GetClass('transaction'), B'0000011110', GetGroup('accountant'), true, true);
 
-  PERFORM api.signup(null, 'demo', 'demo', 'Демонстрация', null, null, 'Демонстрационный клиент.');
+  PERFORM api.signup(null, 'demo', 'demo', 'Demo', null, null, 'Demo client.');
 END
 $$ LANGUAGE plpgsql
    SECURITY DEFINER
