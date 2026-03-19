@@ -1,0 +1,5 @@
+\ir init.sql
+\ir routine.sql
+\ir api.sql
+\ir rest.sql
+
