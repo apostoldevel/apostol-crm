@@ -1,0 +1,219 @@
+--------------------------------------------------------------------------------
+-- REST CLIENT -----------------------------------------------------------------
+--------------------------------------------------------------------------------
+/**
+ * @brief Dispatches REST API requests for the client entity
+ * @param {text} pPath - REST route path
+ * @param {jsonb} pPayload - JSON
+ * @return {SETOF json} - Records as JSON
+ * @since 1.0.0
+ */
+CREATE OR REPLACE FUNCTION rest.client (
+  pPath       text,
+  pPayload    jsonb default null
+) RETURNS     SETOF json
+AS $$
+DECLARE
+  r           record;
+  e           record;
+
+  arKeys      text[];
+BEGIN
+  IF pPath IS NULL THEN
+    PERFORM RouteIsEmpty();
+  END IF;
+
+  IF current_session() IS NULL THEN
+	PERFORM LoginFailed();
+  END IF;
+
+  CASE pPath
+  WHEN '/client/type' THEN
+
+    FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(fields jsonb)
+    LOOP
+      FOR e IN EXECUTE format('SELECT %s FROM api.type($1)', JsonbToFields(r.fields, GetColumns('type', 'api'))) USING GetEntity('client')
+      LOOP
+        RETURN NEXT row_to_json(e);
+      END LOOP;
+    END LOOP;
+
+  WHEN '/client/method' THEN
+
+    IF pPayload IS NULL THEN
+      PERFORM JsonIsEmpty();
+    END IF;
+
+    arKeys := array_cat(arKeys, ARRAY['id']);
+    PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+
+    IF jsonb_typeof(pPayload) = 'array' THEN
+
+      FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id uuid)
+      LOOP
+        FOR e IN SELECT * FROM api.get_object_methods(r.id) ORDER BY sequence
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
+      END LOOP;
+
+    ELSE
+
+      FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id uuid)
+      LOOP
+        FOR e IN SELECT * FROM api.get_object_methods(r.id) ORDER BY sequence
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
+      END LOOP;
+
+    END IF;
+
+  WHEN '/client/set' THEN
+
+    IF pPayload IS NULL THEN
+      PERFORM JsonIsEmpty();
+    END IF;
+
+    arKeys := array_cat(arKeys, GetRoutines('set_client', 'api', false));
+    PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+
+    IF jsonb_typeof(pPayload) = 'array' THEN
+
+      FOR r IN EXECUTE format('SELECT row_to_json(api.set_client(%s)) FROM jsonb_to_recordset($1) AS x(%s)', array_to_string(GetRoutines('set_client', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_client', 'api', true), ', ')) USING pPayload
+      LOOP
+        RETURN NEXT r;
+      END LOOP;
+
+    ELSE
+
+      FOR r IN EXECUTE format('SELECT row_to_json(api.set_client(%s)) FROM jsonb_to_record($1) AS x(%s)', array_to_string(GetRoutines('set_client', 'api', false, 'x'), ', '), array_to_string(GetRoutines('set_client', 'api', true), ', ')) USING pPayload
+      LOOP
+        RETURN NEXT r;
+      END LOOP;
+
+    END IF;
+
+  WHEN '/client/get' THEN
+
+    IF pPayload IS NULL THEN
+      PERFORM JsonIsEmpty();
+    END IF;
+
+    arKeys := array_cat(arKeys, ARRAY['id', 'fields']);
+    PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+
+    IF jsonb_typeof(pPayload) = 'array' THEN
+
+      FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(id uuid, fields jsonb)
+      LOOP
+        FOR e IN EXECUTE format('SELECT %s FROM api.get_client($1)', JsonbToFields(r.fields, GetColumns('client', 'api'))) USING r.id
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
+      END LOOP;
+
+    ELSE
+
+      FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id uuid, fields jsonb)
+      LOOP
+        FOR e IN EXECUTE format('SELECT %s FROM api.get_client($1)', JsonbToFields(r.fields, GetColumns('client', 'api'))) USING r.id
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
+      END LOOP;
+
+    END IF;
+
+  WHEN '/client/count' THEN
+
+    IF pPayload IS NOT NULL THEN
+      arKeys := array_cat(arKeys, ARRAY['search', 'filter', 'reclimit', 'recoffset', 'orderby']);
+      PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+    ELSE
+      pPayload := '{}';
+    END IF;
+
+    IF jsonb_typeof(pPayload) = 'array' THEN
+
+      FOR r IN SELECT * FROM jsonb_to_recordset(pPayload) AS x(search jsonb, filter jsonb)
+      LOOP
+        FOR e IN SELECT * FROM api.count_client(r.search, r.filter) AS count
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
+      END LOOP;
+
+    ELSE
+
+      FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(search jsonb, filter jsonb)
+      LOOP
+        FOR e IN SELECT * FROM api.count_client(r.search, r.filter) AS count
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
+      END LOOP;
+
+    END IF;
+
+  WHEN '/client/list' THEN
+
+    IF pPayload IS NOT NULL THEN
+      arKeys := array_cat(arKeys, ARRAY['fields', 'search', 'filter', 'reclimit', 'recoffset', 'orderby']);
+      PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+    ELSE
+      pPayload := '{}';
+    END IF;
+
+    FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(fields jsonb, search jsonb, filter jsonb, reclimit integer, recoffset integer, orderby jsonb, groupby jsonb)
+    LOOP
+      IF r.groupby IS NOT NULL THEN
+        FOR e IN EXECUTE format('SELECT %s FROM api.list_client($1, $2, $3, $4, $5) GROUP BY %s', array_to_string(array_quote_literal_json(JsonbToStrArray(r.fields)), ','), array_to_string(array_quote_literal_json(JsonbToStrArray(r.groupby)), ',')) USING r.search, r.filter, r.reclimit, r.recoffset, r.orderby
+        LOOP
+          RETURN NEXT row_to_json(e);
+        END LOOP;
+      ELSE
+		FOR e IN EXECUTE format('SELECT %s FROM api.list_client($1, $2, $3, $4, $5)', JsonbToFields(r.fields, GetColumns('client', 'api'))) USING r.search, r.filter, r.reclimit, r.recoffset, r.orderby
+		LOOP
+		  RETURN NEXT row_to_json(e);
+		END LOOP;
+	  END IF;
+    END LOOP;
+
+  WHEN '/client/close' THEN
+
+    IF pPayload IS NULL THEN
+      PERFORM JsonIsEmpty();
+    END IF;
+
+    arKeys := array_cat(arKeys, ARRAY['id']);
+    PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+
+	FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id uuid)
+	LOOP
+	  RETURN NEXT json_build_object('success', api.close_client(r.id));
+	END LOOP;
+
+  WHEN '/client/balance' THEN
+
+    IF pPayload IS NULL THEN
+      PERFORM JsonIsEmpty();
+    END IF;
+
+    arKeys := array_cat(arKeys, ARRAY['id']);
+    PERFORM CheckJsonbKeys(pPath, arKeys, pPayload);
+
+    FOR r IN SELECT * FROM jsonb_to_record(pPayload) AS x(id uuid)
+    LOOP
+      RETURN NEXT api.get_client_balance(r.id);
+    END LOOP;
+
+  ELSE
+    RETURN NEXT ExecuteDynamicMethod(pPath, pPayload);
+  END CASE;
+
+  RETURN;
+END;
+$$ LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path = kernel, pg_temp;
