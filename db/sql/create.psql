@@ -1,7 +1,8 @@
 \echo [M] create.psql
-\ir sets.conf
+\ir sets.psql
 \ir kernel.psql
 \connect :dbname kernel
+\ir sets.psql
 \echo [M] Создание объектов
 \ir './platform/create.psql'
 \ir './configuration/create.psql'

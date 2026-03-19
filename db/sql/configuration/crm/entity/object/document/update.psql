@@ -1,3 +1,0 @@
-\ir './client/update.psql'
-\ir './account/update.psql'
-\ir './device/update.psql'

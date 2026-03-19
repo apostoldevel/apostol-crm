@@ -1,73 +1,109 @@
-FROM debian AS builder
+# Этап сборки
+FROM debian:bookworm-slim AS builder
 
 LABEL project="apostol-crm"
 
-ENV WORKER_PROCESSES '4'
-
 ENV PROJECT_NAME 'apostol-crm'
-
-ENV PG_VERSION '16'
-ENV PG_CLUSTER 'main'
+ENV BUILD_MODE 'release'
 
 ENV TZ 'Europe/Moscow'
-
 ENV LANG 'ru_RU.UTF-8'
 ENV LC_ALL 'ru_RU.UTF-8'
 
-ENV PGSSLCERT /tmp/postgresql.crt
-
+# Настройка часового пояса и локалей
 RUN set -eux; \
-    echo $TZ > /etc/timezone;  \
+    echo $TZ > /etc/timezone; \
     echo "en_US.UTF-8 UTF-8" > /etc/locale.gen; \
     echo "ru_RU.UTF-8 UTF-8" >> /etc/locale.gen; \
-    apt-get update && apt-get install -y tzdata locales; \
-    rm /etc/localtime;  \
-    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime;  \
-    dpkg-reconfigure -f noninteractive tzdata; \
-    dpkg-reconfigure -f noninteractive locales; \
-    update-locale; \
-    apt-get clean; \
-    apt-get update -y;
+    apt update && apt install -y --no-install-recommends \
+    tzdata locales && \
+    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
+    dpkg-reconfigure -f noninteractive tzdata && \
+    dpkg-reconfigure -f noninteractive locales && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*;
 
-# Installation of necessary programs and libraries
-
+# Установка необходимых программ и библиотек
 RUN set -eux; \
-    apt-get install apt-utils bash build-essential cmake cmake-data g++ gcc libcurl4-openssl-dev libssl-dev make pkg-config sudo wget curl git htop mc lsb-release -y;
+    apt update && apt install -y --no-install-recommends \
+    apt-utils bash build-essential cmake cmake-data g++ gcc \
+    libcurl4-openssl-dev libssl-dev make pkg-config lsb-release curl ca-certificates git && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*;
 
-# Installation PostgreSQL
-
+# Установка библиотек PostgreSQL
 RUN set -eux; \
-    sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'; \
-    wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -; \
-    apt-get update -y; \
-    apt-get install postgresql libpq-dev postgresql-server-dev-all -y;
+    install -d /usr/share/postgresql-common/pgdg && \
+    curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc && \
+    sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list' && \
+    apt update && apt install -y --no-install-recommends libpq-dev postgresql-server-dev-all && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*;
 
-# Installation Pgweb
-
-RUN curl -s https://api.github.com/repos/sosedoff/pgweb/releases/latest | grep linux_amd64.zip | grep download | cut -d '"' -f 4 | wget -qi -; \
-    unzip pgweb_linux_amd64.zip; \
-    rm pgweb_linux_amd64.zip; \
-    mv pgweb_linux_amd64 /usr/bin/pgweb;
-
-RUN set -eux; \
-    pg_dropcluster $PG_VERSION $PG_CLUSTER;
-
-RUN mkdir /var/log/$PROJECT_NAME;
-
+# Сборка и установка приложения
 WORKDIR /opt/$PROJECT_NAME
-
 COPY . .
 
 RUN set -eux; \
-    cp -r docker/conf .; \
-    cmake -DCMAKE_BUILD_TYPE=Release . -B cmake-build-release; \
-    cd cmake-build-release; \
-    make install;
+    cp -r .docker/conf . && \
+    ./configure --not-pull-self --$BUILD_MODE; \
+    cd cmake-build-$BUILD_MODE; \
+    make install; \
+    cd ..; \
+    rm -rf cmake-build-$BUILD_MODE; \
+    rm -rf src;
 
-COPY ./docker/entrypoint.sh /opt/entrypoint.sh
+COPY ./.docker/entrypoint.sh /opt/entrypoint.sh
+RUN chmod +x /opt/entrypoint.sh
 
-EXPOSE 5432
-EXPOSE 8080
-EXPOSE 8081
+# Этап создания образа приложения
+FROM debian:bookworm-slim AS app
 
-CMD ["bash", "/opt/entrypoint.sh"]
+ENV PROJECT_NAME 'apostol-crm'
+ENV TZ 'Europe/Moscow'
+ENV LANG 'ru_RU.UTF-8'
+ENV LC_ALL 'ru_RU.UTF-8'
+
+# Настройка часового пояса и локалей
+RUN set -eux; \
+    echo $TZ > /etc/timezone; \
+    echo "en_US.UTF-8 UTF-8" > /etc/locale.gen; \
+    echo "ru_RU.UTF-8 UTF-8" >> /etc/locale.gen; \
+    apt update && apt install -y --no-install-recommends \
+    tzdata locales && \
+    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
+    dpkg-reconfigure -f noninteractive tzdata && \
+    dpkg-reconfigure -f noninteractive locales && \
+    apt clean && rm -rf /var/lib/apt/lists/*;
+
+# Установка необходимых программ и библиотек
+RUN set -eux; \
+    apt update && apt install -y --no-install-recommends \
+    apt-utils bash sudo lsb-release curl ca-certificates git gettext-base htop mc && \
+    apt clean && rm -rf /var/lib/apt/lists/*;
+
+# Установка клиента PostgreSQL
+RUN set -eux; \
+    install -d /usr/share/postgresql-common/pgdg && \
+    curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc && \
+    sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list' && \
+    apt update && apt install -y --no-install-recommends postgresql-client && \
+    apt clean && rm -rf /var/lib/apt/lists/*;
+
+# Создание необходимых каталогов
+RUN mkdir -p /var/log/$PROJECT_NAME && \
+    mkdir -p /var/lib/$PROJECT_NAME && \
+    mkdir -p /var/lib/$PROJECT_NAME/report_ready && \
+    mkdir -p /var/lib/$PROJECT_NAME/public && \
+    mkdir -p /tmp/$PROJECT_NAME;
+
+RUN chmod 777 /var/lib/$PROJECT_NAME/report_ready
+RUN chmod 777 /var/lib/$PROJECT_NAME/public
+
+COPY --from=builder /usr/sbin/$PROJECT_NAME /usr/sbin/$PROJECT_NAME
+COPY --from=builder /etc/$PROJECT_NAME /etc/$PROJECT_NAME
+COPY --from=builder /opt/$PROJECT_NAME /opt/$PROJECT_NAME
+COPY --from=builder /opt/entrypoint.sh /opt/entrypoint.sh
+
+EXPOSE 4977
+
+ENTRYPOINT ["/opt/entrypoint.sh"]
+
+STOPSIGNAL SIGTERM

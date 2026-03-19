@@ -76,8 +76,8 @@ services:
     restart: unless-stopped
     env_file: .env
     volumes:
-      - file:/var/lib/example
-      - tmp:/tmp/example
+      - file:/var/lib/apostol-crm
+      - tmp:/tmp/apostol-crm
     depends_on:
       - pgbouncer
 

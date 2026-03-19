@@ -1,7 +1,8 @@
 \echo [M] kladr
-\ir sets.conf
+\ir sets.psql
 
 \connect :dbname kernel
+\ir sets.psql
 
 \echo [M] Очистка КЛАДР...
 
@@ -12,6 +13,7 @@ DELETE FROM db.kladr;
 DELETE FROM db.address_tree;
 
 \connect :dbname postgres
+\ir sets.psql
 
 \echo [M] Загрузка данных из KLADR.csv
 
@@ -23,15 +25,17 @@ FROM :'kladr' WITH (FORMAT csv, DELIMITER ';');
 COPY db.street (name, socr, code, index, gninmb, uno, ocatd)
 FROM :'street' WITH (FORMAT csv, DELIMITER ';');
 
-\connect :dbname kernel
+--\connect :dbname kernel
+--\ir sets.psql
 
-\echo [M] Заполнение дерева адресов данными из КЛАДР...
+--\echo [M] Заполнение дерева адресов данными из КЛАДР...
 
 -- 77 г. Москва
 -- 50 Московская области
 -- 78 г. Санкт-Петербург
 -- 47 Ленинградская область
+-- 55 Омская область
 
-SELECT LoadFromKladr(ARRAY['77', '50']);
+--SELECT LoadFromKladr(ARRAY['55']);
 
 \q

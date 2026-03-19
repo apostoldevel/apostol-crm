@@ -1,5 +1,7 @@
 \echo [M] Создание новой базы данных :dbname
+\ir sets.psql
 \ir './platform/kernel/database.sql'
 \connect :dbname postgres
+\ir sets.psql
 \echo [M] Создание схем
 \ir './platform/kernel/schema.sql'

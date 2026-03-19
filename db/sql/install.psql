@@ -1,11 +1,14 @@
 \echo [M] install.psql
-\ir sets.conf
+\ir sets.psql
 \ir kernel.psql
 \connect :dbname kernel
+\ir sets.psql
 \echo [M] Создание объектов
 \ir './platform/create.psql'
 \ir './configuration/create.psql'
+\ir kladr.psql
 \connect :dbname admin
+\ir sets.psql
 \echo [M] Ввод первоначальных данных
 \ir './platform/init.sql'
 \ir './configuration/init.sql'

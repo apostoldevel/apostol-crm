@@ -1,5 +1,5 @@
 \echo [M] database.psql
-\ir sets.conf
+\ir sets.psql
 \echo [M] Создание новой базы данных :dbname
 \ir './platform/kernel/database.sql'
 \q

@@ -12,7 +12,7 @@
 #------------------------------------------------------------------------------
 set -e
 
-PROJECT_NAME=apostol-crm
+PROJECT_NAME=campus-cors
 BUILD_TYPE=Release
 PULL_SELF=yes
 PULL_GITHUB=yes
@@ -119,19 +119,20 @@ github()
     download_from_github src apostoldevel apostol-core master core
     download_from_github src apostoldevel apostol-common master common
 
-    download_from_github src/modules/Helpers apostoldevel module-PGFetch master PGFetch
-    download_from_github src/modules/Helpers apostoldevel module-PGFile master PGFile
+    download_from_github src/modules/Helpers apostoldevel module-PGFetch version1 PGFetch
+    download_from_github src/modules/Helpers apostoldevel module-PGFile version1 PGFile
 
-    download_from_github src/modules/Workers apostoldevel module-AppServer master AppServer
-    download_from_github src/modules/Workers apostoldevel module-AuthServer master AuthServer
+    download_from_github src/modules/Workers apostoldevel module-AppServer version1 AppServer
+    download_from_github src/modules/Workers apostoldevel module-AuthServer version1 AuthServer
     download_from_github src/modules/Workers apostoldevel module-ConfirmEmail master ConfirmEmail
-    download_from_github src/modules/Workers apostoldevel module-FileServer master FileServer
-    download_from_github src/modules/Workers apostoldevel module-WebServer master WebServer
-    download_from_github src/modules/Workers apostoldevel module-WebSocketAPI master WebSocketAPI
+    download_from_github src/modules/Workers apostoldevel module-FileServer version1 FileServer
+    download_from_github src/modules/Workers apostoldevel module-PGHTTP version1 PGHTTP
+    download_from_github src/modules/Workers apostoldevel module-WebServer version1 WebServer
+    download_from_github src/modules/Workers apostoldevel module-WebSocketAPI version1 WebSocketAPI
 
-    download_from_github src/processes apostoldevel process-MessageServer master MessageServer
-    download_from_github src/processes apostoldevel process-ReportServer master ReportServer
-    download_from_github src/processes apostoldevel process-TaskScheduler main TaskScheduler
+    download_from_github src/processes apostoldevel process-MessageServer version1 MessageServer
+    download_from_github src/processes apostoldevel process-ReportServer version1 ReportServer
+    download_from_github src/processes apostoldevel process-TaskScheduler version1 TaskScheduler
 
     download_from_github db/sql apostoldevel db-platform master platform
 }

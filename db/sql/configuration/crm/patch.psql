@@ -1,4 +1,0 @@
-\echo [M] patch.psql
-
-\echo [M] call patch
-\ir './patch/patch.psql'

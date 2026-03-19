@@ -1,3 +1,0 @@
-\ir './client/create.psql'
-\ir './account/create.psql'
-\ir './device/create.psql'

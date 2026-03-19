@@ -10,6 +10,12 @@
 \set kladr '/tmp/kladr/kladr.csv'
 \set street '/tmp/kladr/street.csv'
 
+-- Пути к файлу с данными лицевых счетов:
+\set preload '/tmp/preload/account.csv'
+
+-- Пути к файлу с данными судебных участков мировых судей города Москвы:
+\set judicial_magistrates '/tmp/preload/judicial_magistrates.csv'
+
 -- Иные параметры:
 SET plpgsql.extra_warnings TO 'shadowed_variables';
 SET search_path TO "$user", kernel, public;

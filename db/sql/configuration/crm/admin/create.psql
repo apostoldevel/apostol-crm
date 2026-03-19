@@ -1,3 +1,0 @@
-\echo [M] call do.sql
-\ir do.sql
-\ir api.sql

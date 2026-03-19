@@ -55,7 +55,7 @@ display_help()
     display_message "--install    [*] Creates database, schemas, tables, views, routines and initialization."
     display_message "--create     [*] Creates database, schemas, tables, views, routines."
     display_message "--update     Updates routines, views."
-    display_message "--patch      Updates tables, routines, views."
+    display_message "--migrate    Apply unapplied patches + update routines/views."
     display_message "--database   [*] Creates an empty database."
     display_message "--api        Drop and create api schema."
     display_message "--kladr      Loading data from KLADR."
@@ -82,11 +82,11 @@ for OPTION in "$@"; do
         (--install)	SCRIPT="install";;
         (--create)	SCRIPT="create";;
         (--database)	SCRIPT="database";;
-        (--patch)	SCRIPT="patch";;
         (--update)	SCRIPT="update";;
         (--api)		SCRIPT="api";;
         (--kladr)	SCRIPT="kladr";;
         (--preload)	SCRIPT="preload";;
+        (--migrate)	SCRIPT="migrate";;
     esac
 done
 
@@ -112,9 +112,6 @@ build_sql()
     # Local
     sudo -u postgres -H psql -d template1 -f $SCRIPT.psql 2>"../log/$SCRIPT.log"
 
-    # Prod
-    # psql "host=example.com port=5432 sslmode=disable dbname=template1 user=postgres target_session_attrs=read-write" -f $SCRIPT.psql 2>"../log/prod-$SCRIPT.log"
-
     pop_directory
 }
 
@@ -123,6 +120,9 @@ build_sql()
 
 if [[ $DISPLAY_HELP ]]; then
     display_help
+elif [[ "$SCRIPT" == "migrate" ]]; then
+    display_configuration
+    time bash "$(dirname "$0")/migrate.sh" --force-update
 else
     display_configuration
     time build_sql "${SCRIPT[@]}"
