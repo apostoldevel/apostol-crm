@@ -6,7 +6,7 @@
 \echo [M] Создание объектов
 \ir './platform/create.psql'
 \ir './configuration/create.psql'
-\ir kladr.psql
+--\ir kladr.psql
 \connect :dbname admin
 \ir sets.psql
 \echo [M] Ввод первоначальных данных
