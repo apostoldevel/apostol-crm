@@ -1,0 +1,13 @@
+\ir event.sql
+
+\ir './country/create.psql'
+\ir './property/create.psql'
+\ir './address/create.psql'
+\ir './calendar/create.psql'
+\ir './category/create.psql'
+\ir './currency/create.psql'
+\ir './format/create.psql'
+\ir './measure/create.psql'
+\ir './model/create.psql'
+\ir './region/create.psql'
+\ir './service/create.psql'

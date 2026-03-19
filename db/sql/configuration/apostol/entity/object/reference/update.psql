@@ -1,0 +1,13 @@
+\ir event.sql
+
+\ir './country/update.psql'
+\ir './property/update.psql'
+\ir './address/update.psql'
+\ir './calendar/update.psql'
+\ir './category/update.psql'
+\ir './currency/update.psql'
+\ir './format/update.psql'
+\ir './measure/update.psql'
+\ir './model/update.psql'
+\ir './region/update.psql'
+\ir './service/update.psql'

@@ -1,0 +1,5 @@
+\echo [M] call routine.sql
+\ir routine.sql
+
+\ir './admin/update.psql'
+\ir './import/update.psql'

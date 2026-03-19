@@ -1,0 +1,33 @@
+---
+# Apostol v2 clang-tidy configuration
+# Runs automatically via CMAKE_CXX_CLANG_TIDY on every compilation.
+
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  misc-const-correctness,
+  misc-redundant-expression,
+  modernize-use-contains,
+  modernize-use-override,
+  modernize-use-nullptr,
+  modernize-use-auto,
+  modernize-use-emplace,
+  modernize-use-using,
+  performance-*,
+  -performance-no-int-to-ptr,
+  readability-const-return-type,
+  readability-redundant-string-cstr,
+  readability-redundant-smartptr-get,
+  readability-make-member-function-const,
+
+WarningsAsErrors: ''
+
+CheckOptions:
+  - key: modernize-use-auto.MinTypeNameLength
+    value: '8'
+
+HeaderFilterRegex: 'include/apostol/.*\.hpp$'
+
+FormatStyle: none

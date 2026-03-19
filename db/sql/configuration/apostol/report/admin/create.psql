@@ -1,0 +1,2 @@
+\ir './user/create.psql'
+\ir './session/create.psql'

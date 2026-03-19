@@ -1,0 +1,15 @@
+\encoding UTF8
+
+-- Наименование базы данных:
+\set dbname apostol
+
+-- Переменный среды окружения:
+\ir .env.psql
+
+-- Пути к КЛАДР:
+\set kladr '/tmp/kladr/kladr.csv'
+\set street '/tmp/kladr/street.csv'
+
+-- Иные параметры:
+SET plpgsql.extra_warnings TO 'shadowed_variables';
+SET search_path TO "$user", kernel, public;

@@ -1,0 +1,20 @@
+\echo [M] call event.sql
+\ir event.sql
+
+\ir './company/update.psql'
+\ir './client/update.psql'
+\ir './card/update.psql'
+\ir './account/update.psql'
+\ir './device/update.psql'
+\ir './identity/update.psql'
+\ir './invoice/update.psql'
+\ir './job/update.psql'
+\ir './message/update.psql'
+\ir './order/update.psql'
+\ir './payment/update.psql'
+\ir './product/update.psql'
+\ir './price/update.psql'
+\ir './subscription/update.psql'
+\ir './tariff/update.psql'
+\ir './task/update.psql'
+\ir './transaction/update.psql'

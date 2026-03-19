@@ -1,0 +1,21 @@
+\echo [M] preload
+\ir sets.psql
+
+\connect :dbname kernel
+\ir sets.psql
+
+\echo [M] Очитка данных
+
+\connect :dbname postgres
+\ir sets.psql
+
+\connect :dbname admin
+\ir sets.psql
+
+SELECT SignIn(CreateSystemOAuth2(), 'admin', :'admin');
+
+SELECT GetErrorMessage();
+
+SELECT SignOut();
+
+\q

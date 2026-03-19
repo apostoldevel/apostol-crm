@@ -1,0 +1,19 @@
+\echo [M] init.sql
+\echo [M] Создание пользователей kernel, admin и daemon
+\ir sets.psql
+\ir './platform/kernel/users.sql'
+\echo [M] Установка прав доступа
+\ir './platform/kernel/grant.sql'
+\echo [M] Создание схем
+\ir './platform/kernel/schema.sql'
+\connect :dbname kernel
+\ir sets.psql
+\echo [M] Создание объектов
+\ir './platform/create.psql'
+\ir './configuration/create.psql'
+\connect :dbname admin
+\ir sets.psql
+\echo [M] Ввод первоначальных данных
+\ir './platform/init.sql'
+\ir './configuration/init.sql'
+\q

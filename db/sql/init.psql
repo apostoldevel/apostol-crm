@@ -1,0 +1,7 @@
+\echo [M] init.sql
+\echo [M] Создание пользователей kernel, admin и daemon
+\ir sets.psql
+\ir './platform/kernel/users.sql'
+\ir './configuration/make.psql'
+\ir install.psql
+\q

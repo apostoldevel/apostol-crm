@@ -1,0 +1,8 @@
+\echo [M] call event.sql
+\ir event.sql
+
+\echo [M] call report.sql
+\ir report.sql
+
+\ir './reference/create.psql'
+\ir './document/create.psql'

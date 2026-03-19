@@ -1,0 +1,8 @@
+\echo [M] call event.sql
+\ir event.sql
+
+\echo [M] call report.sql
+\ir report.sql
+
+\ir './reference/update.psql'
+\ir './document/update.psql'

@@ -1,0 +1,2 @@
+\ir './user/update.psql'
+\ir './session/update.psql'
