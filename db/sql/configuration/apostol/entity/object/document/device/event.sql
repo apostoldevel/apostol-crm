@@ -272,7 +272,7 @@ BEGIN
 
   SELECT Count(id) INTO nCount FROM db.device_value WHERE device = pObject;
   IF nCount > 0 THEN
-    RAISE EXCEPTION 'ERR-40000: Обнаружены данные, операция прервана.';
+    RAISE EXCEPTION 'ERR-40000: Data found, operation aborted.';
   END IF;
 
   DELETE FROM db.device WHERE id = pObject;

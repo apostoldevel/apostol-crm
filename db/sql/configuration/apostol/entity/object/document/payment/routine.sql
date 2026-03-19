@@ -395,21 +395,13 @@ BEGIN
   uDebit := GetClientAccount(GetClient(vCode), r.currency, '000');
 
   IF uDebit IS NULL THEN
-    IF locale_code() = 'ru' THEN
-      RAISE EXCEPTION 'ERR-40000: Счёт для списания в валюте "%" не найден.', vCurrency;
-    ELSE
-      RAISE EXCEPTION 'ERR-40000: The account for debiting in the currency "%" was not found.', vCurrency;
-    END IF;
+    RAISE EXCEPTION 'ERR-40000: Debit account in currency "%" not found.', vCurrency;
   END IF;
 
   uCredit := GetClientAccount(r.client, r.currency, '100');
 
   IF uCredit IS NULL THEN
-    IF locale_code() = 'ru' THEN
-      RAISE EXCEPTION 'ERR-40000: Счёт для зачисления в валюте "%" не найден.', vCurrency;
-    ELSE
-      RAISE EXCEPTION 'ERR-40000: The account for crediting in the currency "%" was not found.', vCurrency;
-    END IF;
+    RAISE EXCEPTION 'ERR-40000: Credit account in currency "%" not found.', vCurrency;
   END IF;
 
   uOrder := InternalPayment(pPayment, uDebit, uCredit, r.amount, GetObjectLabel(pPayment), GetDocumentDescription(pPayment));
@@ -460,21 +452,13 @@ BEGIN
   uDebit := GetClientAccount(pClient, pCurrency, '000');
 
   IF uDebit IS NULL THEN
-    IF locale_code() = 'ru' THEN
-      RAISE EXCEPTION 'ERR-40000: Счёт для списания в валюте "%" не найден.', vCurrency;
-    ELSE
-      RAISE EXCEPTION 'ERR-40000: The account for debiting in the currency "%" was not found.', vCurrency;
-    END IF;
+    RAISE EXCEPTION 'ERR-40000: Debit account in currency "%" not found.', vCurrency;
   END IF;
 
   uCredit := GetClientAccount(GetClient(vCode), pCurrency, '000');
 
   IF uCredit IS NULL THEN
-    IF locale_code() = 'ru' THEN
-      RAISE EXCEPTION 'ERR-40000: Счёт для зачисления в валюте "%" не найден.', vCurrency;
-    ELSE
-      RAISE EXCEPTION 'ERR-40000: The account for crediting in the currency "%" was not found.', vCurrency;
-    END IF;
+    RAISE EXCEPTION 'ERR-40000: Credit account in currency "%" not found.', vCurrency;
   END IF;
 
   nAmount := coalesce(GetBalance(uDebit), 0);

@@ -143,7 +143,7 @@ BEGIN
   PERFORM FROM db.document WHERE area = pArea;
 
   IF FOUND THEN
-    RAISE EXCEPTION 'ERR-40000: Операция прервана. В подразделении есть документы.';
+    RAISE EXCEPTION 'ERR-40000: Operation aborted. The area contains documents.';
   END IF;
 END;
 $$ LANGUAGE plpgsql

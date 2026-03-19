@@ -64,23 +64,23 @@ BEGIN
   SELECT u.id INTO uUserId FROM db.user u WHERE type = 'U' AND username = pUserName;
 
   IF FOUND THEN
-    RAISE EXCEPTION 'ERR-40005: Учётная запись "%" уже зарегистрирована.', pUserName;
+    RAISE EXCEPTION 'ERR-40005: Account "%" is already registered.', pUserName;
   END IF;
 
   SELECT u.id INTO uUserId FROM db.user u WHERE type = 'U' AND phone = pPhone;
 
   IF FOUND THEN
-    RAISE EXCEPTION 'ERR-40005: Учётная запись с номером телефона "%" уже зарегистрирована.', pPhone;
+    RAISE EXCEPTION 'ERR-40005: Account with phone number "%" is already registered.', pPhone;
   END IF;
 
   SELECT u.id INTO uUserId FROM db.user u WHERE type = 'U' AND email = pEmail;
 
   IF FOUND THEN
-    RAISE EXCEPTION 'ERR-40005: Учётная запись с электронным адресом "%" уже зарегистрирована.', pEmail;
+    RAISE EXCEPTION 'ERR-40005: Account with email "%" is already registered.', pEmail;
   END IF;
 
   IF pEmail IS NOT NULL AND NOT is_valid_email(pEmail) THEN
-    RAISE EXCEPTION 'ERR-40005: Некорректный электронный адрес: "%".', pEmail;
+    RAISE EXCEPTION 'ERR-40005: Invalid email address: "%".', pEmail;
   END IF;
 
   jName := BuildClientName(CodeToType(pType, 'client'), pName);

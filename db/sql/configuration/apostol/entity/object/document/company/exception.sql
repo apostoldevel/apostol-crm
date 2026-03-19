@@ -13,7 +13,7 @@ CREATE OR REPLACE FUNCTION ClientCodeExists (
 ) RETURNS	void
 AS $$
 BEGIN
-  RAISE EXCEPTION 'ERR-40000: Сотрудник с кодом "%" уже существует.', pCode;
+  RAISE EXCEPTION 'ERR-40000: Employee with code "%" already exists.', pCode;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -30,7 +30,7 @@ CREATE OR REPLACE FUNCTION AccountNotClient (
 ) RETURNS	void
 AS $$
 BEGIN
-  RAISE EXCEPTION 'ERR-40000: Учётная запись не принадлежит сотруднику.';
+  RAISE EXCEPTION 'ERR-40000: Account does not belong to the employee.';
 END;
 $$ LANGUAGE plpgsql;
 
@@ -47,7 +47,7 @@ CREATE OR REPLACE FUNCTION EmailAddressNotSet (
 ) RETURNS	void
 AS $$
 BEGIN
-  RAISE EXCEPTION 'ERR-40000: Не задан адрес электронной почты.';
+  RAISE EXCEPTION 'ERR-40000: Email address is not set.';
 END;
 $$ LANGUAGE plpgsql;
 
@@ -66,6 +66,6 @@ CREATE OR REPLACE FUNCTION EmailAddressNotVerified (
 ) RETURNS	void
 AS $$
 BEGIN
-  RAISE EXCEPTION 'ERR-40000: Адрес электронной почты "%" не подтвержден участником.', pEmail;
+  RAISE EXCEPTION 'ERR-40000: Email address "%" is not verified by the member.', pEmail;
 END;
 $$ LANGUAGE plpgsql;

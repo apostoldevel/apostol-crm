@@ -144,22 +144,14 @@ BEGIN
   PERFORM FROM db.transaction t INNER JOIN db.object o ON t.document = o.id AND o.state_type = '00000000-0000-4000-b001-000000000002'::uuid WHERE t.client = uClient;
 
   IF FOUND THEN
-    IF locale_code() = 'ru' THEN
-      RAISE EXCEPTION 'ERR-40000: Обнаружены незавершённые транзакции. Операция прервана.';
-    ELSE
-      RAISE EXCEPTION 'ERR-40000: Uncompleted transactions were detected. The operation has been aborted.';
-    END IF;
+    RAISE EXCEPTION 'ERR-40000: Incomplete transactions found. Operation aborted.';
   END IF;
 
   uAccount := GetClientAccount(uClient, DefaultCurrency(), '200');
   nAmount := coalesce(GetBalance(uAccount), 0);
 
   IF nAmount <> 0 THEN
-    IF locale_code() = 'ru' THEN
-      RAISE EXCEPTION 'ERR-40000: Обнаружен долг за оказанные услуги. Операция прервана.';
-    ELSE
-      RAISE EXCEPTION 'ERR-40000: A debt was discovered for services rendered. The operation is aborted.';
-    END IF;
+    RAISE EXCEPTION 'ERR-40000: Outstanding debt for services found. Operation aborted.';
   END IF;
 
   UPDATE db.card SET binding = null WHERE id = pObject;

@@ -13,7 +13,7 @@ CREATE OR REPLACE FUNCTION CardCodeExists (
 ) RETURNS	void
 AS $$
 BEGIN
-  RAISE EXCEPTION 'ERR-40000: Карта с кодом "%" уже существует.', pCode;
+  RAISE EXCEPTION 'ERR-40000: Card with code "%" already exists.', pCode;
 END;
 $$ LANGUAGE plpgsql STRICT IMMUTABLE;
 
@@ -32,6 +32,6 @@ CREATE OR REPLACE FUNCTION CardNotAssociated (
 ) RETURNS	void
 AS $$
 BEGIN
-  RAISE EXCEPTION 'ERR-40000: Карта "%" не связана с клиентом.', pCode;
+  RAISE EXCEPTION 'ERR-40000: Card "%" is not associated with a client.', pCode;
 END;
 $$ LANGUAGE plpgsql STRICT IMMUTABLE;
