@@ -72,7 +72,7 @@ BEGIN
   SELECT t.id INTO uProperty FROM db.property t WHERE t.id = pId;
 
   IF NOT FOUND THEN
-    PERFORM ObjectNotFound('свойство', 'id', pId);
+    PERFORM ObjectNotFound('property', 'id', pId);
   END IF;
 
   PERFORM EditProperty(uProperty, pParent, pType, pCode, pName, pDescription);

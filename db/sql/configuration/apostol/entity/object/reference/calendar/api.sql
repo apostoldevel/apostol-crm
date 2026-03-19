@@ -175,7 +175,7 @@ DECLARE
 BEGIN
   SELECT c.id INTO nCalendar FROM calendar c WHERE c.id = pId;
   IF NOT FOUND THEN
-    PERFORM ObjectNotFound('календарь', 'id', pId);
+    PERFORM ObjectNotFound('calendar', 'id', pId);
   END IF;
 
   IF pHoliday IS NOT NULL THEN
@@ -520,7 +520,7 @@ BEGIN
   IF uId IS NOT NULL THEN
     PERFORM DeleteCalendarDate(uId);
   ELSE
-    RAISE EXCEPTION 'ERR-40000: В календаре нет указанной даты для заданного пользователя.';
+    RAISE EXCEPTION 'ERR-40000: The specified date is not found in the calendar for the given user.';
   END IF;
 END;
 $$ LANGUAGE plpgsql

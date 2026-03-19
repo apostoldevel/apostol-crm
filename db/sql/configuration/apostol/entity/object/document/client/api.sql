@@ -288,7 +288,7 @@ BEGIN
   SELECT userId INTO uUserId FROM db.client c WHERE c.id = pId;
 
   IF NOT FOUND THEN
-    PERFORM ObjectNotFound('клиент', 'id', pId);
+    PERFORM ObjectNotFound('client', 'id', pId);
   END IF;
 
   PERFORM SessionOut(uUserId, true, 'Close client.');

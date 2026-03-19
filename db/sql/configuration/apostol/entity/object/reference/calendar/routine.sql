@@ -329,7 +329,7 @@ DECLARE
 BEGIN
   SELECT * INTO r FROM db.calendar WHERE id = pCalendar;
   IF NOT FOUND THEN
-    PERFORM ObjectNotFound('календарь', 'id', pCalendar);
+    PERFORM ObjectNotFound('calendar', 'id', pCalendar);
   END IF;
 
   dtCurDate := pDateFrom;

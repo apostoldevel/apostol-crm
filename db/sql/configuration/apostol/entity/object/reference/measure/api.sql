@@ -72,7 +72,7 @@ BEGIN
   SELECT t.id INTO uMeasure FROM db.measure t WHERE t.id = pId;
 
   IF NOT FOUND THEN
-    PERFORM ObjectNotFound('мера', 'id', pId);
+    PERFORM ObjectNotFound('measure', 'id', pId);
   END IF;
 
   PERFORM EditMeasure(uMeasure, pParent, pType, pCode, pName, pDescription);

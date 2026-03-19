@@ -120,7 +120,7 @@ BEGIN
   SELECT c.id INTO uTask FROM db.task c WHERE c.id = pId;
 
   IF NOT FOUND THEN
-    PERFORM ObjectNotFound('задача', 'id', pId);
+    PERFORM ObjectNotFound('task', 'id', pId);
   END IF;
 
   PERFORM EditTask(uTask, pParent, pType, pCalendar, pExecutor, pLabel, pRead, pPeriod, pDateFrom, pDateTo, pDescription, pPriority, pData);

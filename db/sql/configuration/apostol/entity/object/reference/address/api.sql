@@ -123,7 +123,7 @@ DECLARE
 BEGIN
   SELECT a.id INTO uAddress FROM db.address a WHERE a.id = pId;
   IF NOT FOUND THEN
-    PERFORM ObjectNotFound('адрес', 'id', pId);
+    PERFORM ObjectNotFound('address', 'id', pId);
   END IF;
 
   PERFORM EditAddress(uAddress, pParent, pType, pCountry, pCode, pKladr, pIndex, pRegion, pDistrict, pCity, pSettlement, pStreet, pHouse, pBuilding, pStructure, pApartment, pAddressText);
@@ -379,7 +379,7 @@ DECLARE
 BEGIN
   SELECT o.id INTO uId FROM db.object o WHERE o.id = pObject;
   IF NOT FOUND THEN
-    PERFORM ObjectNotFound('объект', 'id', pObject);
+    PERFORM ObjectNotFound('object', 'id', pObject);
   END IF;
 
   IF pAddresses IS NOT NULL THEN

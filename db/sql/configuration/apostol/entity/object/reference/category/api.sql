@@ -72,7 +72,7 @@ BEGIN
   SELECT t.id INTO uCategory FROM db.category t WHERE t.id = pId;
 
   IF NOT FOUND THEN
-    PERFORM ObjectNotFound('категория', 'id', pId);
+    PERFORM ObjectNotFound('category', 'id', pId);
   END IF;
 
   PERFORM EditCategory(uCategory, pParent, pType, pCode, pName, pDescription);

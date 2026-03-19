@@ -208,7 +208,7 @@ BEGIN
   SELECT id INTO uId FROM db.model WHERE id = pModel;
 
   IF NOT FOUND THEN
-    PERFORM ObjectNotFound('модель', 'id', pModel);
+    PERFORM ObjectNotFound('model', 'id', pModel);
   END IF;
 
   IF pProperties IS NULL THEN
