@@ -1,180 +1,190 @@
+[![ru](https://img.shields.io/badge/lang-ru-green.svg)](README.ru-RU.md)
+
 # Apostol CRM
 
-**Apostol CRM** - это серверная часть (backend) системы управления взаимоотношениями с клиентами (CRM), исходные коды.
+**Apostol CRM**[^crm] is a full-stack backend template for building business applications on Linux. It combines a C++ HTTP/WebSocket server with a PostgreSQL database layer that handles REST API, authentication, workflow engine, and business logic — all in PL/pgSQL.
 
-ОПИСАНИЕ
--
+## Architecture
 
-**Apostol CRM** состоит из двух частей - **платформы** и **конфигурации**.
+```
+HTTP/WebSocket request
+  -> Apostol Worker (C++, single epoll event loop)
+  -> libpq async query
+  -> rest.* dispatcher (PL/pgSQL)
+  -> api.* CRUD functions
+  -> kernel.* business logic
+  -> db.* tables
+```
 
-- Платформа - это технологии и протоколы, системные службы и модули на базе которых строится конфигурация;
-- Конфигурация - это бизнес логика конкретного проекта.
+The project has two layers:
 
-**Платформа** построена на базе фреймворка [Апостол](https://github.com/apostoldevel/apostol), имеет модульную конструкцию и включает в себя встроенную поддержку СУБД PostgreSQL.
+- **Platform** — reusable C++ modules and a [PostgreSQL framework](https://github.com/apostoldevel/db-platform) (25 PL/pgSQL modules, 100+ tables, 800+ functions): OAuth2, workflow engine, entity system, file storage, pub/sub, reports.
+- **Configuration** — project-specific business logic (30 entities, REST endpoints, event handlers) written in PL/pgSQL.
 
-[Подробнее о составе платформы по этой ссылке.](./doc/REST-API-ru.md)
+## Features
 
-Платформа устанавливается на сервер из [исходных кодов](https://github.com/apostoldevel/apostol-crm) в виде системной службы под операционную систему Linux.
+- OAuth 2.0 with 6 grant types, JWT, cookie-based auth
+- REST API with OpenAPI 3.0 / Swagger UI (418 endpoints)
+- Workflow engine (state machine per entity)
+- Real-time updates via WebSocket (JSON-RPC + pub/sub)
+- Background processes: email/SMS/push dispatch, cron-like scheduler, report generation
+- File storage with S3 support
+- Role-based access control (ACU/AOU/AMU)
+- Localized error messages (EN, RU, DE, FR, IT, ES)
+- Docker Compose deployment (PostgreSQL, PgBouncer, Nginx, Swagger UI)
 
-[База данных](https://github.com/apostoldevel/db-platform) платформы написана на языке программирования PL/pgSQL.
+## Quick Start
 
-**Конфигурация** написана на языке программирования PL/pgSQL, используется для разработки бизнес-логики и RESTful API.
+### Prerequisites
 
-Конфигурация базируется на API платформы и дополняет её функциями необходимыми для решения задач конкретного проекта.
+- Linux (Debian/Ubuntu)
+- GCC 7+ with C++14 support
+- CMake 3.13+
+- PostgreSQL 12+ with `libpq-dev` and `postgresql-server-dev-all`
+- OpenSSL, libcurl
 
-Подробное описание доступно в [Wiki](https://github.com/apostoldevel/db-platform/wiki).
+```bash
+sudo apt-get install build-essential libssl-dev libcurl4-openssl-dev make cmake gcc g++
+```
 
-API
--
+### Build from Source
 
-Доступ к API **системы** предоставляется с помощью встроенного [сервера приложений](https://github.com/ufocomp/module-AppServer) (REST API) по адресу: [localhost:8080](http://localhost:8080)
+```bash
+git clone https://github.com/apostoldevel/apostol-crm.git
+cd apostol-crm/backend
+./configure
+cd cmake-build-release
+make
+sudo make install
+```
 
-СБОРКА И УСТАНОВКА
--
-Для установки **системы** Вам потребуется:
+### Database Setup
 
-Для сборки проекта Вам потребуется:
-
-1. Компилятор C++;
-1. [CMake](https://cmake.org) или интегрированная среда разработки (IDE) с поддержкой [CMake](https://cmake.org);
-1. Библиотека [libpq-dev](https://www.postgresql.org/download) (libraries and headers for C language frontend development);
-1. Библиотека [postgresql-server-dev-all](https://www.postgresql.org/download) (libraries and headers for C language backend development).
-
-### Linux (Debian/Ubuntu)
-
-Для того чтобы установить компилятор C++ и необходимые библиотеки на Ubuntu выполните:
-~~~
-$ sudo apt-get install build-essential libssl-dev libcurl4-openssl-dev make cmake gcc g++
-~~~
-
-###### Подробное описание установки C++, CMake, IDE и иных компонентов необходимых для сборки проекта не входит в данное руководство. 
-
-#### PostgreSQL
-
-Для того чтобы установить PostgreSQL воспользуйтесь инструкцией по [этой](https://www.postgresql.org/download/) ссылке.
-
-#### База данных `crm`
-
-1. Прописать наименование базы данных в файле `db/sql/sets.conf` (по умолчанию `crm`);
-1. Прописать пароли для пользователей СУБД [libpq-pgpass](https://postgrespro.ru/docs/postgrespro/14/libpq-pgpass):
-   ~~~
-   $ sudo -iu postgres -H vim .pgpass
-   ~~~
-   ~~~
+1. Configure PostgreSQL passwords in `~/.pgpass`:
+   ```
    *:*:*:kernel:kernel
    *:*:*:admin:admin
    *:*:*:daemon:daemon
-   ~~~
-1. Указать в файле настроек `/etc/postgresql/{version}/main/postgresql.conf` пути поиска схемы kernel:
-   ~~~
-   search_path = '"$user", kernel, public'	# schema names
-   ~~~
-1. Указать в файле настроек `/etc/postgresql/{version}/main/pg_hba.conf`:
-   ~~~
-   # TYPE  DATABASE        USER            ADDRESS                 METHOD
-   local	all		kernel					md5
-   local	all		admin					md5
-   local	all		daemon					md5
+   ```
 
-   host	all		kernel		127.0.0.1/32		md5
-   host	all		admin		127.0.0.1/32		md5
-   host	all		daemon		127.0.0.1/32		md5
-   ~~~
-1. Выполнить:
-   ~~~
-   $ cd db/
-   $ ./runme.sh --make
-   ~~~
+2. Set `search_path` in `postgresql.conf`:
+   ```
+   search_path = '"$user", kernel, public'
+   ```
 
-###### Параметр `--make` необходим для установки базы данных на сервер в первый раз. Для переустановки базы данных установочный скрипт можно запускать с параметром `--install`.
+3. Initialize the database:
+   ```bash
+   cd db/
+   ./runme.sh --init
+   ```
 
-Для установки **системы** (без Git) необходимо:
+### Run
 
-1. Скачать **Apostol CRM** по [ссылке](https://github.com/ufocomp/apostol-crm/archive/master.zip);
-1. Распаковать;
-1. Настроить `CMakeLists.txt` (по необходимости);
-1. Собрать и скомпилировать (см. ниже).
+```bash
+sudo service apostol-crm start
+sudo service apostol-crm status
+```
 
-Для установки **системы** с помощью Git выполните:
-~~~
-$ git clone https://github.com/ufocomp/apostol-crm.git
-~~~
+The API is available at [http://localhost:4977/api/v1/ping](http://localhost:4977/api/v1/ping).
 
-###### Сборка:
-~~~
-$ cd apostol-crm
-$ ./configure
-~~~
+Swagger UI: [http://localhost:4977/docs/](http://localhost:4977/docs/)
 
-###### Компиляция и установка:
-~~~
-$ cd cmake-build-release
-$ make
-$ sudo make install
-~~~
+## Docker
 
-По умолчанию бинарный файл `crm` будет установлен в:
-~~~
-/usr/sbin
-~~~
+```bash
+./docker-build.sh        # build images
+./docker-up.sh           # start all services
+./docker-down.sh         # stop all services
+./docker-new-database.sh # recreate PostgreSQL volume (destructive)
+```
 
-Файл конфигурации и необходимые для работы файлы, в зависимости от варианта установки, будут расположены в: 
-~~~
-/etc/crm
-или
-~/crm
-~~~
+Services: PostgreSQL 18, PgBouncer, Nginx, PgWeb (admin), Backend.
 
-ЗАПУСК 
--
-###### Если `INSTALL_AS_ROOT` установлено в `ON`.
+Backend: port 8080. PgWeb: port 8081.
 
-**`crm`** - это системная служба (демон) Linux. 
-Для управления **`crm`** используйте стандартные команды управления службами.
+## Project Structure
 
-Для запуска `crm` выполните:
-~~~
-$ sudo service crm start
-~~~
+```
+backend/
+├── src/
+│   ├── app/crm.cpp            # Application entry point
+│   ├── lib/delphi/            # libdelphi C++ framework (cloned by ./configure)
+│   ├── core/                  # apostol-core (cloned)
+│   ├── common/                # BackEnd, FetchCommon, FileCommon (cloned)
+│   ├── modules/
+│   │   ├── Workers/           # HTTP request handlers (cloned)
+│   │   │   ├── AppServer/     # Auth-aware REST -> PG dispatch
+│   │   │   ├── AuthServer/    # OAuth2 + JWT
+│   │   │   ├── FileServer/    # File serving
+│   │   │   ├── WebServer/     # Static files + Swagger UI
+│   │   │   └── WebSocketAPI/  # JSON-RPC + pub/sub
+│   │   └── Helpers/           # Background helpers (cloned)
+│   │       ├── PGFetch/       # LISTEN -> outbound HTTP
+│   │       └── PGFile/        # LISTEN -> file sync
+│   └── processes/             # Background processes (cloned)
+│       ├── MessageServer/     # SMTP/FCM/API dispatch
+│       ├── TaskScheduler/     # Cron-like jobs
+│       └── ReportServer/      # Report generation
+├── db/
+│   └── sql/
+│       ├── platform/          # db-platform framework (cloned)
+│       └── configuration/
+│           └── apostol/       # Business logic (30 entities)
+├── conf/                      # Server configuration (INI)
+├── www/docs/                  # Swagger UI + OpenAPI spec
+├── .docker/                   # Docker build files
+├── docker-compose.yml
+├── Dockerfile
+└── configure                  # Downloads all dependencies from GitHub
+```
 
-Для проверки статуса выполните:
-~~~
-$ sudo service crm status
-~~~
+All modules and processes under `src/` are separate repositories cloned by `./configure`. The `db/sql/platform/` directory is also cloned from [db-platform](https://github.com/apostoldevel/db-platform).
 
-Результат должен быть **примерно** таким:
-~~~
-● crm.service - LSB: starts the apostol web service
-   Loaded: loaded (/etc/init.d/crm; generated; vendor preset: enabled)
-   Active: active (running) since Tue 2020-08-25 23:04:53 UTC; 4 days ago
-     Docs: man:systemd-sysv-generator(8)
-  Process: 6310 ExecStop=/etc/init.d/crm stop (code=exited, status=0/SUCCESS)
-  Process: 6987 ExecStart=/etc/init.d/crm start (code=exited, status=0/SUCCESS)
-    Tasks: 3 (limit: 4915)
-   CGroup: /system.slice/crm.service
-           ├─6999 crm: master process /usr/sbin/crm
-           ├─7000 crm: worker process ("web socket api", "application server", "authorization server", "web server")
-           └─7001 crm: message process ("message server")
-~~~
+## Database Commands
 
-### **Управление**.
+All run from `db/` directory:
 
-Управлять **`crm`** можно с помощью сигналов.
-Номер главного процесса по умолчанию записывается в файл `/run/crm.pid`. 
-Изменить имя этого файла можно при конфигурации сборки или же в `crm.conf` секция `[daemon]` ключ `pid`. 
+```bash
+./runme.sh --update    # Safe: updates routines and views only
+./runme.sh --patch     # Updates tables + routines + views
+./runme.sh --install   # DESTRUCTIVE: drop/recreate DB with seed data
+./runme.sh --init      # DESTRUCTIVE: first-time setup (creates users + install)
+```
 
-Главный процесс поддерживает следующие сигналы:
+## Configuration
 
-|Сигнал   |Действие          |
-|---------|------------------|
-|TERM, INT|быстрое завершение|
-|QUIT     |плавное завершение|
-|HUP	  |изменение конфигурации, запуск новых рабочих процессов с новой конфигурацией, плавное завершение старых рабочих процессов|
-|WINCH    |плавное завершение рабочих процессов|	
+| File | Purpose |
+|------|---------|
+| `conf/default.conf` | Main server config (modules, processes, PostgreSQL) |
+| `conf/oauth2/default.json` | OAuth2 client definitions |
+| `.env` | Docker environment (ports, DB credentials) |
+| `db/sql/sets.psql` | Database name, encoding, search_path |
+| `db/sql/.env.psql` | DB passwords, project settings, OAuth2 secrets |
 
-Управлять рабочими процессами по отдельности не нужно. Тем не менее, они тоже поддерживают некоторые сигналы:
+## Process Management
 
-|Сигнал   |Действие          |
-|---------|------------------|
-|TERM, INT|быстрое завершение|
-|QUIT	  |плавное завершение|
+Signals:
+
+| Signal | Action |
+|--------|--------|
+| TERM, INT | Fast shutdown |
+| QUIT | Graceful shutdown |
+| HUP | Reload config, restart workers |
+| WINCH | Graceful worker shutdown |
+
+PID file: `/run/apostol-crm.pid`
+
+## Documentation
+
+- [db-platform Wiki](https://github.com/apostoldevel/db-platform/wiki) — API guide (52 pages)
+- [OpenAPI Spec](www/docs/api.yaml) — 418 REST endpoints
+- `db/INDEX.md` — database layer overview
+- `db/CLAUDE.md` — database commands and conventions
+
+## License
+
+[MIT](LICENSE)
+
+---
+
+[^crm]: **Apostol CRM** — a template project built on the [A-POST-OL](https://github.com/apostoldevel/libapostol) (C++20) and [PostgreSQL Framework for Backend Development](https://github.com/apostoldevel/db-platform) frameworks.
