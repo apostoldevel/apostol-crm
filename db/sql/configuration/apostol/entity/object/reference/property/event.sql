@@ -17,7 +17,7 @@ CREATE OR REPLACE FUNCTION EventPropertyCreate (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'create', 'Свойство создано.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'create', 'Property created.', pObject);
   PERFORM DoEnable(pObject);
 END;
 $$ LANGUAGE plpgsql;
@@ -37,7 +37,7 @@ CREATE OR REPLACE FUNCTION EventPropertyOpen (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'open', 'Свойство открыто.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'open', 'Property opened.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -56,7 +56,7 @@ CREATE OR REPLACE FUNCTION EventPropertyEdit (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'edit', 'Свойство изменено.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'edit', 'Property modified.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -75,7 +75,7 @@ CREATE OR REPLACE FUNCTION EventPropertySave (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'save', 'Свойство сохранено.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'save', 'Property saved.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -94,7 +94,7 @@ CREATE OR REPLACE FUNCTION EventPropertyEnable (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'enable', 'Свойство включено.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'enable', 'Property enabled.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -113,7 +113,7 @@ CREATE OR REPLACE FUNCTION EventPropertyDisable (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'disable', 'Свойство выключено.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'disable', 'Property disabled.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -132,7 +132,7 @@ CREATE OR REPLACE FUNCTION EventPropertyDelete (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'delete', 'Свойство удалено.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'delete', 'Property will be deleted.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -151,7 +151,7 @@ CREATE OR REPLACE FUNCTION EventPropertyRestore (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'restore', 'Свойство восстановлено.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'restore', 'Property restored.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -176,6 +176,6 @@ BEGIN
 
   DELETE FROM db.property WHERE id = pObject;
 
-  PERFORM WriteToEventLog('W', 1000, 'drop', '[' || pObject || '] [' || coalesce(r.label, '') || '] Свойство уничтожено.');
+  PERFORM WriteToEventLog('W', 1000, 'drop', '[' || pObject || '] [' || coalesce(r.label, '') || '] Property will be dropped.');
 END;
 $$ LANGUAGE plpgsql;

@@ -17,7 +17,7 @@ CREATE OR REPLACE FUNCTION EventMeasureCreate (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'create', 'Мера создана.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'create', 'Measure created.', pObject);
   PERFORM DoEnable(pObject);
 END;
 $$ LANGUAGE plpgsql;
@@ -37,7 +37,7 @@ CREATE OR REPLACE FUNCTION EventMeasureOpen (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'open', 'Мера открыта.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'open', 'Measure opened.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -56,7 +56,7 @@ CREATE OR REPLACE FUNCTION EventMeasureEdit (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'edit', 'Мера изменена.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'edit', 'Measure modified.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -75,7 +75,7 @@ CREATE OR REPLACE FUNCTION EventMeasureSave (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'save', 'Мера сохранена.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'save', 'Measure saved.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -94,7 +94,7 @@ CREATE OR REPLACE FUNCTION EventMeasureEnable (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'enable', 'Мера включена.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'enable', 'Measure enabled.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -113,7 +113,7 @@ CREATE OR REPLACE FUNCTION EventMeasureDisable (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'disable', 'Мера выключена.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'disable', 'Measure disabled.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -132,7 +132,7 @@ CREATE OR REPLACE FUNCTION EventMeasureDelete (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'delete', 'Мера удалена.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'delete', 'Measure will be deleted.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -151,7 +151,7 @@ CREATE OR REPLACE FUNCTION EventMeasureRestore (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'restore', 'Мера восстановлена.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'restore', 'Measure restored.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -176,6 +176,6 @@ BEGIN
 
   DELETE FROM db.measure WHERE id = pObject;
 
-  PERFORM WriteToEventLog('M', 2000, 'drop', '[' || pObject || '] [' || coalesce(r.label, '') || '] Мера уничтожена.');
+  PERFORM WriteToEventLog('M', 2000, 'drop', '[' || pObject || '] [' || coalesce(r.label, '') || '] Measure will be dropped.');
 END;
 $$ LANGUAGE plpgsql;

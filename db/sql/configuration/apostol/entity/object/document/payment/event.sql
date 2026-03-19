@@ -178,6 +178,6 @@ BEGIN
 
   DELETE FROM db.payment WHERE id = pObject;
 
-  PERFORM WriteToEventLog('M', 2000, 'drop', '[' || pObject || '] [' || coalesce(r.label, '') || '] Платёж уничтожен.');
+  PERFORM WriteToEventLog('M', 2000, 'drop', '[' || pObject || '] [' || coalesce(r.label, '') || '] Payment will be dropped.');
 END;
 $$ LANGUAGE plpgsql;

@@ -17,7 +17,7 @@ CREATE OR REPLACE FUNCTION EventCalendarCreate (
 ) RETURNS        void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'create', 'Календарь создан.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'create', 'Calendar created.', pObject);
   PERFORM DoEnable(pObject);
 END;
 $$ LANGUAGE plpgsql;
@@ -37,7 +37,7 @@ CREATE OR REPLACE FUNCTION EventCalendarOpen (
 ) RETURNS        void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'open', 'Календарь открыт.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'open', 'Calendar opened.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -56,7 +56,7 @@ CREATE OR REPLACE FUNCTION EventCalendarEdit (
 ) RETURNS        void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'edit', 'Календарь изменён.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'edit', 'Calendar modified.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -75,7 +75,7 @@ CREATE OR REPLACE FUNCTION EventCalendarSave (
 ) RETURNS        void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'save', 'Календарь сохранён.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'save', 'Calendar saved.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -94,7 +94,7 @@ CREATE OR REPLACE FUNCTION EventCalendarEnable (
 ) RETURNS        void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'enable', 'Календарь включен.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'enable', 'Calendar enabled.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -113,7 +113,7 @@ CREATE OR REPLACE FUNCTION EventCalendarDisable (
 ) RETURNS        void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'disable', 'Календарь выключен.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'disable', 'Calendar disabled.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -132,7 +132,7 @@ CREATE OR REPLACE FUNCTION EventCalendarDelete (
 ) RETURNS        void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'delete', 'Календарь удалён.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'delete', 'Calendar will be deleted.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -151,7 +151,7 @@ CREATE OR REPLACE FUNCTION EventCalendarRestore (
 ) RETURNS        void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'restore', 'Календарь восстановлен.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'restore', 'Calendar restored.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -176,6 +176,6 @@ BEGIN
 
   DELETE FROM db.calendar WHERE id = pObject;
 
-  PERFORM WriteToEventLog('W', 1000, 'drop', '[' || pObject || '] [' || coalesce(r.label, '') || '] Календарь уничтожен.');
+  PERFORM WriteToEventLog('W', 1000, 'drop', '[' || pObject || '] [' || coalesce(r.label, '') || '] Calendar will be dropped.');
 END;
 $$ LANGUAGE plpgsql;

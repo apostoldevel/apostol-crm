@@ -17,7 +17,7 @@ CREATE OR REPLACE FUNCTION EventCurrencyCreate (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'create', 'Валюта создана.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'create', 'Currency created.', pObject);
   PERFORM DoEnable(pObject);
 END;
 $$ LANGUAGE plpgsql;
@@ -37,7 +37,7 @@ CREATE OR REPLACE FUNCTION EventCurrencyOpen (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'open', 'Валюта открыта.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'open', 'Currency opened.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -56,7 +56,7 @@ CREATE OR REPLACE FUNCTION EventCurrencyEdit (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'edit', 'Валюта изменена.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'edit', 'Currency modified.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -75,7 +75,7 @@ CREATE OR REPLACE FUNCTION EventCurrencySave (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'save', 'Валюта сохранена.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'save', 'Currency saved.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -94,7 +94,7 @@ CREATE OR REPLACE FUNCTION EventCurrencyEnable (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'enable', 'Валюта включена.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'enable', 'Currency enabled.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -113,7 +113,7 @@ CREATE OR REPLACE FUNCTION EventCurrencyDisable (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'disable', 'Валюта выключена.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'disable', 'Currency disabled.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -132,7 +132,7 @@ CREATE OR REPLACE FUNCTION EventCurrencyDelete (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'delete', 'Валюта удалена.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'delete', 'Currency will be deleted.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -151,7 +151,7 @@ CREATE OR REPLACE FUNCTION EventCurrencyRestore (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'restore', 'Валюта восстановлена.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'restore', 'Currency restored.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -176,6 +176,6 @@ BEGIN
 
   DELETE FROM db.currency WHERE id = pObject;
 
-  PERFORM WriteToEventLog('M', 2000, 'drop', '[' || pObject || '] [' || coalesce(r.label, '') || '] Валюта уничтожена.');
+  PERFORM WriteToEventLog('M', 2000, 'drop', '[' || pObject || '] [' || coalesce(r.label, '') || '] Currency will be dropped.');
 END;
 $$ LANGUAGE plpgsql;

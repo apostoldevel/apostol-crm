@@ -13,6 +13,6 @@ CREATE OR REPLACE FUNCTION EventReferenceCreate (
 ) RETURNS        void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'create', 'Справочник создан.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'create', 'Reference created.', pObject);
 END;
 $$ LANGUAGE plpgsql;

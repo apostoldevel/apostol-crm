@@ -175,6 +175,6 @@ BEGIN
 
   DELETE FROM db.price WHERE id = pObject;
 
-  PERFORM WriteToEventLog('M', 2000, 'drop', '[' || pObject || '] [' || coalesce(r.label, '') || '] Цена уничтожена.');
+  PERFORM WriteToEventLog('M', 2000, 'drop', '[' || pObject || '] [' || coalesce(r.label, '') || '] Price will be dropped.');
 END;
 $$ LANGUAGE plpgsql;

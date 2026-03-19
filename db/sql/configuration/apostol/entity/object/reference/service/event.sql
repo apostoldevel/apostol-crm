@@ -17,7 +17,7 @@ CREATE OR REPLACE FUNCTION EventServiceCreate (
 ) RETURNS   void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'create', 'Услуга создана.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'create', 'Service created.', pObject);
   PERFORM DoEnable(pObject);
 END;
 $$ LANGUAGE plpgsql;
@@ -37,7 +37,7 @@ CREATE OR REPLACE FUNCTION EventServiceOpen (
 ) RETURNS   void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'open', 'Услуга открыта.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'open', 'Service opened.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -56,7 +56,7 @@ CREATE OR REPLACE FUNCTION EventServiceEdit (
 ) RETURNS   void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'edit', 'Услуга изменена.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'edit', 'Service modified.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -75,7 +75,7 @@ CREATE OR REPLACE FUNCTION EventServiceSave (
 ) RETURNS   void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'save', 'Услуга сохранена.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'save', 'Service saved.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -94,7 +94,7 @@ CREATE OR REPLACE FUNCTION EventServiceEnable (
 ) RETURNS   void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'enable', 'Услуга активна.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'enable', 'Service enabled.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -113,7 +113,7 @@ CREATE OR REPLACE FUNCTION EventServiceDisable (
 ) RETURNS   void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'disable', 'Услуга неактивна.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'disable', 'Service disabled.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -132,7 +132,7 @@ CREATE OR REPLACE FUNCTION EventServiceDelete (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'delete', 'Услуга удалена.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'delete', 'Service will be deleted.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -151,7 +151,7 @@ CREATE OR REPLACE FUNCTION EventServiceRestore (
 ) RETURNS    void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'restore', 'Услуга восстановлена.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'restore', 'Service restored.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -176,6 +176,6 @@ BEGIN
 
   DELETE FROM db.service WHERE id = pObject;
 
-  PERFORM WriteToEventLog('M', 2000, 'drop', '[' || pObject || '] [' || coalesce(r.label, '') || '] Услуга уничтожена.');
+  PERFORM WriteToEventLog('M', 2000, 'drop', '[' || pObject || '] [' || coalesce(r.label, '') || '] Service will be dropped.');
 END;
 $$ LANGUAGE plpgsql;

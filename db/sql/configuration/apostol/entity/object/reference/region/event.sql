@@ -17,7 +17,7 @@ CREATE OR REPLACE FUNCTION EventRegionCreate (
 ) RETURNS   void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'create', 'Регион создан.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'create', 'Region created.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -36,7 +36,7 @@ CREATE OR REPLACE FUNCTION EventRegionOpen (
 ) RETURNS   void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'open', 'Регион открыт.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'open', 'Region opened.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -55,7 +55,7 @@ CREATE OR REPLACE FUNCTION EventRegionEdit (
 ) RETURNS   void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'edit', 'Регион изменён.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'edit', 'Region modified.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -74,7 +74,7 @@ CREATE OR REPLACE FUNCTION EventRegionSave (
 ) RETURNS   void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'save', 'Регион сохранён.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'save', 'Region saved.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -106,7 +106,7 @@ BEGIN
 
   PERFORM CopyFromKladr(nId, vCode);
 
-  PERFORM WriteToEventLog('M', 1000, 'enable', 'Регион включен.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'enable', 'Region enabled.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -125,7 +125,7 @@ CREATE OR REPLACE FUNCTION EventRegionDisable (
 ) RETURNS   void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'disable', 'Регион выключен.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'disable', 'Region disabled.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -144,7 +144,7 @@ CREATE OR REPLACE FUNCTION EventRegionDelete (
 ) RETURNS   void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'delete', 'Регион удалён.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'delete', 'Region will be deleted.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -163,7 +163,7 @@ CREATE OR REPLACE FUNCTION EventRegionRestore (
 ) RETURNS   void
 AS $$
 BEGIN
-  PERFORM WriteToEventLog('M', 1000, 'restore', 'Регион восстановлен.', pObject);
+  PERFORM WriteToEventLog('M', 1000, 'restore', 'Region restored.', pObject);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -188,6 +188,6 @@ BEGIN
 
   DELETE FROM db.region WHERE id = pObject;
 
-  PERFORM WriteToEventLog('M', 2000, 'drop', '[' || pObject || '] [' || coalesce(r.label, '') || '] Регион уничтожен.');
+  PERFORM WriteToEventLog('M', 2000, 'drop', '[' || pObject || '] [' || coalesce(r.label, '') || '] Region will be dropped.');
 END;
 $$ LANGUAGE plpgsql;

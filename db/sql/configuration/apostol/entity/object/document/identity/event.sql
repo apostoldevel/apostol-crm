@@ -150,7 +150,7 @@ BEGIN
     UPDATE db.identity SET reminderdate = validtodate - interval '30 day' WHERE id = pObject;
   END IF;
 
-  vLabel := format('Срок действия удостоверения личности заканчивается: %s.', i.validToDate);
+  vLabel := format('Identity document expiring: %s.', i.validToDate);
 
   FOR r IN SELECT s.id, s.userid FROM db.client s WHERE s.id = i.client
   LOOP
@@ -202,7 +202,7 @@ DECLARE
 BEGIN
   SELECT * INTO i FROM db.identity WHERE id = pObject;
 
-  vLabel := format('Закончился срок действия удостоверения личности: %s.', GetObjectLabel(pObject));
+  vLabel := format('Identity document expired: %s.', GetObjectLabel(pObject));
 
   PERFORM CreateNotice(GetClientUserId(i.client), pObject, vLabel, 'identity');
   PERFORM CreateTask(pObject, GetType('system.task'), GetCalendar('default.calendar'), i.client, vLabel, false, interval '10 day', Now(), Now() + interval '10 day');
@@ -270,6 +270,6 @@ BEGIN
 
   DELETE FROM db.identity WHERE id = pObject;
 
-  PERFORM WriteToEventLog('W', 1000, 'drop', '[' || pObject || '] [' || coalesce(r.label, '') || '] Документ удостоверяющий личность уничтожен.');
+  PERFORM WriteToEventLog('W', 1000, 'drop', '[' || pObject || '] [' || coalesce(r.label, '') || '] Identity will be dropped.');
 END;
 $$ LANGUAGE plpgsql;
