@@ -40,18 +40,18 @@ No PHP. No Python. No Node.js. HTTP requests flow directly from C++ to PostgreSQ
    request              │                                                 │
                         │  Master process                                 │
                         │  ├── Workers (N)     ← AppServer, AuthServer,   │
-                        │  │                     FileServer, WebSocketAPI, │
-                        │  │                     PGHTTP, WebServer         │
+                        │  │                     FileServer, WebSocketAPI,│
+                        │  │                     PGHTTP, WebServer        │
                         │  ├── Helper (1)      ← PGFetch, PGFile          │
                         │  └── Processes       ← MessageServer,           │
-                        │                        TaskScheduler,            │
-                        │                        ReportServer              │
+                        │                        TaskScheduler,           │
+                        │                        ReportServer             │
                         └────────────┬────────────────────────────────────┘
                                      │ libpq async
                         ┌────────────▼────────────────────────────────────┐
                         │  PostgreSQL (db-platform)                       │
                         │                                                 │
-                        │  rest.* ─> api.* ─> kernel.* ─> db.*           │
+                        │  rest.* ─> api.* ─> kernel.* ─> db.*            │
                         │  (dispatch)  (CRUD)   (logic)    (tables)       │
                         │                                                 │
                         │  26 platform modules + 30 project entities      │

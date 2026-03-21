@@ -36,22 +36,22 @@
 
 ```
                         ┌─────────────────────────────────────────────────┐
- HTTP/WebSocket    ──>  │  C++ Сервер (libapostol)                       │
+ HTTP/WebSocket    ──>  │  C++ Сервер (libapostol)                        │
    запрос               │                                                 │
                         │  Мастер-процесс                                 │
                         │  ├── Workers (N)     ← AppServer, AuthServer,   │
-                        │  │                     FileServer, WebSocketAPI, │
-                        │  │                     PGHTTP, WebServer         │
+                        │  │                     FileServer, WebSocketAPI,│
+                        │  │                     PGHTTP, WebServer        │
                         │  ├── Helper (1)      ← PGFetch, PGFile          │
                         │  └── Processes       ← MessageServer,           │
-                        │                        TaskScheduler,            │
-                        │                        ReportServer              │
+                        │                        TaskScheduler,           │
+                        │                        ReportServer             │
                         └────────────┬────────────────────────────────────┘
                                      │ libpq async
                         ┌────────────▼────────────────────────────────────┐
                         │  PostgreSQL (db-platform)                       │
                         │                                                 │
-                        │  rest.* ─> api.* ─> kernel.* ─> db.*           │
+                        │  rest.* ─> api.* ─> kernel.* ─> db.*            │
                         │  (dispatch)  (CRUD)   (логика)   (таблицы)      │
                         │                                                 │
                         │  26 модулей платформы + 30 сущностей проекта    │
