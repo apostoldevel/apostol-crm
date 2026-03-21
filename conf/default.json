@@ -1,0 +1,120 @@
+{
+  "prefix": ".",
+  "locale": "en_US.UTF-8",
+  "log": {
+    "level": "notice",
+    "file": "logs/error.log",
+    "access": "logs/access.log",
+    "stream": "logs/stream.log",
+    "postgres": "logs/postgres.log"
+  },
+  "daemon": {
+    "enabled": false,
+    "pid": "logs/apostol-crm.pid"
+  },
+  "process": {
+    "master": true,
+    "helper": true,
+    "user": "",
+    "group": ""
+  },
+  "workers": 4,
+  "server": {
+    "listen": "0.0.0.0",
+    "port": 4977,
+    "backlog": 128,
+    "timeout": 30000,
+    "root": "www"
+  },
+  "module": {
+    "heartbeat": {
+      "enable": true
+    },
+    "WebServer": {
+      "enable": true
+    },
+    "PGHTTP": {
+      "enable": true,
+      "endpoints": ["/api/*"]
+    },
+    "AuthServer": {
+      "enable": true
+    },
+    "AppServer": {
+      "enable": true
+    },
+    "FileServer": {
+      "enable": true
+    },
+    "WebSocketAPI": {
+      "enable": true
+    },
+    "PGFetch": {
+      "enable": true,
+      "timeout": 30
+    },
+    "PGFile": {
+      "enable": true
+    },
+    "TaskScheduler": {
+      "enable": true
+    },
+    "ReportServer": {
+      "enable": true
+    },
+    "MessageServer": {
+      "enable": true,
+      "smtp": {
+        "default": {
+          "host": "smtp.example.com",
+          "port": 587,
+          "username": "info@example.com",
+          "password": "$SMTP_PASSWORD_INFO"
+        },
+        "info": {
+          "host": "smtp.example.com",
+          "port": 587,
+          "username": "info@example.com",
+          "password": "$SMTP_PASSWORD_INFO"
+        },
+        "noreply": {
+          "host": "smtp.example.com",
+          "port": 587,
+          "username": "noreply@example.com",
+          "password": "$SMTP_PASSWORD_NOREPLY"
+        },
+        "support": {
+          "host": "smtp.example.com",
+          "port": 587,
+          "username": "support@example.com",
+          "password": "$SMTP_PASSWORD_SUPPORT"
+        }
+      }
+    }
+  },
+  "postgres": {
+    "connect": true,
+    "notice": false,
+    "timeout": 10,
+    "worker": {
+      "host": "localhost",
+      "port": "5432",
+      "dbname": "apostol",
+      "user": "daemon",
+      "password": "daemon",
+      "sslmode": "disable"
+    },
+    "helper": {
+      "host": "localhost",
+      "port": "5432",
+      "dbname": "apostol",
+      "user": "apibot",
+      "password": "apibot",
+      "sslmode": "disable"
+    },
+    "pool": {
+      "min": 5,
+      "max": 25
+    }
+  }
+}

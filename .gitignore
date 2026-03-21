@@ -1,5 +1,7 @@
 /.idea
+/.worktrees
 /cmake-build-*
 /tmp
 version.h
 ccc
+.claudeignore

@@ -1,0 +1,17 @@
+name: 'nginx-certbot'
+
+services:
+  nginx:
+    build: .
+    container_name: nginx
+    networks:
+      - nginx
+    ports:
+      - "8080:80"
+      - "4443:443"
+    restart: always
+    volumes:
+      - ./certbot/letsencrypt:/etc/letsencrypt
+
+networks:
+  nginx:

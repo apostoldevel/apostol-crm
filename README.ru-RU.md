@@ -1,185 +1,333 @@
-[![en](https://img.shields.io/badge/lang-en-blue.svg)](README.md)
+[![en](https://img.shields.io/badge/lang-en-green.svg)](README.md)
 
 # Apostol CRM
 
-**Apostol CRM**[^crm] — шаблон полнофункционального бэкенда для разработки бизнес-приложений на Linux. Объединяет C++ HTTP/WebSocket-сервер с базой данных PostgreSQL, в которой реализованы REST API, аутентификация, движок состояний и бизнес-логика — всё на PL/pgSQL.
+**Apostol CRM**[^crm] — готовый к продакшену шаблон бэкенда, который даёт вам **[418 REST API эндпоинтов](www/docs/api.yaml)**, **[аутентификацию OAuth 2.0](https://github.com/apostoldevel/module-AuthServer#readme)**, **[движок бизнес-процессов](https://github.com/apostoldevel/db-platform/wiki/04-Workflow)**, **[WebSocket pub/sub](https://github.com/apostoldevel/module-WebSocketAPI#readme)**, **[фоновую обработку](https://github.com/apostoldevel/process-MessageServer#readme)** и **[файловое хранилище](https://github.com/apostoldevel/module-FileServer#readme)** — всё в одном бинарнике с базой данных PostgreSQL.
 
-## Архитектура
+Построен на двух open-source фреймворках:
+
+| Фреймворк | Роль | Что предоставляет |
+|-----------|------|-------------------|
+| [**A-POST-OL**](https://github.com/apostoldevel/libapostol) | C++20 сервер | HTTP/WebSocket сервер, асинхронный PostgreSQL, один `epoll` event loop — **507K RPS** |
+| [**db-platform**](https://github.com/apostoldevel/db-platform) | Слой PostgreSQL | 26 PL/pgSQL модулей, 100+ таблиц, 800+ функций — REST API, аутентификация, бизнес-процессы, сущности |
+
+Без PHP. Без Python. Без Node.js. HTTP-запросы идут напрямую из C++ в PostgreSQL — ноль промежуточных слоёв, задержка менее миллисекунды.
+
+> **Это шаблон.** Форкните его, добавьте свои сущности, настройте бизнес-процессы — и у вас готовый продакшен-бэкенд. Всё перечисленное ниже включено из коробки.
+
+## Что вы получаете
+
+| Категория | Детали |
+|-----------|--------|
+| **Аутентификация** | OAuth 2.0 (6 типов авторизации), JWT (HS/RS/ES/PS), сессии на cookies, RBAC |
+| **REST API** | 418 эндпоинтов со спецификацией [OpenAPI 3.0](www/docs/api.yaml) и [Swagger UI](https://swagger.io/tools/swagger-ui/) |
+| **Сущности** | 30 бизнес-сущностей — клиенты, счета, платежи, подписки, устройства и другие |
+| **Бизнес-процессы** | Машина состояний для каждой сущности: `создан → активирован ↔ отключён → удалён` с пользовательскими переходами |
+| **Real-time** | WebSocket с JSON-RPC и pub/sub ([паттерн Observer](https://github.com/apostoldevel/db-platform/wiki/65-Observer-PubSub)) |
+| **Фоновые процессы** | Рассылка email/SMS/push, cron-планировщик, генерация отчётов — как отдельные процессы ОС |
+| **Файловое хранилище** | Виртуальная файловая система с UNIX-правами и поддержкой S3 |
+| **Контроль доступа** | Трёхуровневая система прав: [ACU](https://github.com/apostoldevel/db-platform/wiki/64-Access-Control) (класс), AOU (объект), AMU (метод) |
+| **Локализация** | Сообщения об ошибках и состояния бизнес-процессов на 6 языках (EN, RU, DE, FR, IT, ES) |
+| **Производительность** | [507K RPS](https://github.com/apostoldevel/apostol/blob/master/doc/BENCHMARK.md) на `/ping` (90% от Nginx), 112K RPS с обращением к PostgreSQL |
+
+## Как это работает
+
+**Apostol CRM** объединяет два фреймворка в единый бэкенд:
 
 ```
-HTTP/WebSocket-запрос
-  -> Apostol Worker (C++, единый цикл событий epoll)
-  -> асинхронный запрос libpq
-  -> rest.* диспетчер (PL/pgSQL)
-  -> api.* функции CRUD
-  -> kernel.* бизнес-логика
-  -> db.* таблицы
+                        ┌─────────────────────────────────────────────────┐
+ HTTP/WebSocket    ──>  │  C++ Сервер (libapostol)                       │
+   запрос               │                                                 │
+                        │  Мастер-процесс                                 │
+                        │  ├── Workers (N)     ← AppServer, AuthServer,   │
+                        │  │                     FileServer, WebSocketAPI, │
+                        │  │                     PGHTTP, WebServer         │
+                        │  ├── Helper (1)      ← PGFetch, PGFile          │
+                        │  └── Processes       ← MessageServer,           │
+                        │                        TaskScheduler,            │
+                        │                        ReportServer              │
+                        └────────────┬────────────────────────────────────┘
+                                     │ libpq async
+                        ┌────────────▼────────────────────────────────────┐
+                        │  PostgreSQL (db-platform)                       │
+                        │                                                 │
+                        │  rest.* ─> api.* ─> kernel.* ─> db.*           │
+                        │  (dispatch)  (CRUD)   (логика)   (таблицы)      │
+                        │                                                 │
+                        │  26 модулей платформы + 30 сущностей проекта    │
+                        └─────────────────────────────────────────────────┘
 ```
 
-Проект состоит из двух слоёв:
-
-- **Платформа** — переиспользуемые C++ модули и [PostgreSQL-фреймворк](https://github.com/apostoldevel/db-platform) (25 PL/pgSQL модулей, 100+ таблиц, 800+ функций): OAuth2, движок состояний, система сущностей, файловое хранилище, pub/sub, отчёты.
-- **Конфигурация** — бизнес-логика конкретного проекта (30 сущностей, REST-эндпоинты, обработчики событий) на PL/pgSQL.
-
-## Возможности
-
-- OAuth 2.0 с 6 типами авторизации, JWT, авторизация через cookie
-- REST API с OpenAPI 3.0 / Swagger UI (418 эндпоинтов)
-- Движок состояний (конечный автомат для каждой сущности)
-- Обновления в реальном времени через WebSocket (JSON-RPC + pub/sub)
-- Фоновые процессы: отправка email/SMS/push, планировщик задач, генерация отчётов
-- Файловое хранилище с поддержкой S3
-- Ролевой контроль доступа (ACU/AOU/AMU)
-- Локализованные сообщения об ошибках (EN, RU, DE, FR, IT, ES)
-- Развёртывание через Docker Compose (PostgreSQL, PgBouncer, Nginx, Swagger UI)
+**Слой C++** обрабатывает HTTP-парсинг, TLS, пулинг соединений, WebSocket, проверку JWT и асинхронный ввод-вывод. **Слой базы данных** содержит бизнес-логику, маршрутизацию REST, контроль доступа, переходы состояний и хранение данных. Они взаимодействуют через `libpq` — один event loop, без потоков.
 
 ## Быстрый старт
 
-### Требования
-
-- Linux (Debian/Ubuntu)
-- GCC 7+ с поддержкой C++14
-- CMake 3.13+
-- PostgreSQL 12+ с `libpq-dev` и `postgresql-server-dev-all`
-- OpenSSL, libcurl
+### Docker (рекомендуется)
 
 ```bash
-sudo apt-get install build-essential libssl-dev libcurl4-openssl-dev make cmake gcc g++
+git clone --recurse-submodules https://github.com/apostoldevel/apostol-crm.git
+cd apostol-crm/backend
+./docker-build.sh
+./docker-up.sh
 ```
 
-### Сборка из исходников
+Запускаются пять сервисов: **PostgreSQL 18** · **PgBouncer** · **Nginx** · **PgWeb** · **Backend**
+
+| URL | Описание |
+|-----|----------|
+| [localhost:8080](http://localhost:8080) | Фронтенд |
+| [localhost:8080/docs](http://localhost:8080/docs) | Swagger UI (418 эндпоинтов) |
+| [localhost:8081](http://localhost:8081) | PgWeb — администрирование БД |
+
+Учётные данные по умолчанию: **admin** / **admin**
 
 ```bash
-git clone https://github.com/apostoldevel/apostol-crm.git
+./docker-down.sh           # остановить все сервисы
+./docker-new-database.sh   # пересоздать том PostgreSQL (деструктивно)
+```
+
+### Сборка из исходного кода
+
+**Требования:** Linux, GCC 12+, CMake 3.25+, PostgreSQL 12+, OpenSSL, libcurl, zlib
+
+```bash
+# Установка зависимостей (Debian/Ubuntu)
+sudo apt-get install build-essential libssl-dev libcurl4-openssl-dev \
+    libpq-dev zlib1g-dev make cmake gcc g++
+
+# Сборка
+git clone --recurse-submodules https://github.com/apostoldevel/apostol-crm.git
 cd apostol-crm/backend
 ./configure
-cd cmake-build-release
-make
-sudo make install
+cmake --build cmake-build-release --parallel $(nproc)
+sudo cmake --install cmake-build-release
 ```
 
-### Настройка базы данных
+**Настройка базы данных:**
 
-1. Настройте пароли PostgreSQL в `~/.pgpass`:
-   ```
-   *:*:*:kernel:kernel
-   *:*:*:admin:admin
-   *:*:*:daemon:daemon
-   ```
+```bash
+# 1. Настроить пароли
+echo '*:*:*:kernel:kernel' >> ~/.pgpass
+echo '*:*:*:admin:admin'   >> ~/.pgpass
+echo '*:*:*:daemon:daemon' >> ~/.pgpass
+chmod 600 ~/.pgpass
 
-2. Укажите `search_path` в `postgresql.conf`:
-   ```
-   search_path = '"$user", kernel, public'
-   ```
+# 2. Установить search_path в postgresql.conf, затем перезапустить PostgreSQL
+#    search_path = '"$user", kernel, public'
 
-3. Инициализируйте базу данных:
-   ```bash
-   cd db/
-   ./runme.sh --init
-   ```
+# 3. Инициализация
+cd db/
+./runme.sh --init
+```
 
-### Запуск
+**Запуск:**
 
 ```bash
 sudo service apostol-crm start
-sudo service apostol-crm status
+curl http://localhost:4977/api/v1/ping   # {"ok": true}
 ```
 
-API доступен по адресу: [http://localhost:4977/api/v1/ping](http://localhost:4977/api/v1/ping)
-
-Swagger UI: [http://localhost:4977/docs/](http://localhost:4977/docs/)
-
-## Docker
+### Режим разработки
 
 ```bash
-./docker-build.sh        # сборка образов
-./docker-up.sh           # запуск всех сервисов
-./docker-down.sh         # остановка всех сервисов
-./docker-new-database.sh # пересоздание тома PostgreSQL (деструктивно)
+./configure --debug
+cmake --build cmake-build-debug --parallel $(nproc)
+mkdir -p logs
+./cmake-build-debug/apostol-crm -p . -c conf/default.json
 ```
 
-Сервисы: PostgreSQL 18, PgBouncer, Nginx, PgWeb (админка), Backend.
+## Модули и процессы
 
-Backend: порт 8080. PgWeb: порт 8081.
+Каждый модуль — это отдельный [GitHub-репозиторий](https://github.com/apostoldevel), клонируемый скриптом `./configure`:
+
+### Workers — обработка HTTP/WebSocket запросов
+
+| Модуль | Описание | Документация |
+|--------|----------|------------|
+| [AppServer](https://github.com/apostoldevel/module-AppServer) | REST API с авторизацией → диспетчеризация в PostgreSQL | [README](https://github.com/apostoldevel/module-AppServer#readme) |
+| [AuthServer](https://github.com/apostoldevel/module-AuthServer) | OAuth 2.0 (6 типов авторизации), JWT, cookies, PKCE | [README](https://github.com/apostoldevel/module-AuthServer#readme) |
+| [WebSocketAPI](https://github.com/apostoldevel/module-WebSocketAPI) | JSON-RPC + pub/sub через WebSocket | [README](https://github.com/apostoldevel/module-WebSocketAPI#readme) |
+| [FileServer](https://github.com/apostoldevel/module-FileServer) | Раздача файлов из `db.file` с JWT-аутентификацией | [README](https://github.com/apostoldevel/module-FileServer#readme) |
+| [PGHTTP](https://github.com/apostoldevel/module-PGHTTP) | HTTP → диспетчеризация в PL/pgSQL функции | [README](https://github.com/apostoldevel/module-PGHTTP#readme) |
+| [WebServer](https://github.com/apostoldevel/module-WebServer) | Статические файлы, поддержка SPA, Swagger UI | [README](https://github.com/apostoldevel/module-WebServer#readme) |
+
+### Helpers — фоновые модули в процессе helper
+
+| Модуль | Описание |
+|--------|----------|
+| [PGFetch](https://github.com/apostoldevel/module-PGFetch) | LISTEN/NOTIFY → исходящие HTTP-запросы |
+| [PGFile](https://github.com/apostoldevel/module-PGFile) | LISTEN/NOTIFY → синхронизация файлов (PostgreSQL ↔ файловая система) |
+
+### Processes — независимые фоновые демоны
+
+| Процесс | Описание |
+|---------|----------|
+| [MessageServer](https://github.com/apostoldevel/process-MessageServer) | Рассылка email/SMS/push через SMTP, FCM, HTTP API |
+| [TaskScheduler](https://github.com/apostoldevel/process-TaskScheduler) | Выполнение заданий по расписанию из очереди `db.job` |
+| [ReportServer](https://github.com/apostoldevel/process-ReportServer) | Генерация отчётов по событию LISTEN |
+
+Нужно меньше модулей? Отключите любой в `conf/default.json`. Нужно больше? Добавьте [Replication](https://github.com/apostoldevel/process-Replication) или [StreamServer](https://github.com/apostoldevel/process-StreamServer).
+
+## Система сущностей
+
+Шаблон включает **30 бизнес-сущностей** с полным CRUD, REST-эндпоинтами, состояниями бизнес-процессов и обработчиками событий:
+
+### Справочники (references)
+
+`address` · `calendar` · `category` · `country` · `currency` · `format` · `measure` · `model` · `property` · `region` · `service`
+
+### Документы (documents)
+
+| Сущность | Подсущности | Назначение |
+|----------|-------------|------------|
+| `account` | `balance` | Финансовые счета с темпоральным отслеживанием баланса |
+| `card` | | Платёжные/идентификационные карты |
+| `client` | `name`, `customer`, `employee` | Базовая сущность клиента с подклассами |
+| `company` | | Компании (иерархические) |
+| `device` | `station`, `caster` | IoT/ГНСС устройства |
+| `identity` | | Документы, удостоверяющие личность (10 типов) |
+| `invoice` | | Счета с автоплатежом |
+| `job` | | Запланированные задачи |
+| `message` | | Доставка email/SMS/push |
+| `order` | | Финансовые ордера (дебет/кредит) |
+| `payment` | `cloudpayments`, `yookassa` | Обработка платежей (два шлюза) |
+| `price` | | Определения цен |
+| `product` | | Каталог продуктов |
+| `subscription` | | Подписки на основе времени/объёма |
+| `tariff` | | Тарифные планы |
+| `task` | | Выполнение фоновых задач |
+| `transaction` | | Записи финансовых транзакций |
+
+Каждая сущность следует [стандартному файловому соглашению](https://github.com/apostoldevel/db-platform/wiki/71-Creating-Entity):
+
+```
+entity/object/document/myentity/
+├── table.sql       # CREATE TABLE, индексы, триггеры
+├── view.sql        # Представления ядра (CREATE OR REPLACE)
+├── routine.sql     # Функции Create*/Edit*/Get*/Delete*
+├── api.sql         # Представления и обёртки CRUD в схеме api
+├── rest.sql        # REST-диспетчер
+├── event.sql       # Обработчики событий
+├── init.sql        # Бизнес-процесс: состояния, методы, переходы
+├── create.psql     # Мастер-скрипт создания
+└── update.psql     # Мастер-скрипт обновления (без table.sql и init.sql)
+```
+
+## Расширение шаблона
+
+### Добавить новую сущность
+
+1. Создайте директорию в `db/sql/configuration/apostol/entity/object/document/` или `.../reference/`
+2. Следуйте [файловому соглашению для сущностей](https://github.com/apostoldevel/db-platform/wiki/71-Creating-Entity) — 8 SQL-файлов на сущность
+3. Подключите в `create.psql` / `update.psql`
+4. Запустите `./runme.sh --install` (первый раз) или `--patch` (изменения таблиц)
+
+Подробные руководства: [Создание документа](https://github.com/apostoldevel/db-platform/wiki/72-Creating-Document) · [Создание справочника](https://github.com/apostoldevel/db-platform/wiki/73-Creating-Reference)
+
+### Добавить модуль или процесс
+
+1. Клонируйте из [apostoldevel](https://github.com/apostoldevel) в `src/modules/Workers/` или `src/processes/`
+2. Зарегистрируйте в `Workers.hpp` / `Processes.hpp`
+3. Включите в `conf/default.json`
+4. Пересоберите проект
+
+Руководства: [Создание модулей](https://github.com/apostoldevel/libapostol/wiki/Creating-Modules) · [Создание процессов](https://github.com/apostoldevel/libapostol/wiki/Creating-Processes)
+
+### Настройка бизнес-процессов
+
+Каждая сущность имеет машину состояний, определённую в `init.sql`. Добавляйте пользовательские состояния, методы и переходы:
+
+```sql
+PERFORM AddState(uClass, rec_type, 'approved',  'Approved');
+PERFORM AddMethod(uClass, uParent, 'Approve',   'Approve document');
+PERFORM AddTransition(uState_Enabled, 'approve', uState_Approved);
+```
+
+Руководство: [Настройка бизнес-процессов](https://github.com/apostoldevel/db-platform/wiki/74-Workflow-Customization)
 
 ## Структура проекта
 
 ```
 backend/
 ├── src/
-│   ├── app/crm.cpp            # Точка входа приложения
-│   ├── lib/delphi/            # C++ фреймворк libdelphi (клонируется через ./configure)
-│   ├── core/                  # apostol-core (клонируется)
-│   ├── common/                # BackEnd, FetchCommon, FileCommon (клонируется)
+│   ├── app/main.cpp               # Точка входа (ApostolCRMApp)
+│   ├── lib/libapostol/            # C++20 фреймворк (git submodule)
 │   ├── modules/
-│   │   ├── Workers/           # Обработчики HTTP-запросов (клонируются)
-│   │   │   ├── AppServer/     # REST -> PG диспетчер с авторизацией
-│   │   │   ├── AuthServer/    # OAuth2 + JWT
-│   │   │   ├── FileServer/    # Раздача файлов
-│   │   │   ├── WebServer/     # Статические файлы + Swagger UI
-│   │   │   └── WebSocketAPI/  # JSON-RPC + pub/sub
-│   │   └── Helpers/           # Фоновые хелперы (клонируются)
-│   │       ├── PGFetch/       # LISTEN -> исходящие HTTP-запросы
-│   │       └── PGFile/        # LISTEN -> синхронизация файлов
-│   └── processes/             # Фоновые процессы (клонируются)
-│       ├── MessageServer/     # Отправка SMTP/FCM/API
-│       ├── TaskScheduler/     # Планировщик задач
-│       └── ReportServer/      # Генерация отчётов
-├── db/
-│   └── sql/
-│       ├── platform/          # Фреймворк db-platform (клонируется)
-│       └── configuration/
-│           └── apostol/       # Бизнес-логика (30 сущностей)
-├── conf/                      # Конфигурация сервера (INI)
-├── www/docs/                  # Swagger UI + OpenAPI-спецификация
-├── .docker/                   # Файлы для сборки Docker
-├── docker-compose.yml
-├── Dockerfile
-└── configure                  # Скачивает все зависимости с GitHub
+│   │   ├── Workers/               # 6 модулей обработки HTTP
+│   │   └── Helpers/               # 2 фоновых модуля-помощника
+│   └── processes/                 # 3 фоновых процесса
+├── db/sql/
+│   ├── platform/                  # db-platform (26 модулей) — НЕ РЕДАКТИРОВАТЬ
+│   └── configuration/apostol/     # Сущности проекта (30) — РЕДАКТИРОВАТЬ ЗДЕСЬ
+├── conf/
+│   ├── default.json               # Конфигурация сервера (модули, postgres, сервер)
+│   └── oauth2/                    # Конфигурации провайдеров OAuth2
+├── www/docs/                      # Swagger UI + api.yaml (418 эндпоинтов)
+├── docker-compose.yml             # Docker-стек из 5 сервисов
+├── Dockerfile                     # Многоэтапная сборка C++20
+└── configure                      # Загружает модули с GitHub
 ```
 
-Все модули и процессы в `src/` — это отдельные репозитории, клонируемые через `./configure`. Директория `db/sql/platform/` также клонируется из [db-platform](https://github.com/apostoldevel/db-platform).
+`libapostol` является [git-субмодулем](https://github.com/apostoldevel/libapostol). Все модули, процессы и `db/sql/platform/` — это отдельные репозитории, клонируемые скриптом `./configure`.
 
-## Команды для базы данных
+## База данных
 
-Выполняются из директории `db/`:
+| Команда | Действие |
+|---------|----------|
+| `./runme.sh --update` | **Безопасно:** обновить только процедуры и представления |
+| `./runme.sh --patch` | Обновить таблицы + процедуры + представления |
+| `./runme.sh --install` | **Деструктивно:** пересоздать БД с начальными данными |
+| `./runme.sh --init` | **Деструктивно:** первичная установка (создание пользователей + установка) |
 
-```bash
-./runme.sh --update    # Безопасно: обновляет только функции и представления
-./runme.sh --patch     # Обновляет таблицы + функции + представления
-./runme.sh --install   # ДЕСТРУКТИВНО: пересоздание БД с начальными данными
-./runme.sh --init      # ДЕСТРУКТИВНО: первичная настройка (создание пользователей + install)
-```
+Все команды выполняются из директории `db/`.
 
 ## Конфигурация
 
 | Файл | Назначение |
 |------|------------|
-| `conf/default.conf` | Основной конфиг сервера (модули, процессы, PostgreSQL) |
-| `conf/oauth2/default.json` | Определения клиентов OAuth2 |
-| `.env` | Окружение Docker (порты, учётные данные БД) |
-| `db/sql/sets.psql` | Имя базы данных, кодировка, search_path |
+| `conf/default.json` | Основная конфигурация — модули, сервер, подключения PostgreSQL |
+| `conf/oauth2/default.json` | Клиенты OAuth2 (web, service, android, ios) |
+| `conf/oauth2/google.json` | Провайдер Google OAuth2 |
+| `.env` | Окружение Docker (порты, учётные данные БД, секреты) |
+| `db/sql/sets.psql` | Имя базы данных (`apostol`), кодировка, search_path |
 | `db/sql/.env.psql` | Пароли БД, настройки проекта, секреты OAuth2 |
 
-## Управление процессами
-
-Сигналы:
+## Сигналы управления процессом
 
 | Сигнал | Действие |
 |--------|----------|
-| TERM, INT | Быстрое завершение |
-| QUIT | Плавное завершение |
-| HUP | Перезагрузка конфигурации, перезапуск воркеров |
-| WINCH | Плавное завершение воркеров |
+| TERM, INT | Быстрая остановка |
+| QUIT | Плавная остановка |
+| HUP | Перечитать конфигурацию, перезапустить workers |
+| WINCH | Плавная остановка workers |
 
 PID-файл: `/run/apostol-crm.pid`
 
+## Экосистема
+
+Продакшен-проекты, построенные на тех же фреймворках:
+
+| Проект | Отрасль | Описание                                                                            | Версия |
+|--------|---------|-------------------------------------------------------------------------------------|:------:|
+| [**ChargeMeCar**](https://chargemecar.com/) | Электромобили | Система управления зарядными станциями с поддержкой OCPP 1.5/1.6/2.0.1 и OCPI       | v2 |
+| [**Apostol ARB**](https://arb.apostol-crm.com/) | FinTech | SaaS-агрегатор арбитража на крипто-фьючерсах (Binance, Bybit, OKX, MEXC, Bitget)    | v2 |
+| [**PlugMe**](https://plugme.ru) | Электромобили | Центральная система OCPP — сотни станций, тысячи владельцев EV, интеграция платежей | v1 |
+| [**Ship Safety ERP**](https://ship-safety.ru) | Морская отрасль | Автоматизированная СУБ для морской безопасности (СОЛАС, Кодекс ISM)                 | v1 |
+| [**CopyFrog**](https://copyfrog.ai) | ИИ | Платформа генерации изображений, рекламных текстов и маркетингового контента        | v1 |
+| [**Talking to AI**](https://t.me/TalkingToAIBot) | ИИ | Telegram-чатбот для общения с искусственным интеллектом                             | v1 |
+| [**DEBT-Master**](https://debt-master.ru) | Финансы | Управление взысканием задолженности за ЖКУ                                          | v1 |
+| [**Campus CORS**](https://cors.campusagro.com/) | Геодезия | Система передачи ГНСС корректирующих данных с NTRIP Caster                          | v1 |
+
 ## Документация
 
-- [Wiki db-platform](https://github.com/apostoldevel/db-platform/wiki) — руководство по API (52 страницы)
-- [OpenAPI-спецификация](www/docs/api.yaml) — 418 REST-эндпоинтов
-- `db/INDEX.md` — обзор слоя базы данных
-- `db/CLAUDE.md` — команды и соглашения для базы данных
+| Ресурс | Описание |
+|--------|----------|
+| [Wiki libapostol](https://github.com/apostoldevel/libapostol/wiki) | C++20 фреймворк — архитектура, модули, процессы, справочник API |
+| [Wiki db-platform](https://github.com/apostoldevel/db-platform/wiki) | PostgreSQL фреймворк — 52 страницы: API, сущности, бизнес-процессы, контроль доступа |
+| [Getting Started](https://github.com/apostoldevel/libapostol/wiki/Getting-Started) | От пустого проекта до полноценного бэкенда |
+| [Спецификация OpenAPI](www/docs/api.yaml) | 418 REST-эндпоинтов |
+| `db/INDEX.md` | Обзор слоя базы данных |
+| `db/CLAUDE.md` | Команды и соглашения базы данных |
 
 ## Лицензия
 

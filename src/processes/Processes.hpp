@@ -1,42 +1,44 @@
-/*++
+#pragma once
 
-Library name:
+// ─── Processes.hpp ───────────────────────────────────────────────────────────
+//
+// Central registration header for all background processes.
+//
+// create_processes() is called from create_custom_processes() in main.cpp.
 
-  apostol-core
+#include "apostol/application.hpp"
 
-Module Name:
-
-  Processes.hpp
-
-Notices:
-
-  Application others processes
-
-Author:
-
-  Copyright (c) Prepodobny Alen
-
-  mailto: alienufo@inbox.ru
-  mailto: ufocomp@gmail.com
-
---*/
-
-#ifndef APOSTOL_PROCESSES_HPP
-#define APOSTOL_PROCESSES_HPP
-//----------------------------------------------------------------------------------------------------------------------
-
-#include "Header.hpp"
-//----------------------------------------------------------------------------------------------------------------------
-
-#include "MessageServer/MessageServer.hpp"
-#include "ReportServer/ReportProcess.hpp"
+#ifdef WITH_POSTGRESQL
 #include "TaskScheduler/TaskScheduler.hpp"
-//----------------------------------------------------------------------------------------------------------------------
+#include "ReportServer/ReportServer.hpp"
+#endif
 
-static inline void CreateProcesses(CCustomProcess *AParent, CApplication *AApplication) {
-    CMessageServer::CreateProcess(AParent, AApplication);
-    CTaskScheduler::CreateProcess(AParent, AApplication);
-    CReportProcess::CreateProcess(AParent, AApplication);
+#if defined(WITH_POSTGRESQL) && defined(WITH_SSL)
+#include "MessageServer/MessageServer.hpp"
+#endif
+
+namespace apostol
+{
+
+/// Register all custom background processes with the Application.
+static inline void create_processes(Application& app)
+{
+#ifdef WITH_POSTGRESQL
+    if (app.module_enabled("TaskScheduler", false)
+        && !app.settings().pg_conninfo_helper.empty())
+        app.add_custom_process(std::make_unique<TaskScheduler>());
+
+    if (app.module_enabled("ReportServer", false)
+        && !app.settings().pg_conninfo_helper.empty())
+        app.add_custom_process(std::make_unique<ReportServer>());
+#endif
+
+#if defined(WITH_POSTGRESQL) && defined(WITH_SSL)
+    if (app.module_enabled("MessageServer", false)
+        && !app.settings().pg_conninfo_helper.empty())
+        app.add_custom_process(std::make_unique<MessageServer>());
+#endif
+    (void)app;
 }
 
-#endif //APOSTOL_PROCESSES_HPP
+} // namespace apostol

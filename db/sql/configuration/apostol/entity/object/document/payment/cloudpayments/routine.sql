@@ -357,7 +357,7 @@ BEGIN
     vPayType := '/charge';
   END IF;
 
-  vHost := coalesce(RegGetValueString('CURRENT_CONFIG', 'CONFIG\CurrentProject', 'Host'), 'https://ocpp-css.com');
+  vHost := coalesce(RegGetValueString('CURRENT_CONFIG', 'CONFIG\CurrentProject', 'Host'), 'https://example.com');
   vHostIP := RegGetValueString('CURRENT_CONFIG', 'CONFIG\Service\CloudPayments', 'HostIP');
 
   uUserId := GetClientUserId(uClient);
@@ -437,7 +437,7 @@ BEGIN
     vPayType := '/charge';
   END IF;
 
-  vHost := coalesce(RegGetValueString('CURRENT_CONFIG', 'CONFIG\CurrentProject', 'Host'), 'https://ocpp-css.com');
+  vHost := coalesce(RegGetValueString('CURRENT_CONFIG', 'CONFIG\CurrentProject', 'Host'), 'https://example.com');
   vHostIP := RegGetValueString('CURRENT_CONFIG', 'CONFIG\Service\CloudPayments', 'HostIP');
 
   uUserId := GetClientUserId(uClient);

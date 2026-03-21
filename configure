@@ -1,85 +1,32 @@
 #!/bin/bash
-
-# Script to configure apostol web service.
 #
-# Script options:
-# --help                   Display usage, overriding script execution.
+# Configure apostol-crm-crm — wraps cmake with sensible defaults.
+# Downloads modules/processes from GitHub (like v1 configure).
+# libapostol is a git submodule; everything else is cloned/pulled.
 #
+# Usage: ./configure [OPTIONS]
 
-# Initialize the build environment.
-#==============================================================================
-# Exit this script on the first build error.
-#------------------------------------------------------------------------------
 set -e
 
-PROJECT_NAME=campus-cors
+PROJECT_NAME=apostol-crm
 BUILD_TYPE=Release
-PULL_SELF=yes
 PULL_GITHUB=yes
 
-pop_directory()
-{
-    popd >/dev/null
-}
+# CMake feature flags (matching CMakeLists.txt cache variables)
+WITH_POSTGRESQL=ON
+WITH_SSL=ON
+WITH_CURL=ON
+APP_NAME=apostol-crm
 
-push_directory()
-{
-    local DIRECTORY="$1"
+# --- Helpers --------------------------------------------------------------
 
-    pushd "$DIRECTORY" >/dev/null
-}
+pop_directory()  { popd  >/dev/null; }
+push_directory() { pushd "$1" >/dev/null; }
 
-create_directory()
-{
-    local DIRECTORY="$1"
+display_heading_message() { echo; echo "********************** $* **********************"; echo; }
+display_message()         { echo "$@"; }
+display_error()           { >&2 echo "$@"; }
 
-    rm -rf "$DIRECTORY"
-    mkdir "$DIRECTORY"
-}
-
-display_heading_message()
-{
-    echo
-    echo "********************** $@ **********************"
-    echo
-}
-
-display_message()
-{
-    echo "$@"
-}
-
-display_error()
-{
-    >&2 echo "$@"
-}
-
-display_help()
-{
-    display_message "Usage: ./configure [OPTION]..."
-    display_message "Manage the configure."
-    display_message "Script options:"
-    display_message "  --build-dir=<path>       Location of build files (default: $BUILD_DIR)."
-    display_message "  --release                Release build (default)."
-    display_message "  --debug                  Debug build."
-    display_message "  --update                 Update build."
-    display_message "  --not-pull-self          Not pull self."
-    display_message "  --not-pull-github        Not pull from GitHub."
-    display_message "  --help                   Display usage, overriding script execution."
-    display_message ""
-}
-
-display_configuration()
-{
-    display_message "Configuration."
-    display_message "--------------------------------------------------------------------"
-    display_message "PROJECT_NAME         : $PROJECT_NAME"
-    display_message "BUILD_TYPE           : $BUILD_TYPE"
-    display_message "BUILD_DIR            : $BUILD_DIR"
-    display_message "--------------------------------------------------------------------"
-}
-
-# Download from github.
 download_from_github()
 {
     local DIRECTORY=$1
@@ -87,122 +34,148 @@ download_from_github()
     local REPO=$3
     local BRANCH=$4
     local DIR=$5
-    shift 5
 
     push_directory "$DIRECTORY"
 
-    FORK="$ACCOUNT/$REPO"
+    local FORK="$ACCOUNT/$REPO"
 
-    if ! [ -d $DIR ]; then
-      # Clone the repository locally.
-      display_heading_message "Download: $FORK/$BRANCH"
-      git clone --depth 1 --branch $BRANCH --single-branch "https://github.com/$FORK" $DIR
+    if ! [ -d "$DIR" ]; then
+        display_heading_message "Download: $FORK/$BRANCH"
+        git clone --depth 1 --branch "$BRANCH" --single-branch "https://github.com/$FORK" "$DIR"
     else
-      push_directory "$DIR"
-      display_heading_message "Updating: $FORK/$BRANCH"
-      git pull
-      pop_directory
+        push_directory "$DIR"
+        display_heading_message "Updating: $FORK/$BRANCH"
+        git pull
+        pop_directory
     fi
 
     pop_directory
 }
 
-github()
+display_help()
 {
-    display_heading_message "Updating the current project"
-
-    if [[ $PULL_SELF == yes ]]; then
-      git pull
-    fi
-
-    download_from_github src/lib ufocomp libdelphi master delphi
-    download_from_github src apostoldevel apostol-core master core
-    download_from_github src apostoldevel apostol-common master common
-
-    download_from_github src/modules/Helpers apostoldevel module-PGFetch version1 PGFetch
-    download_from_github src/modules/Helpers apostoldevel module-PGFile version1 PGFile
-
-    download_from_github src/modules/Workers apostoldevel module-AppServer version1 AppServer
-    download_from_github src/modules/Workers apostoldevel module-AuthServer version1 AuthServer
-    download_from_github src/modules/Workers apostoldevel module-ConfirmEmail master ConfirmEmail
-    download_from_github src/modules/Workers apostoldevel module-FileServer version1 FileServer
-    download_from_github src/modules/Workers apostoldevel module-PGHTTP version1 PGHTTP
-    download_from_github src/modules/Workers apostoldevel module-WebServer version1 WebServer
-    download_from_github src/modules/Workers apostoldevel module-WebSocketAPI version1 WebSocketAPI
-
-    download_from_github src/processes apostoldevel process-MessageServer version1 MessageServer
-    download_from_github src/processes apostoldevel process-ReportServer version1 ReportServer
-    download_from_github src/processes apostoldevel process-TaskScheduler version1 TaskScheduler
-
-    download_from_github db/sql apostoldevel db-platform master platform
+    display_message "Usage: ./configure [OPTION]..."
+    display_message ""
+    display_message "Build options:"
+    display_message "  --release                Release build (default)"
+    display_message "  --debug                  Debug build"
+    display_message "  --update                 Reconfigure without deleting the build directory"
+    display_message "  --build-dir=<path>       Location of build files (default: cmake-build-{type})"
+    display_message ""
+    display_message "Feature flags:"
+    display_message "  --with-postgresql        Enable PostgreSQL / libpq support (default: on)"
+    display_message "  --without-postgresql     Disable PostgreSQL support"
+    display_message "  --without-ssl            Disable OpenSSL support (default: on)"
+    display_message "  --without-curl           Disable libcurl support (default: on)"
+    display_message "  --app-name=<name>        Application binary / config name (default: apostol-crm)"
+    display_message ""
+    display_message "  --not-pull-github        Skip downloading/updating from GitHub"
+    display_message "  --help                   Display this help"
+    display_message ""
 }
 
-Success()
+display_configuration()
 {
-    display_message ""
-    echo -e "********************** \e[32;1mSUCCESS\e[0m **********************"
-    echo -e "\e[32m-- To build the $PROJECT_NAME run:\e[0m"
+    display_message "Configuration"
     display_message "--------------------------------------------------------------------"
-    echo -e "\e[1m$ cd $BUILD_DIR \e[0m"
-    echo -e "\e[1m$ make \e[0m"
-    display_message "--------------------------------------------------------------------"
-    echo -e "\e[32m-- To install the $PROJECT_NAME run:\e[0m"
-    display_message "--------------------------------------------------------------------"
-    echo -e "\e[1m$ sudo make install\e[0m"
+    display_message "PROJECT_NAME         : $PROJECT_NAME"
+    display_message "BUILD_TYPE           : $BUILD_TYPE"
+    display_message "BUILD_DIR            : $BUILD_DIR"
+    display_message "WITH_POSTGRESQL      : $WITH_POSTGRESQL"
+    display_message "WITH_SSL             : $WITH_SSL"
+    display_message "WITH_CURL            : $WITH_CURL"
+    display_message "APP_NAME             : $APP_NAME"
     display_message "--------------------------------------------------------------------"
 }
 
 make_configuration()
 {
     if ! [[ $BUILD_UPDATE ]]; then
-        create_directory $BUILD_DIR
+        rm -rf "$BUILD_DIR"
+        mkdir -p "$BUILD_DIR"
     fi
 
-    echo '#define AUTO_VERSION _T("1.0.e00000-b0")' > version.h
+    display_heading_message "Configuring: $PROJECT_NAME"
 
-    if [[ $PULL_GITHUB == yes ]]; then
-      github
-    fi
+    cmake \
+        -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+        -DWITH_POSTGRESQL="$WITH_POSTGRESQL" \
+        -DWITH_SSL="$WITH_SSL" \
+        -DWITH_CURL="$WITH_CURL" \
+        -DAPP_NAME="$APP_NAME" \
+        -B "$BUILD_DIR" .
 
-    display_heading_message "Make: $PROJECT_NAME"
-
-    cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE . -B $BUILD_DIR
-
-    Success
+    display_message ""
+    echo -e "********************** \e[32;1mSUCCESS\e[0m **********************"
+    echo -e "\e[32m-- To build $PROJECT_NAME run:\e[0m"
+    display_message "--------------------------------------------------------------------"
+    echo -e "\e[1m\$ cmake --build $BUILD_DIR --parallel \$(nproc)\e[0m"
+    display_message "--------------------------------------------------------------------"
+    echo -e "\e[32m-- To install $PROJECT_NAME run:\e[0m"
+    display_message "--------------------------------------------------------------------"
+    echo -e "\e[1m\$ sudo cmake --install $BUILD_DIR\e[0m"
+    display_message "--------------------------------------------------------------------"
 }
 
-# Parse command line options that are handled by this script.
-#------------------------------------------------------------------------------
+# --- Parse options --------------------------------------------------------
+
 for OPTION in "$@"; do
     case $OPTION in
-        # Standard script options.
-        (--help)                DISPLAY_HELP="yes";;
+        (--help)               DISPLAY_HELP=yes ;;
 
-        (--release)             BUILD_TYPE="Release";;
-        (--debug)               BUILD_TYPE="Debug";;
+        (--release)            BUILD_TYPE=Release ;;
+        (--debug)              BUILD_TYPE=Debug ;;
+        (--update)             BUILD_UPDATE=yes ;;
 
-        (--update)              BUILD_UPDATE="yes";;
-        (--not-pull-self)       PULL_SELF="no";;
-        (--not-pull-github)     PULL_GITHUB="no";;
+        (--with-postgresql)    WITH_POSTGRESQL=ON ;;
+        (--without-postgresql) WITH_POSTGRESQL=OFF ;;
+        (--without-ssl)        WITH_SSL=OFF ;;
+        (--without-curl)       WITH_CURL=OFF ;;
 
-        # Unique script options.
-        (--build-dir=*)         BUILD_DIR="${OPTION#*=}";;
+        (--not-pull-github)    PULL_GITHUB=no ;;
+        (--app-name=*)         APP_NAME="${OPTION#*=}" ;;
+        (--build-dir=*)        BUILD_DIR="${OPTION#*=}" ;;
     esac
 done
 
 if ! [[ $BUILD_DIR ]]; then
-  if [[ $BUILD_TYPE == Debug ]]; then
-    BUILD_DIR=cmake-build-debug
-  else
-    BUILD_DIR=cmake-build-release
-  fi
+    if [[ $BUILD_TYPE == Debug ]]; then
+        BUILD_DIR=cmake-build-debug
+    else
+        BUILD_DIR=cmake-build-release
+    fi
 fi
 
-# Configure.
-#==============================================================================
+# --- Run ------------------------------------------------------------------
+
 if [[ $DISPLAY_HELP ]]; then
     display_help
 else
+    # libapostol — git submodule
+    if [[ -d .git ]]; then
+        display_heading_message "Updating submodules"
+        git submodule update --init --remote
+    fi
+
+    # Modules, processes, db-platform — clone/pull from GitHub
+    if [[ $PULL_GITHUB == yes ]]; then
+        download_from_github src/modules/Workers  apostoldevel module-AppServer      master AppServer
+        download_from_github src/modules/Workers  apostoldevel module-AuthServer     master AuthServer
+        download_from_github src/modules/Workers  apostoldevel module-FileServer     master FileServer
+        download_from_github src/modules/Workers  apostoldevel module-PGHTTP         master PGHTTP
+        download_from_github src/modules/Workers  apostoldevel module-WebServer      master WebServer
+        download_from_github src/modules/Workers  apostoldevel module-WebSocketAPI   master WebSocketAPI
+
+        download_from_github src/modules/Helpers  apostoldevel module-PGFetch        master PGFetch
+        download_from_github src/modules/Helpers  apostoldevel module-PGFile         master PGFile
+
+        download_from_github src/processes        apostoldevel process-MessageServer master MessageServer
+        download_from_github src/processes        apostoldevel process-ReportServer  master ReportServer
+        download_from_github src/processes        apostoldevel process-TaskScheduler master TaskScheduler
+
+        download_from_github db/sql               apostoldevel db-platform           master platform
+    fi
+
     display_configuration
     make_configuration
 fi

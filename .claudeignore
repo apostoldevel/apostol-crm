@@ -1,3 +1,6 @@
+.git
 .idea
+logs
+cmake-build-*
 tmp
-
+www

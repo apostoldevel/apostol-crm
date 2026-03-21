@@ -1,20 +1,17 @@
 .dockerignore
+.git
 .idea
 db/sql/.idea
 www/.idea
-ccc
 
 cmake-build-*
+logs
 
-src/lib/delphi
-src/core
-src/common
 src/modules/Helpers/PGFetch
 src/modules/Helpers/PGFile
 
 src/modules/Workers/AppServer
 src/modules/Workers/AuthServer
-src/modules/Workers/ConfirmEmail
 src/modules/Workers/FileServer
 src/modules/Workers/PGHTTP
 src/modules/Workers/WebServer

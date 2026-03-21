@@ -1,5 +1,3 @@
-/MessageServer
-/Replication
-/ReportServer
-/StreamServer
-/TaskScheduler
+MessageServer/
+ReportServer/
+TaskScheduler/

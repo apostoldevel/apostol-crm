@@ -1,110 +1,95 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
-if ! [[ $PROJECT_NAME ]]; then
-  PROJECT_NAME=apostol-crm
+PROJECT_NAME="${PROJECT_NAME:-apostol-crm}"
+
+set -o allexport
+source /opt/$PROJECT_NAME/.env
+set +o allexport
+
+PGHOST="${PGHOST:-postgres}"
+PGPORT="${PGPORT:-5432}"
+PGUSER="${PGUSER:-daemon}"
+PGDATABASE="${PGDATABASE:-apostol}"
+
+PG_PARAMS=(-d "$PGDATABASE" -U "$PGUSER")
+
+if [ -n "$PGHOST" ]; then
+  PG_PARAMS+=(-h "$PGHOST")
 fi
 
-if ! [[ $LANG ]]; then
-  LANG=ru_RU.UTF-8
+if [ -n "$PGPORT" ]; then
+  PG_PARAMS+=(-p "$PGPORT")
 fi
 
-if ! [[ $WORKER_PROCESSES ]]; then
-  WORKER_PROCESSES=4
+if [[ -d /var/log/$PROJECT_NAME ]]; then
+  find /var/log/"$PROJECT_NAME" -name '*.log' -delete
 fi
 
-if ! [[ $PG_VERSION ]]; then
-  PG_VERSION=16
-fi
-
-if ! [[ $PG_CLUSTER ]]; then
-  PG_CLUSTER=main
-fi
-
-if ! [[ $PG_DATA ]]; then
-  PG_DATA=/var/lib/postgresql/$PG_VERSION/$PG_CLUSTER
-fi
-
-if ! [[ $PGWEB_DATABASE_URL ]]; then
-  export PGWEB_DATABASE_URL=postgres://kernel:kernel@localhost:5432/crm
-fi
-
-pop_directory()
-{
+pop_directory() {
   popd >/dev/null
 }
 
-push_directory()
-{
+push_directory() {
   local DIRECTORY="$1"
   pushd "$DIRECTORY" >/dev/null
 }
 
-display_message()
-{
+display_message() {
   echo "$@"
 }
 
-display_error()
-{
+display_error() {
   >&2 echo "$@"
 }
 
-display_help()
-{
-  display_message "Usage: ./run.sh [OPTION]"
-  display_message "Script options:"
-  display_message "  --initdb                 Initialize database."
-  display_message "  --help                   Display usage, overriding script execution."
-  display_message ""
-}
-
-display_configuration()
-{
+display_configuration() {
   display_message "--------------------------------------------------------------------"
   display_message "PROJECT_NAME    : $PROJECT_NAME"
-  display_message "LANG            : $LANG"
-  display_message "PG_VERSION      : $PG_VERSION"
-  display_message "PG_CLUSTER      : $PG_CLUSTER"
+  display_message "WORKER_PROCESSES: $WORKER_PROCESSES"
+  display_message "PGHOST          : $PGHOST"
+  display_message "PGPORT          : $PGPORT"
+  display_message "PGDATABASE      : $PGDATABASE"
+  display_message "PGUSER          : $PGUSER"
   display_message "--------------------------------------------------------------------"
 }
 
-init_db()
-{
-  pg_createcluster --locale $LANG $PG_VERSION $PG_CLUSTER
-
-  push_directory /opt/$PROJECT_NAME/docker
-
-  cat postgresql.conf >> /etc/postgresql/$PG_VERSION/$PG_CLUSTER/postgresql.conf
-
-  chmod 640 pg_hba.conf
-  chown postgres:postgres pg_hba.conf
-  cp -p pg_hba.conf /etc/postgresql/$PG_VERSION/$PG_CLUSTER/pg_hba.conf
-
-  chmod 600 .pgpass
-  chown postgres:postgres .pgpass
-  cp -p .pgpass /var/lib/postgresql/.pgpass
-
+set_env() {
+  push_directory /opt/"$PROJECT_NAME"
+  envsubst < conf/oauth2/default.json > /etc/"$PROJECT_NAME"/oauth2/default.json
+  envsubst < conf/oauth2/google.json > /etc/"$PROJECT_NAME"/oauth2/google.json
+  envsubst < conf/sites/default.json > /etc/"$PROJECT_NAME"/sites/default.json
+  envsubst < conf/smtp.conf > /etc/"$PROJECT_NAME"/conf/smtp.conf
+  envsubst < conf/default.json > /etc/"$PROJECT_NAME"/"$PROJECT_NAME".json
   pop_directory
+}
 
-  pg_ctlcluster $PG_VERSION $PG_CLUSTER start
-
-  push_directory /opt/$PROJECT_NAME/db/sql
-  sudo -u postgres -H psql -d template1 -f make.psql
+init_app() {
+  mkdir -p /etc/"$PROJECT_NAME"/oauth2 /etc/"$PROJECT_NAME"/sites
+  push_directory /opt/"$PROJECT_NAME"
+  cp -p conf/*.conf /etc/"$PROJECT_NAME"/conf
   pop_directory
-
-  echo $(date '+%Y%m%d') > .initdb
 }
 
 display_configuration
 
-if ! [[ -d $PG_DATA ]]; then
-  init_db
-else
-  pg_ctlcluster $PG_VERSION $PG_CLUSTER start
+if [[ ! -f /etc/$PROJECT_NAME/$PROJECT_NAME.json ]]; then
+  init_app
 fi
 
-/usr/sbin/$PROJECT_NAME -w $WORKER_PROCESSES & /usr/bin/pgweb --bind=0.0.0.0 --listen=8081 --skip-open
+set_env
 
-pg_ctlcluster $PG_VERSION $PG_CLUSTER stop
+display_message "Waiting for the database to be ready..."
+
+retries=10
+until pg_isready --timeout=1 "${PG_PARAMS[@]}" >/dev/null 2>&1; do
+  sleep 1
+  ((retries=retries-1))
+  if [ $retries -eq 0 ]; then
+    display_error "Can't connect to database $PGDATABASE on $PGHOST:$PGPORT as user $PGUSER."
+    exit 1
+  fi
+done
+
+/usr/sbin/"$PROJECT_NAME" -w "$WORKER_PROCESSES"
