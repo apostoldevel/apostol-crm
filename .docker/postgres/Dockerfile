@@ -19,7 +19,6 @@ RUN set -eux; \
 # Копируем SQL файлы в образ
 COPY ./db/sql /docker-entrypoint-initdb.d
 COPY ./.docker/postgres/postgresql.conf /tmp
-COPY ./tmp /tmp
 
 USER root
 
